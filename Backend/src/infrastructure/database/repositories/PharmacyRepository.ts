@@ -1,5 +1,5 @@
-import { IPharmacyRepository } from '../../domain/pharmacy/IPharmacyRepository';
-import { Medicine } from '../../domain/pharmacy/Medicine.entity';
+import { IPharmacyRepository } from '../../../domain/pharmacy/IPharmacyRepository';
+import { Medicine } from '../../../domain/pharmacy/Medicine.entity';
 import { MedicineModel, IMedicineDocument } from '../schemas/Medicine.schema';
 
 export class PharmacyRepository implements IPharmacyRepository {

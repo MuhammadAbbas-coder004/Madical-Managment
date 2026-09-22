@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+// Load environment variables immediately before other imports
+dotenv.config();
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { connectDatabase } from './infrastructure/config/database';
 import patientRoutes from './presentation/routes/patient.routes';
 import doctorRoutes from './presentation/routes/doctor.routes';
@@ -11,9 +14,6 @@ import medicalRecordRoutes from './presentation/routes/medical-record.routes';
 import labReportRoutes from './presentation/routes/lab-report.routes';
 import authRoutes from './presentation/routes/auth.routes';
 import { errorMiddleware } from './presentation/middlewares/error.middleware';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

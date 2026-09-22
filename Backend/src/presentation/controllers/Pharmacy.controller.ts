@@ -25,7 +25,7 @@ export class PharmacyController {
   }
 
   async reduceStock(req: Request, res: Response): Promise<void> {
-    const { medicineId } = req.params;
+    const medicineId = req.params.medicineId as string;
     const { amount } = req.body; // expecting { amount: number }
     try {
       await this.service.reduceStock(medicineId, amount);

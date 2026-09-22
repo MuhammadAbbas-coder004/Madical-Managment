@@ -1,3 +1,5 @@
+import { Medicine } from './Medicine.entity';
+
 export interface IPharmacyRepository {
   save(medicine: Medicine): Promise<void>;
   findById(medicineId: string): Promise<Medicine | null>;
@@ -5,4 +7,4 @@ export interface IPharmacyRepository {
   update(medicine: Medicine): Promise<void>;
 }
 
-// Medicine type imported from domain entity
+

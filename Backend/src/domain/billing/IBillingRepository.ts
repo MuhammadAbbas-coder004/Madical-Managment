@@ -1,4 +1,4 @@
-import { Invoice } from '../../domain/billing/Invoice.entity';
+import { Invoice } from './Invoice.entity';
 
 export interface IBillingRepository {
   save(invoice: Invoice): Promise<void>;

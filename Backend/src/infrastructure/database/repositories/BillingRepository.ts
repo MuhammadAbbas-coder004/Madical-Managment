@@ -1,5 +1,5 @@
-import { IBillingRepository } from '../../domain/billing/IBillingRepository';
-import { Invoice } from '../../domain/billing/Invoice.entity';
+import { IBillingRepository } from '../../../domain/billing/IBillingRepository';
+import { Invoice } from '../../../domain/billing/Invoice.entity';
 import { InvoiceModel, IInvoiceDocument } from '../schemas/Invoice.schema';
 
 export class BillingRepository implements IBillingRepository {
