@@ -2,8 +2,12 @@ import { Router } from 'express';
 import { PatientRepository } from '../../infrastructure/database/repositories/PatientRepository';
 import { PatientApplicationService } from '../../application/patient/PatientApplicationService';
 import { PatientController } from '../controllers/Patient.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const patientRouter = Router();
+
+// Protect all patient routes with auth middleware
+patientRouter.use(authMiddleware as any);
 
 // Dependency Injection
 const patientRepository = new PatientRepository();

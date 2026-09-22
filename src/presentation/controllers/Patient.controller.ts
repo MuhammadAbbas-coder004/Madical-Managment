@@ -31,7 +31,7 @@ export class PatientController {
 
   public getPatient = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { patientId } = req.params;
+      const patientId = String(req.params.patientId);
       const patient = await this.patientService.getPatient(patientId);
 
       res.status(200).json({
