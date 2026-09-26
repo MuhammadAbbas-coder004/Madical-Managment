@@ -16,6 +16,12 @@ import medicalRecordRoutes from './presentation/routes/medical-record.routes';
 import labReportRoutes from './presentation/routes/lab-report.routes';
 import authRoutes from './presentation/routes/auth.routes';
 import { errorMiddleware } from './presentation/middlewares/error.middleware';
+import billingRoutes from './presentation/routes/billing.routes';
+
+
+
+
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,6 +53,7 @@ app.use('/api/vitals', vitalsRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
 app.use('/api/lab-reports', labReportRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Global error handler (must be registered last after all routes)
 app.use(errorMiddleware);
