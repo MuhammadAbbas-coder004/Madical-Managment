@@ -21,10 +21,9 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (_req: Request, file: Express.Multer.File, cb) => {
-    // Unique filename: timestamp + original name (spaces replaced with underscores)
-    const timestamp = Date.now();
-    const sanitizedOriginalName = file.originalname.replace(/\s+/g, '_');
-    cb(null, `${timestamp}-${sanitizedOriginalName}`);
+    // Unique filename: Date.now() + original filename
+    const uniqueFilename = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueFilename);
   },
 });
 
