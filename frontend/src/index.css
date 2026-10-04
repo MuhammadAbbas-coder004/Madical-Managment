@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F8FAFC;
+  color: #1E293B;
+  margin: 0;
+}
+
+button, [role="button"] {
+  transition: transform 0.15s cubic-bezier(0.19, 1, 0.22, 1), background-color 0.15s ease, opacity 0.15s ease;
+}
+
+button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
