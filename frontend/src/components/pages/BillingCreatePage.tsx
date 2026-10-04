@@ -163,7 +163,7 @@ export const BillingCreatePage: React.FC = () => {
                 >
                   {patients.map((p) => (
                     <option key={p.patientId} value={p.patientId}>
-                      {p.fullName || `${p.firstName} ${p.lastName}`} (ID: {p.patientId})
+                      {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
                     </option>
                   ))}
                 </select>
@@ -202,7 +202,7 @@ export const BillingCreatePage: React.FC = () => {
                   {items.map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-3 p-3 bg-slate-50 border border-border rounded-lg"
+                      className="flex items-center gap-3 rounded-md border border-textPrimary/10 bg-background p-3"
                     >
                       <div className="flex-1">
                         <input
@@ -252,7 +252,7 @@ export const BillingCreatePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center p-4 bg-teal-50/50 border border-teal-200/60 rounded-xl">
+              <div className="flex justify-between items-center p-4 bg-primary/5 border border-primary/20 rounded-xl">
                 <span className="text-sm font-semibold text-textPrimary">
                   Total Billable Amount:
                 </span>

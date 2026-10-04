@@ -17,6 +17,8 @@ import labReportRoutes from './presentation/routes/lab-report.routes';
 import authRoutes from './presentation/routes/auth.routes';
 import { errorMiddleware } from './presentation/middlewares/error.middleware';
 import billingRoutes from './presentation/routes/billing.routes';
+import dashboardRoutes from './presentation/routes/dashboard.routes';
+import pharmacyRoutes from './presentation/routes/pharmacy.routes';
 
 
 
@@ -29,7 +31,12 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+      process.env.CLIENT_URL,
+    ].filter((origin): origin is string => Boolean(origin)),
     credentials: true,
   })
 );
@@ -54,6 +61,8 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
 app.use('/api/lab-reports', labReportRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/pharmacy', pharmacyRoutes);
 
 // Global error handler (must be registered last after all routes)
 app.use(errorMiddleware);

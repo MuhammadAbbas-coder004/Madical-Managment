@@ -87,4 +87,15 @@ export class Appointment {
   public get notes(): string | undefined {
     return this._notes;
   }
+
+  public toJSON() {
+    return {
+      appointmentId: this._appointmentId,
+      patientId: this._patientId,
+      doctorId: this._doctorId,
+      appointmentDate: this._appointmentDate,
+      status: this._status,
+      notes: this._notes,
+    };
+  }
 }

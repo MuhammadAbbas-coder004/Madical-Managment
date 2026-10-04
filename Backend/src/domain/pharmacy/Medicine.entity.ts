@@ -27,9 +27,22 @@ export class Medicine {
   }
 
   public static create(dto: { name: string; quantity: number; unitPrice: number; expiryDate: Date }): Medicine {
+    if (!dto.name || dto.name.trim().length === 0) {
+      throw new Error('Medicine name is required');
+    }
+    if (dto.quantity === undefined || isNaN(dto.quantity) || dto.quantity < 0) {
+      throw new Error('Valid medicine quantity is required');
+    }
+    if (dto.unitPrice === undefined || isNaN(dto.unitPrice) || dto.unitPrice <= 0) {
+      throw new Error('Valid unit price is required');
+    }
+    if (!dto.expiryDate || isNaN(dto.expiryDate.getTime())) {
+      throw new Error('Valid expiry date is required');
+    }
+
     return new Medicine({
       medicineId: '', // will be set by service/repo
-      name: dto.name,
+      name: dto.name.trim(),
       quantity: dto.quantity,
       unitPrice: dto.unitPrice,
       expiryDate: dto.expiryDate,
@@ -47,9 +60,22 @@ export class Medicine {
   public set medicineId(id: string) { this._medicineId = id; }
 
   public reduceStock(amount: number): void {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Amount must be a positive number');
+    }
     if (amount > this._quantity) {
       throw new Error('Insufficient stock');
     }
     this._quantity -= amount;
+  }
+
+  public toJSON() {
+    return {
+      medicineId: this._medicineId,
+      name: this._name,
+      quantity: this._quantity,
+      unitPrice: this._unitPrice,
+      expiryDate: this._expiryDate,
+    };
   }
 }

@@ -126,7 +126,7 @@ export const PharmacyListPage: React.FC = () => {
       )}
 
       {!loading && (
-        <Card className="p-0 overflow-hidden">
+        <Card className="!p-0 overflow-hidden">
           {filteredMedicines.length === 0 ? (
             <div className="p-8 text-center text-textSecondary text-sm">
               No medications found in pharmacy stock.
@@ -134,7 +134,7 @@ export const PharmacyListPage: React.FC = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-border text-xs uppercase font-semibold text-textSecondary">
+                <thead className="bg-background border-b border-textPrimary/10 text-xs uppercase font-semibold text-textSecondary">
                   <tr>
                     <th className="px-6 py-3">Medication Name</th>
                     <th className="px-6 py-3">In Stock</th>
@@ -151,7 +151,7 @@ export const PharmacyListPage: React.FC = () => {
                     const amount = dispenseAmounts[id] || 1;
 
                     return (
-                      <tr key={id} className="hover:bg-slate-50/50">
+                      <tr key={id} className="hover:bg-primary/5">
                         <td className="px-6 py-4 font-medium flex items-center gap-2">
                           <Pill className="w-4 h-4 text-primary shrink-0" />
                           {med.name}

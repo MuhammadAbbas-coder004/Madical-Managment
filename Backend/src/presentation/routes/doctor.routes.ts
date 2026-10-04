@@ -16,6 +16,7 @@ const doctorController = new DoctorController(doctorService);
 
 // Route definitions
 doctorRouter.post('/', doctorController.createDoctor);
+doctorRouter.get('/me', doctorController.getMyDoctor);
 doctorRouter.get('/:doctorId', doctorController.getDoctor);
 doctorRouter.get('/', doctorController.getAllDoctors);
 

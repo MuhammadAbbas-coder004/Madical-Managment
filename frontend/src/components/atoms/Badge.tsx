@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { AlertTriangle, CircleCheck } from 'lucide-react';
 import gsap from 'gsap';
 import { ANIMATION } from '../../shared/utils/constants';
 
@@ -41,9 +42,9 @@ export const Badge: React.FC<BadgeProps> = ({
   }, [variant]);
 
   const variantStyles = {
-    success: 'bg-green-50 text-success border-green-200',
-    warning: 'bg-amber-50 text-warning border-amber-200',
-    danger: 'bg-red-50 text-danger border-red-200',
+    success: 'bg-primary/10 text-primary border-primary/20',
+    warning: 'bg-primary/10 text-primary border-primary/20',
+    danger: 'bg-danger/10 text-danger border-danger/20',
   };
 
   return (
@@ -51,9 +52,9 @@ export const Badge: React.FC<BadgeProps> = ({
       ref={badgeRef}
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${variantStyles[variant]} ${className}`}
     >
-      {variant === 'danger' && (
-        <span className="w-1.5 h-1.5 rounded-full bg-danger mr-1.5 shrink-0" />
-      )}
+      {variant === 'success'
+        ? <CircleCheck className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        : <AlertTriangle className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
       {children}
     </span>
   );

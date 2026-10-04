@@ -62,4 +62,16 @@ export class Invoice {
   public markAsPaid(): void {
     this._status = 'paid';
   }
+
+  public toJSON() {
+    return {
+      invoiceId: this._invoiceId,
+      patientId: this._patientId,
+      appointmentId: this._appointmentId,
+      items: this._items,
+      totalAmount: this._totalAmount,
+      status: this._status,
+      createdAt: this._createdAt,
+    };
+  }
 }

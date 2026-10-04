@@ -5,6 +5,7 @@ export interface IUserDocument extends Document {
   email: string;
   password: string;
   role: 'admin' | 'doctor' | 'nurse' | 'patient';
+  linkedId?: string;
 }
 
 const userSchema = new mongoose.Schema({
@@ -27,7 +28,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["admin", "doctor", "nurse", "patient"],
     default: "patient"
-  }
+  },
+  linkedId: {
+    type: String,
+    required: false
+  },
 });
 
 export const UserModel = mongoose.model<IUserDocument>('User', userSchema);

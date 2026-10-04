@@ -7,6 +7,8 @@ export interface User {
   username?: string;
   email: string;
   role: string;
+  patientId?: string;
+  doctorId?: string;
 }
 
 interface AuthState {

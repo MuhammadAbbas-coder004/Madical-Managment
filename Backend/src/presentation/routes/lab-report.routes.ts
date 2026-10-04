@@ -1,16 +1,13 @@
 import { Router } from 'express';
+import { authMiddleware } from '../middlewares/auth.middleware';
 import { LabReportController } from '../controllers/LabReport.controller';
-import { upload } from '../../infrastructure/upload/multerConfig';
 
 const labReportRouter = Router();
+labReportRouter.use(authMiddleware as any);
 const labReportController = new LabReportController();
 
-// POST /upload/:patientId - Upload lab report (the form-data field name must be "file")
-labReportRouter.post(
-  '/upload/:patientId',
-  upload.single('file'),
-  labReportController.uploadReport
-);
+// POST /patient/:patientId - Create a text-based lab report
+labReportRouter.post('/patient/:patientId', labReportController.createReport);
 
 // GET /patient/:patientId - Get all reports for a given patient
 labReportRouter.get(

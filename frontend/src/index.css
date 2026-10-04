@@ -4,8 +4,8 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #F8FAFC;
-  color: #1E293B;
+  background-color: theme('colors.background');
+  color: theme('colors.textPrimary');
   margin: 0;
 }
 
@@ -17,3 +17,84 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   transform: scale(0.98);
 }
 
+/* Give shared cards a quiet hover and preserve the existing GSAP reveal. */
+.gsap-card {
+  transition: scale 180ms ease-out, border-color 180ms ease-out;
+}
+
+.gsap-card:hover,
+.gsap-card:focus-within {
+  border-color: theme('colors.primary.DEFAULT');
+  scale: 1.01;
+}
+
+.card-arrow {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid theme('colors.border');
+  border-radius: 9999px;
+  color: theme('colors.textPrimary');
+  transition: color 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out;
+}
+
+.card-arrow:hover,
+.card-arrow:focus-visible {
+  border-color: theme('colors.primary.DEFAULT');
+  color: theme('colors.primary.DEFAULT');
+  transform: translate(2px, -2px);
+}
+
+/* Use consistent titles and quiet labels across list and detail pages. */
+main h1:not(.dashboard-title) {
+  font-size: 28px !important;
+  font-weight: 500 !important;
+  line-height: 1.2;
+}
+
+main h1:not(.dashboard-title)::before {
+  content: 'Clinical workspace';
+  display: block;
+  margin-bottom: 8px;
+  color: theme('colors.textSecondary');
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+main table {
+  border-collapse: collapse;
+}
+
+main thead {
+  border-bottom: 1px solid theme('colors.border');
+}
+
+main tbody tr {
+  border-bottom: 1px solid theme('colors.border');
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gsap-card,
+  .card-arrow,
+  button,
+  [role="button"] {
+    transition: none;
+  }
+
+  .gsap-card:hover,
+  .gsap-card:focus-within {
+    scale: 1;
+  }
+
+  .card-arrow:hover,
+  .card-arrow:focus-visible,
+  button:active:not(:disabled),
+  [role="button"]:active:not(:disabled) {
+    transform: none;
+  }
+}

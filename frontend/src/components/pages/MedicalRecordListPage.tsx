@@ -19,26 +19,39 @@ interface MedicalRecord {
   createdAt: string;
 }
 
+interface Doctor { doctorId: string; firstName?: string; lastName?: string; fullName?: string; specialization?: string; }
+
 export const MedicalRecordListPage: React.FC = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [doctorMap, setDoctorMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    const fetchPatients = async () => {
+    const fetchInitialData = async () => {
       try {
-        const res: any = await api.get('/patients');
-        const list = Array.isArray(res) ? res : res.data || [];
-        setPatients(list);
-        if (list.length > 0) {
-          setSelectedPatientId(list[0].patientId);
-        }
+        const [patRes, docRes]: any[] = await Promise.all([
+          api.get('/patients'),
+          api.get('/doctors'),
+        ]);
+        const patList = Array.isArray(patRes) ? patRes : patRes.data || [];
+        setPatients(patList);
+        if (patList.length > 0) setSelectedPatientId(patList[0].patientId);
+
+        const docList: Doctor[] = Array.isArray(docRes) ? docRes : docRes.data || [];
+        const map = new Map<string, string>();
+        docList.forEach((d) => {
+          const name = d.fullName || `Dr. ${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Unknown Doctor';
+          const label = d.specialization ? `${name} (${d.specialization})` : name;
+          map.set(d.doctorId, label);
+        });
+        setDoctorMap(map);
       } catch (err) {
-        toast.error('Failed to load patients');
+        toast.error('Failed to load data');
       }
     };
-    fetchPatients();
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -94,7 +107,7 @@ export const MedicalRecordListPage: React.FC = () => {
         >
           {patients.map((p) => (
             <option key={p.patientId} value={p.patientId}>
-              {p.fullName || `${p.firstName} ${p.lastName}`} (ID: {p.patientId})
+              {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
             </option>
           ))}
         </select>
@@ -124,7 +137,7 @@ export const MedicalRecordListPage: React.FC = () => {
                       {rec.diagnosis}
                     </h3>
                     <p className="text-xs text-textSecondary flex items-center gap-1.5 mt-0.5">
-                      <User className="w-3.5 h-3.5" /> Doctor ID: {rec.doctorId}
+                      <User className="w-3.5 h-3.5" /> Doctor: {doctorMap.get(rec.doctorId) || rec.doctorId}
                     </p>
                   </div>
                   <span className="text-xs text-textSecondary flex items-center gap-1">
@@ -141,7 +154,7 @@ export const MedicalRecordListPage: React.FC = () => {
                     {rec.allergies.map((allergy, i) => (
                       <span
                         key={i}
-                        className="text-xs bg-red-50 text-danger border border-red-200 px-2 py-0.5 rounded-full font-medium"
+                        className="text-xs bg-danger/10 text-danger border border-danger/20 px-2 py-0.5 rounded-full font-medium"
                       >
                         {allergy}
                       </span>
@@ -149,7 +162,7 @@ export const MedicalRecordListPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="bg-slate-50 p-3 rounded-lg border border-border">
+                <div className="bg-background p-3 rounded-md border border-textPrimary/10">
                   <p className="text-xs font-semibold text-textSecondary uppercase tracking-wider mb-1">
                     Doctor's Notes
                   </p>

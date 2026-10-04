@@ -16,6 +16,7 @@ const patientController = new PatientController(patientService);
 
 // Route definitions
 patientRouter.post('/', patientController.createPatient);
+patientRouter.get('/me', patientController.getMyPatient);
 patientRouter.get('/:patientId', patientController.getPatient);
 patientRouter.get('/', patientController.getAllPatients);
 

@@ -1,3 +1,4 @@
+// Defines the app theme and scoped voice controls.
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -11,17 +12,21 @@ export default {
       },
       colors: {
         primary: {
-          DEFAULT: '#0F766E',
-          hover: '#0D655E',
-          light: '#F0FDFA',
+          DEFAULT: '#2563EB',
+          hover: '#1D4ED8',
+          light: '#2563EB',
         },
+        prescriptionPrimary: '#2563EB',
+        prescriptionPrimaryDark: '#1D4ED8',
+        voicePrimary: '#2563EB',
+        voicePrimaryDark: '#1D4ED8',
         background: '#F8FAFC',
         surface: '#FFFFFF',
-        border: '#E2E8F0',
+        border: 'rgb(30 41 59 / 0.1)',
         textPrimary: '#1E293B',
-        textSecondary: '#64748B',
-        success: '#16A34A',
-        warning: '#D97706',
+        textSecondary: 'rgb(30 41 59 / 0.65)',
+        success: '#2563EB',
+        warning: '#2563EB',
         danger: '#DC2626',
       },
     },

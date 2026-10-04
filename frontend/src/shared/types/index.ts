@@ -114,9 +114,8 @@ export interface MedicalRecord {
 export interface LabReport {
   _id: string;
   patientId: string;
-  fileName: string;
-  fileUrl: string;
-  fileType: string;
+  testName: string;
+  result: string;
   uploadedAt: string;
 }
 

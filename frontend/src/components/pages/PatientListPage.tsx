@@ -61,15 +61,15 @@ export const PatientListPage: React.FC = () => {
         <SearchBar value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by patient name or email..." />
       </div>
       {loading && <div className="flex items-center justify-center py-16 text-primary"><Spinner size="lg" /><span className="ml-3 text-sm text-textSecondary">Loading patients...</span></div>}
-      {!loading && error && <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-lg text-sm mb-6">{error}</div>}
+      {!loading && error && <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-md text-sm mb-6">{error}</div>}
       {!loading && !error && (
-        <Card className="p-0 overflow-hidden">
+        <Card className="!p-0 overflow-hidden">
           {filtered.length === 0
             ? <div className="p-8 text-center text-textSecondary text-sm">No patients found matching your search.</div>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-border text-xs uppercase font-semibold text-textSecondary">
+                  <thead className="bg-background border-b border-textPrimary/10 text-xs uppercase font-semibold text-textSecondary">
                     <tr>
                       <th className="px-6 py-3">Patient Name</th>
                       <th className="px-6 py-3">Email</th>
@@ -79,7 +79,7 @@ export const PatientListPage: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-border text-textPrimary">
                     {filtered.map((p) => (
-                      <tr key={p.patientId} className="hover:bg-slate-50/50">
+                      <tr key={p.patientId} className="hover:bg-primary/5">
                         <td className="px-6 py-4 font-medium">{p.fullName || `${p.firstName} ${p.lastName}`}</td>
                         <td className="px-6 py-4 text-textSecondary">{p.email}</td>
                         <td className="px-6 py-4 text-textSecondary">{p.phone || 'N/A'}</td>

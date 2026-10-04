@@ -1,8 +1,7 @@
-import React, { useRef,  useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UploadCloud, ArrowLeft, FileText, CheckCircle2 } from 'lucide-react';
-
+import { ArrowLeft, ClipboardPlus } from 'lucide-react';
 import api from '../../shared/services/api';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -11,74 +10,60 @@ import { Button } from '../atoms/Button';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 
+interface PatientOption {
+  patientId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+}
+
 export const LabReportUploadPage: React.FC = () => {
   const navigate = useNavigate();
-
-  const [patients, setPatients] = useState<any[]>([]);
+  const [patients, setPatients] = useState<PatientOption[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [testName, setTestName] = useState('');
+  const [result, setResult] = useState('');
   const [loadingPatients, setLoadingPatients] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        setLoadingPatients(true);
-        const res: any = await api.get('/patients');
-        const list = Array.isArray(res) ? res : res.data || [];
+        const response = await api.get('/patients') as
+          | PatientOption[]
+          | { data?: PatientOption[] };
+        const list = Array.isArray(response) ? response : response.data || [];
         setPatients(list);
-        if (list.length > 0) {
-          setSelectedPatientId(list[0].patientId);
-        }
-      } catch (err) {
-        toast.error('Failed to load patients list');
+        if (list.length > 0) setSelectedPatientId(list[0].patientId);
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Failed to load patients.');
       } finally {
         setLoadingPatients(false);
       }
     };
 
-    fetchPatients();
+    void fetchPatients();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds 10MB limit');
-        return;
-      }
-      setSelectedFile(file);
-    }
-  };
-
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!selectedPatientId) {
-      toast.error('Please select a patient');
-      return;
-    }
-    if (!selectedFile) {
-      toast.error('Please choose a file to upload');
+      toast.error('Please select a patient.');
       return;
     }
 
-    setIsUploading(true);
+    setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      await api.post(`/lab-reports/upload/${selectedPatientId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      await api.post(`/lab-reports/patient/${encodeURIComponent(selectedPatientId)}`, {
+        testName,
+        result,
       });
-
-      toast.success('Lab report uploaded successfully!');
+      toast.success('Lab report created successfully.');
       navigate('/lab-reports');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to upload lab report');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create lab report.');
     } finally {
-      setIsUploading(false);
+      setIsSaving(false);
     }
   };
 
@@ -88,113 +73,86 @@ export const LabReportUploadPage: React.FC = () => {
   return (
     <DashboardLayout>
       <div ref={containerRef}>
-      <div className="max-w-2xl mx-auto">
-        <Link
-          to="/lab-reports"
-          className="inline-flex items-center text-xs font-semibold text-textSecondary hover:text-textPrimary mb-4"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-          Back to Reports List
-        </Link>
+        <div className="mx-auto max-w-2xl">
+          <Link
+            to="/lab-reports"
+            className="mb-4 inline-flex items-center text-xs font-semibold text-textSecondary hover:text-textPrimary"
+          >
+            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            Back to Lab Reports
+          </Link>
 
-        <h1 className="text-2xl font-bold text-textPrimary mb-6">
-          Upload Patient Diagnostic Report
-        </h1>
+          <h1 className="mb-6 text-2xl font-bold text-textPrimary">Create Lab Report</h1>
 
-        {loadingPatients ? (
-          <div className="flex items-center justify-center py-16 text-primary">
-            <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
-          </div>
-        ) : (
-          <Card>
-            <form onSubmit={handleUpload} className="space-y-5">
-              <div>
-                <Label htmlFor="uploadPatient" required>
-                  Select Patient
-                </Label>
-                <select
-                  id="uploadPatient"
-                  value={selectedPatientId}
-                  onChange={(e) => setSelectedPatientId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
-                  required
-                >
-                  {patients.map((p) => (
-                    <option key={p.patientId} value={p.patientId}>
-                      {p.fullName || `${p.firstName} ${p.lastName}`} (ID: {p.patientId})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="reportFile" required>
-                  Diagnostic File (PDF, JPG, PNG)
-                </Label>
-                
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-lg hover:border-primary/50 transition-colors">
-                  <div className="space-y-1 text-center">
-                    <UploadCloud className="mx-auto h-10 w-10 text-textSecondary" />
-                    <div className="flex text-sm text-textSecondary justify-center">
-                      <label
-                        htmlFor="reportFile"
-                        className="relative cursor-pointer rounded-md font-medium text-primary hover:underline focus-within:outline-none"
-                      >
-                        <span>Choose a file</span>
-                        <input
-                          id="reportFile"
-                          name="file"
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="sr-only"
-                          onChange={handleFileChange}
-                          required
-                        />
-                      </label>
-                      <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-textSecondary">
-                      PDF, PNG, JPG up to 10MB
-                    </p>
+          {loadingPatients ? (
+            <div className="flex items-center justify-center py-16 text-primary">
+              <Spinner size="lg" />
+              <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
+            </div>
+          ) : (
+            <Card>
+              {patients.length === 0 ? (
+                <p className="py-4 text-center text-sm text-textSecondary">No patients found.</p>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div>
+                    <Label htmlFor="labPatient" required>Select Patient</Label>
+                    <select
+                      id="labPatient"
+                      value={selectedPatientId}
+                      onChange={(event) => setSelectedPatientId(event.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      required
+                    >
+                      {patients.map((patient) => (
+                        <option key={patient.patientId} value={patient.patientId}>
+                          {(patient.fullName || `${patient.firstName || ''} ${patient.lastName || ''}`).trim()
+                            || 'Unnamed Patient'}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
 
-                {selectedFile && (
-                  <div className="mt-3 p-3 bg-slate-50 border border-border rounded-lg flex items-center justify-between text-xs">
-                    <div className="flex items-center space-x-2 truncate">
-                      <FileText className="w-4 h-4 text-primary shrink-0" />
-                      <span className="font-medium text-textPrimary truncate">
-                        {selectedFile.name}
-                      </span>
-                      <span className="text-textSecondary">
-                        ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
-                    </div>
-                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                  <div>
+                    <Label htmlFor="testName" required>Test Name</Label>
+                    <input
+                      id="testName"
+                      value={testName}
+                      onChange={(event) => setTestName(event.target.value)}
+                      placeholder="e.g., Blood Test, X-Ray"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      required
+                    />
                   </div>
-                )}
-              </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => navigate('/lab-reports')}
-                >
-                  Cancel
-                </Button>
+                  <div>
+                    <Label htmlFor="result" required>Result/Notes</Label>
+                    <textarea
+                      id="result"
+                      value={result}
+                      onChange={(event) => setResult(event.target.value)}
+                      rows={6}
+                      placeholder="Enter the test results and any relevant notes"
+                      className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      required
+                    />
+                  </div>
 
-                <Button type="submit" variant="primary" isLoading={isUploading}>
-                  <UploadCloud className="w-4 h-4 mr-2" />
-                  Upload Report
-                </Button>
-              </div>
-            </form>
-          </Card>
-        )}
+                  <div className="flex justify-end gap-3 border-t border-border pt-4">
+                    <Button type="button" variant="secondary" onClick={() => navigate('/lab-reports')}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" variant="primary" isLoading={isSaving}>
+                      <ClipboardPlus className="mr-2 h-4 w-4" />
+                      Save Report
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </Card>
+          )}
+        </div>
       </div>
-          </div>
     </DashboardLayout>
   );
 };

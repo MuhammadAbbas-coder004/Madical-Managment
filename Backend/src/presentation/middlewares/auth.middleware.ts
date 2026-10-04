@@ -12,7 +12,11 @@ export const authMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const token = req.cookies?.token;
+    const token =
+      req.cookies?.token ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice('Bearer '.length)
+        : undefined);
 
     if (!token) {
       res.status(401).json({ success: false, message: 'Unauthorized' });

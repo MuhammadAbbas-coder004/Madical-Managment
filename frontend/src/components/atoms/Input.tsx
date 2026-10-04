@@ -14,7 +14,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             error
               ? 'border-danger focus:ring-danger/20'
               : 'border-border focus:border-primary focus:ring-primary/20'
-          } disabled:bg-slate-50 disabled:cursor-not-allowed ${className}`}
+          } disabled:bg-background disabled:cursor-not-allowed ${className}`}
           {...props}
         />
         {error && <p className="mt-1 text-xs text-danger">{error}</p>}

@@ -39,4 +39,12 @@ export class AppointmentApplicationService {
   public async getAppointmentsByDoctor(doctorId: string): Promise<Appointment[]> {
     return await this.appointmentRepository.findByDoctorId(doctorId);
   }
+
+  public async getAllAppointments(): Promise<Appointment[]> {
+    return await this.appointmentRepository.findAll();
+  }
+
+  public async getAppointmentById(appointmentId: string): Promise<Appointment | null> {
+    return await this.appointmentRepository.findById(appointmentId);
+  }
 }

@@ -1,15 +1,20 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { createHash, randomInt } from 'crypto';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
+import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { DoctorModel } from '../../infrastructure/database/schemas/Doctor.schema';
+import { PasswordResetOtpModel } from '../../infrastructure/database/schemas/PasswordResetOtp.schema';
 import { PasswordHasher } from '../../infrastructure/auth/PasswordHasher';
 import { JwtService } from '../../infrastructure/auth/JwtService';
 import { TokenBlacklistService } from '../../infrastructure/auth/TokenBlacklistService';
 import { RegisterDTO, LoginDTO } from '../../application/auth';
+import { EmailService } from '../../infrastructure/notifications/EmailService';
 
 export class AuthController {
   public register = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { username, email, password, role }: RegisterDTO = req.body;
+      const { username, email, password }: RegisterDTO = req.body;
 
       if (!username || !email || !password) {
         res.status(400).json({
@@ -69,7 +74,7 @@ export class AuthController {
         username: username.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
-        role: role || 'patient',
+        role: 'patient',
       });
 
       await newUser.save();
@@ -128,6 +133,18 @@ export class AuthController {
 
       // Generate JWT
       const token = JwtService.generateToken(user._id.toString(), user.role);
+      let linkedId = user.linkedId;
+      if (!linkedId && user.role === 'patient') {
+        const patient = await PatientModel.findOne({ email: user.email });
+        linkedId = patient?.patientId;
+      } else if (!linkedId && user.role === 'doctor') {
+        const doctor = await DoctorModel.findOne({ email: user.email });
+        linkedId = doctor?.doctorId;
+      }
+      if (linkedId && linkedId !== user.linkedId) {
+        user.linkedId = linkedId;
+        await user.save();
+      }
 
       // Set HTTP-only cookie
       const isProduction = process.env.NODE_ENV === 'production';
@@ -142,10 +159,12 @@ export class AuthController {
         success: true,
         message: 'Login successful',
         user: {
-          id: user._id,
+          id: user._id.toString(),
           username: user.username,
           email: user.email,
           role: user.role,
+          ...(user.role === 'patient' && linkedId ? { patientId: linkedId } : {}),
+          ...(user.role === 'doctor' && linkedId ? { doctorId: linkedId } : {}),
         },
       });
     } catch (error: any) {
@@ -193,6 +212,120 @@ export class AuthController {
       res.status(500).json({
         success: false,
         message: error.message || 'Error logging out',
+      });
+    }
+  };
+
+  public forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+      if (!email) {
+        res.status(400).json({ success: false, message: 'Email is required' });
+        return;
+      }
+
+      const user = await UserModel.findOne({ email });
+      if (user) {
+        const otp = randomInt(0, 1_000_000).toString().padStart(6, '0');
+        const otpHash = createHash('sha256').update(otp).digest('hex');
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        await PasswordResetOtpModel.findOneAndUpdate(
+          { email },
+          { otpHash, expiresAt },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        try {
+          await EmailService.sendEmail(
+            email,
+            'Password reset code',
+            `Your password reset code is ${otp}. It expires in 10 minutes.`
+          );
+        } catch (error) {
+          await PasswordResetOtpModel.deleteOne({ email, otpHash });
+          throw error;
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'If an account exists for that email, a reset code has been sent.',
+      });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to send password reset code',
+      });
+    }
+  };
+
+  public verifyResetOtp = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+      const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+      if (!email || !/^\d{6}$/.test(otp)) {
+        res.status(400).json({ success: false, message: 'A valid email and 6-digit OTP are required' });
+        return;
+      }
+
+      const otpHash = createHash('sha256').update(otp).digest('hex');
+      const resetOtp = await PasswordResetOtpModel.findOne({
+        email,
+        otpHash,
+        expiresAt: { $gt: new Date() },
+      });
+      if (!resetOtp) {
+        res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+        return;
+      }
+
+      res.status(200).json({ success: true, message: 'OTP verified successfully' });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to verify OTP',
+      });
+    }
+  };
+
+  public resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+      const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+      const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+      if (!email || !/^\d{6}$/.test(otp) || newPassword.length < 6) {
+        res.status(400).json({
+          success: false,
+          message: 'A valid email, 6-digit OTP, and password of at least 6 characters are required',
+        });
+        return;
+      }
+
+      const otpHash = createHash('sha256').update(otp).digest('hex');
+      const resetOtp = await PasswordResetOtpModel.findOne({
+        email,
+        otpHash,
+        expiresAt: { $gt: new Date() },
+      });
+      if (!resetOtp) {
+        res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+        return;
+      }
+
+      const hashedPassword = await PasswordHasher.hashPassword(newPassword);
+      const user = await UserModel.findOneAndUpdate({ email }, { password: hashedPassword });
+      if (!user) {
+        res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+        return;
+      }
+
+      await PasswordResetOtpModel.deleteOne({ _id: resetOtp._id });
+      res.status(200).json({ success: true, message: 'Password reset successfully' });
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to reset password',
       });
     }
   };

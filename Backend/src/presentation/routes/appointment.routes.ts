@@ -15,7 +15,9 @@ const appointmentService = new AppointmentApplicationService(appointmentReposito
 const appointmentController = new AppointmentController(appointmentService);
 
 // Route definitions
+appointmentRouter.get('/', appointmentController.getAllAppointments);
 appointmentRouter.post('/', appointmentController.bookAppointment);
+appointmentRouter.get('/:appointmentId', appointmentController.getAppointment);
 appointmentRouter.put('/:appointmentId/cancel', appointmentController.cancelAppointment);
 appointmentRouter.get('/patient/:patientId', appointmentController.getAppointmentsByPatient);
 appointmentRouter.get('/doctor/:doctorId', appointmentController.getAppointmentsByDoctor);

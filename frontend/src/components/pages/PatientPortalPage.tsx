@@ -56,25 +56,70 @@ interface PatientPortalData {
   }>;
 }
 
+interface ApiList<T> {
+  data?: T[];
+}
+
+const getList = <T,>(response: unknown): T[] => {
+  if (Array.isArray(response)) return response as T[];
+  if (
+    response &&
+    typeof response === 'object' &&
+    'data' in response &&
+    Array.isArray(response.data)
+  ) {
+    return response.data as T[];
+  }
+  return [];
+};
+
 export const PatientPortalPage: React.FC = () => {
   const [data, setData] = useState<PatientPortalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchPortalData = async () => {
       try {
         setLoading(true);
-        const res: any = await api.get('/patient-portal/me');
-        setData(res.data || res);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load patient portal records');
+        const profileResponse = await api.get('/patients/me') as {
+          data?: PatientPortalData['patient'];
+        };
+        if (!profileResponse.data?.patientId) {
+          throw new Error('No patient profile is linked to your account.');
+        }
+
+        const patientId = encodeURIComponent(profileResponse.data.patientId);
+        const [appointmentsResponse, prescriptionsResponse, vitalsResponse] = await Promise.all([
+          api.get(`/appointments/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['appointments']>[number]>>,
+          api.get(`/prescriptions/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['prescriptions']>[number]>>,
+          api.get(`/vitals/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['vitals']>[number]>>,
+        ]);
+
+        if (!cancelled) {
+          setData({
+            patient: profileResponse.data,
+            appointments: getList(appointmentsResponse),
+            prescriptions: getList(prescriptionsResponse),
+            vitals: getList(vitalsResponse),
+          });
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setData(null);
+          setError(err instanceof Error ? err.message : 'Failed to load patient portal records');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    fetchPortalData();
+    void fetchPortalData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,9 +143,15 @@ export const PatientPortalPage: React.FC = () => {
       )}
 
       {!loading && error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-lg text-sm mb-6">
+        <div className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
           {error}
         </div>
+      )}
+
+      {!loading && !error && !data && (
+        <Card>
+          <p className="text-center text-textSecondary text-sm py-4">No patient data found.</p>
+        </Card>
       )}
 
       {!loading && data && (
@@ -156,7 +207,7 @@ export const PatientPortalPage: React.FC = () => {
                   {data.appointments.map((appt) => (
                     <div
                       key={appt.appointmentId}
-                      className="p-3 bg-slate-50 border border-border rounded-lg flex items-center justify-between text-xs"
+                      className="flex items-center justify-between rounded-md border border-textPrimary/10 bg-background p-3 text-xs"
                     >
                       <div>
                         <div className="font-semibold text-textPrimary flex items-center gap-1.5">
@@ -196,7 +247,7 @@ export const PatientPortalPage: React.FC = () => {
                   {data.prescriptions.map((presc) => (
                     <div
                       key={presc.prescriptionId}
-                      className="p-3 bg-slate-50 border border-border rounded-lg text-xs"
+                      className="rounded-md border border-textPrimary/10 bg-background p-3 text-xs"
                     >
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-semibold text-textPrimary">
@@ -235,7 +286,7 @@ export const PatientPortalPage: React.FC = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-border font-semibold text-textSecondary">
+                  <thead className="bg-background border-b border-textPrimary/10 font-semibold text-textSecondary">
                     <tr>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3">Blood Pressure</th>

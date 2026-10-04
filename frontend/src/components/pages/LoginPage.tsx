@@ -34,7 +34,15 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const response = await api.post('/auth/login', { email: data.email, password: data.password }) as {
-        user: { id: string; name?: string; username?: string; email: string; role: string };
+        user: {
+          id: string;
+          name?: string;
+          username?: string;
+          email: string;
+          role: string;
+          patientId?: string;
+          doctorId?: string;
+        };
         token?: string;
         message?: string;
       };

@@ -31,4 +31,12 @@ export class BillingApplicationService {
   public async getInvoicesByPatient(patientId: string): Promise<Invoice[]> {
     return await this.billingRepo.findByPatientId(patientId);
   }
+
+  public async getAllInvoices(): Promise<Invoice[]> {
+    return await this.billingRepo.findAll();
+  }
+
+  public async getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+    return await this.billingRepo.findById(invoiceId);
+  }
 }

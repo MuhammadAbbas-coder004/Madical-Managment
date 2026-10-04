@@ -9,8 +9,8 @@ export class PharmacyApplicationService {
   public async addMedicine(dto: AddMedicineDTO): Promise<string> {
     const medicine = Medicine.create({
       name: dto.name,
-      quantity: dto.quantity,
-      unitPrice: dto.unitPrice,
+      quantity: Number(dto.quantity),
+      unitPrice: Number(dto.unitPrice),
       expiryDate: new Date(dto.expiryDate),
     });
     const id = randomUUID();
@@ -21,6 +21,10 @@ export class PharmacyApplicationService {
 
   public async getAllMedicines(): Promise<Medicine[]> {
     return await this.pharmacyRepo.findAll();
+  }
+
+  public async getMedicineById(medicineId: string): Promise<Medicine | null> {
+    return await this.pharmacyRepo.findById(medicineId);
   }
 
   public async reduceStock(medicineId: string, amount: number): Promise<void> {

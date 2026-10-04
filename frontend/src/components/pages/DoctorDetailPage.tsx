@@ -38,16 +38,19 @@ export const DoctorDetailPage: React.FC = () => {
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />Back to Doctors List
         </Link>
         {loading && <div className="flex items-center justify-center py-20 text-primary"><Spinner size="lg" /><span className="ml-3 text-sm text-textSecondary">Loading physician profile...</span></div>}
-        {!loading && error && <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-lg text-sm">{error}</div>}
+        {!loading && error && <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-md text-sm">{error}</div>}
+        {!loading && !error && !doctor && (
+          <div className="p-8 text-center text-textSecondary text-sm">No doctor data found.</div>
+        )}
         {!loading && doctor && (
           <Card>
             <div className="flex items-center space-x-4 pb-6 border-b border-border">
-              <div className="w-14 h-14 bg-teal-50 text-primary rounded-full flex items-center justify-center border border-teal-200">
+              <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center border border-primary/20">
                 <Stethoscope className="w-7 h-7" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-textPrimary">Dr. {doctor.fullName || `${doctor.firstName} ${doctor.lastName}`}</h1>
-                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-primary border border-teal-200">{doctor.specialization}</span>
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">{doctor.specialization}</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">

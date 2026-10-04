@@ -1,11 +1,20 @@
 import { Request, Response } from 'express';
 import { VitalsApplicationService } from '../../application/vitals/VitalsApplicationService';
+import { AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 
 export class VitalsController {
   constructor(private readonly vitalsService: VitalsApplicationService) {}
 
   public recordVitals = async (req: Request, res: Response): Promise<void> => {
     try {
+      const userId = (req as AuthenticatedRequest).user?.userId;
+      const user = userId ? await UserModel.findById(userId) : null;
+      if (!user || user.role !== 'doctor') {
+        res.status(403).json({ success: false, message: 'Only doctors can record vitals' });
+        return;
+      }
+
       const {
         patientId,
         bloodPressureSystolic,
@@ -46,6 +55,22 @@ export class VitalsController {
   public getVitalsByPatient = async (req: Request, res: Response): Promise<void> => {
     try {
       const patientId = String(req.params.patientId);
+      const userId = (req as AuthenticatedRequest).user?.userId;
+      const user = userId ? await UserModel.findById(userId) : null;
+      if (!user) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      if (user.role === 'patient' && user.linkedId !== patientId) {
+        res.status(403).json({ success: false, message: 'You can only view your own vitals' });
+        return;
+      }
+      if (!['patient', 'doctor', 'admin'].includes(user.role)) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+
       const vitalsList = await this.vitalsService.getVitalsByPatient(patientId);
 
       const data = vitalsList.map((v) => ({

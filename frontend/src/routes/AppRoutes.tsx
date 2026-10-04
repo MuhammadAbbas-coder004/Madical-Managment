@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
+import { useAuthStore } from '../store/authStore';
 
 // --- Auth Pages (Public) ---
 import { LoginPage } from '../components/pages/LoginPage';
@@ -12,6 +13,7 @@ import { ResetPasswordPage } from '../components/pages/ResetPasswordPage';
 
 // --- Clinical Modules (Protected) ---
 import { DashboardPage } from '../components/pages/DashboardPage';
+import { DoctorDashboardPage } from '../components/pages/DoctorDashboardPage';
 import { PatientListPage } from '../components/pages/PatientListPage';
 import { PatientCreatePage } from '../components/pages/PatientCreatePage';
 import { PatientDetailPage } from '../components/pages/PatientDetailPage';
@@ -21,18 +23,63 @@ import { DoctorDetailPage } from '../components/pages/DoctorDetailPage';
 import { AppointmentListPage } from '../components/pages/AppointmentListPage';
 import { AppointmentBookPage } from '../components/pages/AppointmentBookPage';
 import { VitalsRecordPage } from '../components/pages/VitalsRecordPage';
-import { VitalsHistoryPage } from '../components/pages/VitalsHistoryPage';
+import { PatientVitalsPage } from '../components/pages/PatientVitalsPage';
 import { PrescriptionListPage } from '../components/pages/PrescriptionListPage';
 import { PrescriptionCreatePage } from '../components/pages/PrescriptionCreatePage';
 import { MedicalRecordListPage } from '../components/pages/MedicalRecordListPage';
 import { MedicalRecordCreatePage } from '../components/pages/MedicalRecordCreatePage';
 import { LabReportListPage } from '../components/pages/LabReportListPage';
 import { LabReportUploadPage } from '../components/pages/LabReportUploadPage';
+import { PatientLabReportsPage } from '../components/pages/PatientLabReportsPage';
 import { BillingListPage } from '../components/pages/BillingListPage';
 import { BillingCreatePage } from '../components/pages/BillingCreatePage';
 import { PharmacyListPage } from '../components/pages/PharmacyListPage';
 import { PharmacyAddPage } from '../components/pages/PharmacyAddPage';
 import { PatientPortalPage } from '../components/pages/PatientPortalPage';
+import { DoctorAppointmentListPage, PatientAppointmentListPage } from '../components/pages/MyAppointmentListPage';
+
+// Renders the correct dashboard based on the logged-in user's role
+const RoleAwareDashboard: React.FC = () => {
+  const { user } = useAuthStore();
+  if (user?.role?.toLowerCase() === 'doctor') return <DoctorDashboardPage />;
+  return <DashboardPage />;
+};
+
+const RoleAwareAppointmentList: React.FC = () => {
+  const { user } = useAuthStore();
+  const role = user?.role?.toLowerCase();
+
+  if (role === 'patient') return <PatientAppointmentListPage />;
+  if (role === 'doctor') return <DoctorAppointmentListPage />;
+  if (role === 'admin') return <AppointmentListPage />;
+  return <Navigate to="/dashboard" replace />;
+};
+
+const RoleAwareLabReportsPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const role = user?.role?.toLowerCase();
+
+  if (role === 'patient') return <PatientLabReportsPage />;
+  if (['doctor', 'nurse', 'admin'].includes(role || '')) return <LabReportListPage />;
+  return <Navigate to="/dashboard" replace />;
+};
+
+const RoleAwareLabReportUploadPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const role = user?.role?.toLowerCase();
+
+  if (['doctor', 'nurse', 'admin'].includes(role || '')) return <LabReportUploadPage />;
+  return <Navigate to="/lab-reports" replace />;
+};
+
+const RoleAwareVitalsPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const role = user?.role?.toLowerCase();
+
+  if (role === 'doctor') return <VitalsRecordPage />;
+  if (role === 'patient') return <PatientVitalsPage />;
+  return <Navigate to="/dashboard" replace />;
+};
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -53,7 +100,7 @@ export const AppRoutes: React.FC = () => {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <RoleAwareDashboard />
           </ProtectedRoute>
         }
       />
@@ -115,7 +162,7 @@ export const AppRoutes: React.FC = () => {
         path="/appointments"
         element={
           <ProtectedRoute>
-            <AppointmentListPage />
+            <RoleAwareAppointmentList />
           </ProtectedRoute>
         }
       />
@@ -133,7 +180,7 @@ export const AppRoutes: React.FC = () => {
         path="/vitals"
         element={
           <ProtectedRoute>
-            <VitalsRecordPage />
+            <RoleAwareVitalsPage />
           </ProtectedRoute>
         }
       />
@@ -141,12 +188,20 @@ export const AppRoutes: React.FC = () => {
         path="/vitals/history"
         element={
           <ProtectedRoute>
-            <VitalsHistoryPage />
+            <RoleAwareVitalsPage />
           </ProtectedRoute>
         }
       />
 
       {/* Prescriptions */}
+      <Route
+        path="/prescriptions/patient/:patientId"
+        element={
+          <ProtectedRoute>
+            <PrescriptionListPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/prescriptions"
         element={
@@ -187,7 +242,7 @@ export const AppRoutes: React.FC = () => {
         path="/lab-reports"
         element={
           <ProtectedRoute>
-            <LabReportListPage />
+            <RoleAwareLabReportsPage />
           </ProtectedRoute>
         }
       />
@@ -195,7 +250,7 @@ export const AppRoutes: React.FC = () => {
         path="/lab-reports/upload"
         element={
           <ProtectedRoute>
-            <LabReportUploadPage />
+            <RoleAwareLabReportUploadPage />
           </ProtectedRoute>
         }
       />
