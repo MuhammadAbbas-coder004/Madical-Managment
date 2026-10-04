@@ -6,7 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ScanFace } from 'lucide-react';
 import api from '../../shared/services/api';
-import { useAuthStore } from '../../store/authStore';
+import { COOKIE_SESSION, useAuthStore } from '../../store/authStore';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
@@ -46,7 +46,10 @@ export const LoginPage: React.FC = () => {
         token?: string;
         message?: string;
       };
-      login(response.user, response.token || 'session-token');
+      if (!response.user) {
+        throw new Error('Login succeeded but the server did not return a user account.');
+      }
+      login(response.user, response.token || COOKIE_SESSION);
       toast.success(response.message || 'Login successful!');
       navigate('/dashboard');
     } catch (error: unknown) {

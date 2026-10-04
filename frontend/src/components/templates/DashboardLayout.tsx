@@ -258,7 +258,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const handleLogout = () => {
 
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   return (

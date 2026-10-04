@@ -1,11 +1,13 @@
+// Defines public, role-aware, and protected application routes.
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from './ProtectedRoute';
+import { GuestRoute, ProtectedRoute } from './ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
 
 // --- Auth Pages (Public) ---
 import { LoginPage } from '../components/pages/LoginPage';
 import { RegisterPage } from '../components/pages/RegisterPage';
+import { LandingPage } from '../components/pages/LandingPage';
 import { FaceEnrollPage } from '../components/pages/FaceEnrollPage';
 import { ForgotPasswordPage } from '../components/pages/ForgotPasswordPage';
 import { VerifyOtpPage } from '../components/pages/VerifyOtpPage';
@@ -82,14 +84,16 @@ const RoleAwareVitalsPage: React.FC = () => {
 };
 
 export const AppRoutes: React.FC = () => {
+  const token = useAuthStore((state) => state.token);
+
   return (
     <Routes>
-      {/* 1. Default Route */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Public landing and auth pages redirect signed-in users to their dashboard. */}
+      <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
 
-      {/* 2. Public Authentication Routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {/* Public Authentication Routes */}
+      <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+      <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
       <Route path="/face-enrollment-prompt" element={<FaceEnrollPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-otp" element={<VerifyOtpPage />} />
@@ -302,7 +306,7 @@ export const AppRoutes: React.FC = () => {
       />
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to={token ? '/dashboard' : '/'} replace />} />
     </Routes>
   );
 };

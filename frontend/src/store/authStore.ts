@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export const COOKIE_SESSION = 'cookie-session';
+
 export interface User {
   id: string;
   name?: string;
@@ -28,6 +30,9 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage', // key used in localStorage
+      version: 1,
+      // Old frontend builds persisted a fake token and could lock users out of public auth pages.
+      migrate: () => ({ user: null, token: null }),
     }
   )
 );
