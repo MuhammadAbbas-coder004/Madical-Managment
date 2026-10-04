@@ -48,13 +48,13 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 }
 
 /* Use consistent titles and quiet labels across list and detail pages. */
-main h1:not(.dashboard-title) {
+h1:not(.dashboard-title) {
   font-size: 28px !important;
   font-weight: 500 !important;
   line-height: 1.2;
 }
 
-main h1:not(.dashboard-title)::before {
+h1:not(.dashboard-title)::before {
   content: 'Clinical workspace';
   display: block;
   margin-bottom: 8px;
@@ -76,6 +76,23 @@ main thead {
 
 main tbody tr {
   border-bottom: 1px solid theme('colors.border');
+}
+
+main table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+main input:not([type="checkbox"]):not([type="radio"]),
+main select {
+  height: 40px;
+  border-radius: 0.375rem;
+}
+
+main textarea {
+  border-radius: 0.375rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

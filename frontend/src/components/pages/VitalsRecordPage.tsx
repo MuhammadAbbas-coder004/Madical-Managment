@@ -17,27 +17,91 @@ import { useVoiceInput } from '../../shared/hooks/useVoiceInput';
 import { useVoiceStore } from '../../store/voiceStore';
 import { parseVitalsSpeech, type ParsedVitals } from '../../shared/utils/parseVitalsSpeech';
 import { buildVitalsSummary } from '../../shared/utils/buildVitalsSummary';
+import { vitalsLimits } from '../../shared/utils/vitalsLimits';
 
 interface Patient {
   patientId: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  dateOfBirth?: string;
+  phone?: string;
 }
+
+const boundedNumber = (label: string, min: number, max: number) =>
+  z.coerce.number()
+    .min(min, `${label} must be between ${min} and ${max}.`)
+    .max(max, `${label} must be between ${min} and ${max}.`);
 
 const schema = z.object({
   patientId: z.string().min(1, 'Patient selection is required'),
-  bloodPressureSystolic: z.coerce.number().min(1, 'Systolic BP is required'),
-  bloodPressureDiastolic: z.coerce.number().min(1, 'Diastolic BP is required'),
-  sugarLevel: z.coerce.number().min(1, 'Blood sugar is required'),
-  temperature: z.coerce.number().min(1, 'Temperature is required'),
-  heartRate: z.coerce.number().min(1, 'Heart rate is required'),
-  pulseRate: z.coerce.number().min(1, 'Pulse rate is required'),
-  rbcCount: z.coerce.number().min(1, 'RBC count is required'),
-  wbcCount: z.coerce.number().min(1, 'WBC count is required'),
+  bloodPressureSystolic: boundedNumber(
+    vitalsLimits.bloodPressureSystolic.label,
+    vitalsLimits.bloodPressureSystolic.min,
+    vitalsLimits.bloodPressureSystolic.max,
+  ),
+  bloodPressureDiastolic: boundedNumber(
+    vitalsLimits.bloodPressureDiastolic.label,
+    vitalsLimits.bloodPressureDiastolic.min,
+    vitalsLimits.bloodPressureDiastolic.max,
+  ),
+  sugarLevel: boundedNumber(
+    vitalsLimits.sugarLevel.label,
+    vitalsLimits.sugarLevel.min,
+    vitalsLimits.sugarLevel.max,
+  ),
+  temperature: boundedNumber(
+    vitalsLimits.temperature.label,
+    vitalsLimits.temperature.min,
+    vitalsLimits.temperature.max,
+  ),
+  heartRate: boundedNumber(
+    vitalsLimits.heartRate.label,
+    vitalsLimits.heartRate.min,
+    vitalsLimits.heartRate.max,
+  ),
+  pulseRate: boundedNumber(
+    vitalsLimits.pulseRate.label,
+    vitalsLimits.pulseRate.min,
+    vitalsLimits.pulseRate.max,
+  ),
+  rbcCount: boundedNumber(
+    vitalsLimits.rbcCount.label,
+    vitalsLimits.rbcCount.min,
+    vitalsLimits.rbcCount.max,
+  ),
+  wbcCount: boundedNumber(
+    vitalsLimits.wbcCount.label,
+    vitalsLimits.wbcCount.min,
+    vitalsLimits.wbcCount.max,
+  ),
   notes: z.string().optional(),
-});
+}).refine(
+  (values) => values.bloodPressureSystolic > values.bloodPressureDiastolic,
+  {
+    message: 'Systolic blood pressure must be greater than diastolic blood pressure.',
+    path: ['bloodPressureSystolic'],
+  },
+);
 type FormData = z.infer<typeof schema>;
+
+const vitalFields = Object.entries(vitalsLimits) as Array<[
+  keyof typeof vitalsLimits,
+  (typeof vitalsLimits)[keyof typeof vitalsLimits],
+]>;
+
+const getAge = (dateOfBirth?: string) => {
+  if (!dateOfBirth) return null;
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayHasPassed =
+    today.getMonth() > birthDate.getMonth()
+    || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? age : null;
+};
 
 interface VitalsAnalysis {
   status: 'normal' | 'warning' | 'critical';
@@ -70,6 +134,7 @@ export const VitalsRecordPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysis, setAnalysis] = useState<VitalsAnalysis | null>(null);
   const [analysisValues, setAnalysisValues] = useState<ParsedVitals | null>(null);
+  const [pendingVitals, setPendingVitals] = useState<FormData | null>(null);
   const [voiceFilledFields, setVoiceFilledFields] = useState<Array<keyof ParsedVitals>>([]);
   const [history, setHistory] = useState<VitalsRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -163,20 +228,26 @@ export const VitalsRecordPage: React.FC = () => {
     }
   }, [isListening, setValue, transcript]);
 
-  const onSubmit = async (data: FormData) => {
+  const reviewVitals = (data: FormData) => {
+    setPendingVitals(data);
+    setAnalysis(null);
+  };
+
+  const saveVitals = async () => {
+    if (!pendingVitals) return;
     setIsSubmitting(true);
     setAnalysis(null);
     try {
       const payload = {
-        patientId: data.patientId,
-        bloodPressureSystolic: data.bloodPressureSystolic,
-        bloodPressureDiastolic: data.bloodPressureDiastolic,
-        sugarLevel: data.sugarLevel,
-        temperature: data.temperature,
-        heartRate: data.heartRate,
-        pulseRate: data.pulseRate,
-        rbcCount: data.rbcCount,
-        wbcCount: data.wbcCount,
+        patientId: pendingVitals.patientId,
+        bloodPressureSystolic: pendingVitals.bloodPressureSystolic,
+        bloodPressureDiastolic: pendingVitals.bloodPressureDiastolic,
+        sugarLevel: pendingVitals.sugarLevel,
+        temperature: pendingVitals.temperature,
+        heartRate: pendingVitals.heartRate,
+        pulseRate: pendingVitals.pulseRate,
+        rbcCount: pendingVitals.rbcCount,
+        wbcCount: pendingVitals.wbcCount,
       };
       const response = await api.post('/vitals', payload) as {
         analysis?: VitalsAnalysis;
@@ -189,7 +260,7 @@ export const VitalsRecordPage: React.FC = () => {
       toast.success('Vitals recorded successfully!');
       try {
         const historyResponse = await api.get(
-          `/vitals/patient/${encodeURIComponent(data.patientId)}`
+          `/vitals/patient/${encodeURIComponent(pendingVitals.patientId)}`
         ) as { data?: VitalsRecord[] };
         setHistory(Array.isArray(historyResponse.data) ? historyResponse.data : []);
         setHistoryError(null);
@@ -200,6 +271,7 @@ export const VitalsRecordPage: React.FC = () => {
             : 'Vitals were saved, but history could not be refreshed'
         );
       }
+      setPendingVitals(null);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to record vitals');
     } finally {
@@ -220,21 +292,25 @@ export const VitalsRecordPage: React.FC = () => {
     setVoiceFilledFields([]);
     start();
   };
+  const selectedPatientAge = getAge(selectedPatient?.dateOfBirth);
+  const pendingPatient = pendingVitals
+    ? patients.find((patient) => patient.patientId === pendingVitals.patientId)
+    : undefined;
 
   return (
     <DashboardLayout>
       <div ref={containerRef}>
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold text-textPrimary mb-6">Patient Vitals</h1>
+        <div className="mx-auto w-full max-w-[1100px]">
+          <h1 className="mb-6 text-2xl font-medium text-textPrimary">Patient Vitals</h1>
           <Card>
-            <div className="mb-4 rounded-md border border-textPrimary/10 p-3">
+            <div className="mb-6 rounded-xl border border-textPrimary/10 bg-background p-4">
               {isSupported ? (
                 <>
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={isListening ? stop : startVitalsDictation}
-                    className="rounded-md border-voicePrimary/20 text-voicePrimary"
+                    className="h-10 rounded-md border-primary/20 text-primary"
                   >
                     <Mic className="mr-2 h-4 w-4" />
                     {isListening ? 'Stop listening' : 'Speak the readings'}
@@ -264,12 +340,13 @@ export const VitalsRecordPage: React.FC = () => {
                 <p role="status" className="mt-2 text-xs text-textPrimary/70">{languageNotice}</p>
               )}
               {voiceFilledFields.length > 0 && (
-                <p className="mt-2 text-xs text-voicePrimary">
+                <p className="mt-2 text-xs text-primary">
                   Filled from speech: {voiceFilledFields.join(', ')}. Review these values before saving.
                 </p>
               )}
             </div>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(reviewVitals)}>
+              <fieldset disabled={Boolean(pendingVitals)} className="space-y-6 disabled:opacity-75">
               <div>
                 <label
                   htmlFor="patientId"
@@ -280,7 +357,7 @@ export const VitalsRecordPage: React.FC = () => {
                 <select
                   id="patientId"
                   disabled={loadingPatients || patients.length === 0}
-                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50"
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-textPrimary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50"
                   {...register('patientId')}
                 >
                   {loadingPatients ? (
@@ -304,89 +381,39 @@ export const VitalsRecordPage: React.FC = () => {
                 {errors.patientId && (
                   <p className="text-xs text-danger mt-1">{errors.patientId.message}</p>
                 )}
+                {selectedPatient && (
+                  <div className="mt-3 rounded-md border border-textPrimary/10 bg-background px-4 py-3 text-sm">
+                    <p className="font-medium text-textPrimary">{patientName}</p>
+                    <p className="mt-1 text-xs text-textSecondary">
+                      {selectedPatientAge !== null ? `Age ${selectedPatientAge}` : 'Age unavailable'}
+                      {' · '}
+                      {selectedPatient.phone || 'Phone unavailable'}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <FormField
-                  label="Heart Rate (bpm)"
-                  type="number"
-                  step="1"
-                  placeholder="72"
-                  required
-                  className={voiceFilledFields.includes('heartRate') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.heartRate?.message}
-                  {...register('heartRate')}
-                />
-                <FormField
-                  label="BP Systolic (mmHg)"
-                  type="number"
-                  step="1"
-                  placeholder="120"
-                  required
-                  className={voiceFilledFields.includes('bloodPressureSystolic') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.bloodPressureSystolic?.message}
-                  {...register('bloodPressureSystolic')}
-                />
-                <FormField
-                  label="BP Diastolic (mmHg)"
-                  type="number"
-                  step="1"
-                  placeholder="80"
-                  required
-                  className={voiceFilledFields.includes('bloodPressureDiastolic') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.bloodPressureDiastolic?.message}
-                  {...register('bloodPressureDiastolic')}
-                />
-                <FormField
-                  label="Blood Sugar"
-                  type="number"
-                  step="any"
-                  placeholder="100"
-                  required
-                  className={voiceFilledFields.includes('sugarLevel') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.sugarLevel?.message}
-                  {...register('sugarLevel')}
-                />
-                <FormField
-                  label="Temperature (°C)"
-                  type="number"
-                  step="any"
-                  placeholder="36.6"
-                  required
-                  className={voiceFilledFields.includes('temperature') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.temperature?.message}
-                  {...register('temperature')}
-                />
-                <FormField
-                  label="Pulse Rate (bpm)"
-                  type="number"
-                  step="1"
-                  placeholder="72"
-                  required
-                  className={voiceFilledFields.includes('pulseRate') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.pulseRate?.message}
-                  {...register('pulseRate')}
-                />
-                <FormField
-                  label="RBC Count"
-                  type="number"
-                  step="any"
-                  placeholder="4.5"
-                  required
-                  className={voiceFilledFields.includes('rbcCount') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.rbcCount?.message}
-                  {...register('rbcCount')}
-                />
-                <FormField
-                  label="WBC Count"
-                  type="number"
-                  step="any"
-                  placeholder="7000"
-                  required
-                  className={voiceFilledFields.includes('wbcCount') ? 'rounded-md ring-2 ring-voicePrimary/20' : ''}
-                  error={errors.wbcCount?.message}
-                  {...register('wbcCount')}
-                />
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {vitalFields.map(([field, limits]) => (
+                  <div key={field} className="relative">
+                    <FormField
+                      label={limits.label}
+                      type="number"
+                      step={limits.step}
+                      min={limits.min}
+                      max={limits.max}
+                      placeholder={limits.placeholder}
+                      required
+                      className={voiceFilledFields.includes(field) ? 'rounded-md ring-2 ring-primary/20' : ''}
+                      error={errors[field]?.message}
+                      {...register(field)}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-[2.55rem] text-xs text-textSecondary">
+                      {limits.unit}
+                    </span>
+                    <p className="mt-1 text-xs text-textSecondary">Usual: {limits.usual}</p>
+                  </div>
+                ))}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-textPrimary mb-1.5">
@@ -395,16 +422,46 @@ export const VitalsRecordPage: React.FC = () => {
                 <textarea
                   rows={3}
                   placeholder="Any additional observations..."
-                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary placeholder:text-textSecondary/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+                  className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-textPrimary placeholder:text-textSecondary/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
                   {...register('notes')}
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <Button type="submit" variant="primary" isLoading={isSubmitting}>
-                  Save Vitals
+              <div className="flex justify-end gap-3 border-t border-border pt-5">
+                <Button type="submit" variant="primary">
+                  Review Vitals
                 </Button>
               </div>
+              </fieldset>
             </form>
+            {pendingVitals && (
+              <section aria-labelledby="vitals-review-title" className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
+                <h2 id="vitals-review-title" className="text-lg font-medium text-textPrimary">Review before saving</h2>
+                <p className="mt-1 text-sm text-textSecondary">
+                  Confirm the patient and readings. Nothing is saved until you choose Save reviewed vitals.
+                </p>
+                <p className="mt-3 text-sm font-medium text-textPrimary">
+                  {pendingPatient?.fullName || [pendingPatient?.firstName, pendingPatient?.lastName].filter(Boolean).join(' ') || 'Selected patient'}
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  {vitalFields.map(([field, limits]) => (
+                    <p key={field} className="rounded-md border border-textPrimary/10 bg-surface px-3 py-2 text-textPrimary">
+                      {limits.label}: {pendingVitals[field]} {limits.unit}
+                    </p>
+                  ))}
+                </div>
+                {pendingVitals.notes && (
+                  <p className="mt-3 text-sm text-textPrimary">Clinical notes: {pendingVitals.notes}</p>
+                )}
+                <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-textPrimary/10 pt-4">
+                  <Button type="button" variant="secondary" onClick={() => setPendingVitals(null)}>
+                    Edit values
+                  </Button>
+                  <Button type="button" variant="primary" isLoading={isSubmitting} onClick={() => void saveVitals()}>
+                    Save reviewed vitals
+                  </Button>
+                </div>
+              </section>
+            )}
             {analysis && (
               <div className="mt-6 rounded-md border border-textPrimary/10 bg-background p-4" role="status">
                 <div className="flex items-center gap-2">
@@ -435,7 +492,7 @@ export const VitalsRecordPage: React.FC = () => {
             )}
           </Card>
           <section className="mt-8">
-            <h2 className="text-xl font-bold text-textPrimary mb-4">Selected Patient Vitals History</h2>
+            <h2 className="mb-4 text-xl font-medium text-textPrimary">Selected patient vitals history</h2>
             {loadingHistory && (
               <div className="flex items-center justify-center py-10 text-primary">
                 <span className="text-sm text-textSecondary">Loading vitals history...</span>
@@ -457,29 +514,31 @@ export const VitalsRecordPage: React.FC = () => {
               <div className="space-y-3">
                 {history.map((record) => (
                   <Card key={record.vitalsId}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-textSecondary">
-                        <span>BP: {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg</span>
-                        <span>HR: {record.heartRate} bpm</span>
-                        <span>Pulse: {record.pulseRate} bpm</span>
-                        <span>Sugar: {record.sugarLevel}</span>
-                        <span>Temperature: {record.temperature}</span>
-                        <span>RBC: {record.rbcCount}</span>
-                        <span>WBC: {record.wbcCount}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {record.analysis?.status === 'critical'
-                          ? <AlertTriangle className="h-4 w-4 text-danger" aria-hidden="true" />
-                          : record.analysis?.status === 'warning'
-                            ? <Activity className="h-4 w-4 text-danger" aria-hidden="true" />
-                            : record.analysis?.status === 'normal'
-                              ? <CircleCheck className="h-4 w-4 text-voicePrimary" aria-hidden="true" />
-                              : <Activity className="h-4 w-4 text-textPrimary" aria-hidden="true" />}
-                        <span className="text-xs font-semibold text-textPrimary">
-                          {record.analysis?.status || 'No analysis returned'}
-                        </span>
-                        <span className="text-xs text-textSecondary">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="mb-3 text-sm font-medium text-textPrimary">
                           {new Date(record.recordedAt).toLocaleString()}
+                        </p>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm text-textSecondary sm:grid-cols-2 lg:grid-cols-3">
+                          <span>Blood pressure: {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg</span>
+                          <span>Heart rate: {record.heartRate} bpm</span>
+                          <span>Pulse rate: {record.pulseRate} bpm</span>
+                          <span>Blood sugar: {record.sugarLevel} mg/dL</span>
+                          <span>Temperature: {record.temperature} °F</span>
+                          <span>RBC: {record.rbcCount} million/µL</span>
+                          <span>WBC: {record.wbcCount} cells/µL</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-textPrimary/10 bg-background px-2.5 py-1 text-xs font-semibold capitalize text-textPrimary">
+                          {record.analysis?.status === 'critical'
+                            ? <AlertTriangle className="h-3.5 w-3.5 text-danger" aria-hidden="true" />
+                            : record.analysis?.status === 'warning'
+                              ? <Activity className="h-3.5 w-3.5 text-danger" aria-hidden="true" />
+                              : record.analysis?.status === 'normal'
+                                ? <CircleCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                : <Activity className="h-3.5 w-3.5 text-textPrimary" aria-hidden="true" />}
+                          {record.analysis?.status || 'No analysis returned'}
                         </span>
                         {record.analysis && (
                           <VoiceButton

@@ -16,6 +16,7 @@ export default {
           hover: '#1D4ED8',
           light: '#2563EB',
         },
+        primaryDark: '#1D4ED8',
         prescriptionPrimary: '#2563EB',
         prescriptionPrimaryDark: '#1D4ED8',
         voicePrimary: '#2563EB',

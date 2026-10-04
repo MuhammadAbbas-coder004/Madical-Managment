@@ -53,7 +53,7 @@ export const PatientListPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-textPrimary">Patients Directory</h1>
           <p className="text-sm text-textSecondary mt-0.5">View, search, and manage registered clinic patients.</p>
         </div>
-        <Link to="/patients/new" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+        <Link to="/patients/new" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm">
           <UserPlus className="w-4 h-4 mr-2" />Register Patient
         </Link>
       </div>

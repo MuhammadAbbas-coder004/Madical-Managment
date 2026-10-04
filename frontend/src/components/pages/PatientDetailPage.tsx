@@ -118,7 +118,7 @@ export const PatientDetailPage: React.FC = () => {
               <div className="flex flex-wrap justify-end gap-2">
                 <Link
                   to={`/vitals/history?patientId=${encodeURIComponent(patient.patientId)}`}
-                  className="inline-flex items-center rounded-md bg-prescriptionPrimary px-4 py-2 text-sm font-medium text-white hover:bg-prescriptionPrimaryDark"
+                  className="inline-flex items-center rounded-md bg-prescriptionPrimary px-4 py-2 text-sm font-medium text-surface hover:bg-prescriptionPrimaryDark"
                 >
                   <Activity className="mr-2 h-4 w-4" />
                   View Vitals History
@@ -131,7 +131,7 @@ export const PatientDetailPage: React.FC = () => {
                 </Link>
                 <Link
                   to={`/prescriptions/new?patientId=${encodeURIComponent(patient.patientId)}`}
-                  className="inline-flex items-center rounded-md bg-prescriptionPrimary px-4 py-2 text-sm font-medium text-white hover:bg-prescriptionPrimaryDark"
+                  className="inline-flex items-center rounded-md bg-prescriptionPrimary px-4 py-2 text-sm font-medium text-surface hover:bg-prescriptionPrimaryDark"
                 >
                   Create Prescription
                 </Link>

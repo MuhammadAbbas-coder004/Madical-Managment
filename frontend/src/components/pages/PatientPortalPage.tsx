@@ -262,7 +262,7 @@ export const PatientPortalPage: React.FC = () => {
                         {presc.medicines?.map((med, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-2 text-textSecondary bg-white p-1.5 rounded border border-border/60"
+                            className="flex items-center gap-2 text-textSecondary bg-surface p-1.5 rounded border border-border/60"
                           >
                             <Pill className="w-3.5 h-3.5 text-primary shrink-0" />
                             <span className="font-medium text-textPrimary">{med.name}</span>

@@ -32,7 +32,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ text, englishText }) =
           type="button"
           aria-pressed={language === 'en'}
           onClick={() => setLanguage('en')}
-          className={`rounded px-2 py-1 text-xs ${language === 'en' ? 'bg-voicePrimary text-white' : 'text-textPrimary hover:bg-background'}`}
+          className={`rounded px-2 py-1 text-xs ${language === 'en' ? 'bg-voicePrimary text-surface' : 'text-textPrimary hover:bg-background'}`}
         >
           English
         </button>
@@ -40,7 +40,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ text, englishText }) =
           type="button"
           aria-pressed={language === 'ur'}
           onClick={() => setLanguage('ur')}
-          className={`rounded px-2 py-1 text-xs ${language === 'ur' ? 'bg-voicePrimary text-white' : 'text-textPrimary hover:bg-background'}`}
+          className={`rounded px-2 py-1 text-xs ${language === 'ur' ? 'bg-voicePrimary text-surface' : 'text-textPrimary hover:bg-background'}`}
         >
           اردو
         </button>

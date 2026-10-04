@@ -43,7 +43,7 @@ export const DoctorListPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-textPrimary">Doctors Directory</h1>
           <p className="text-sm text-textSecondary mt-0.5">Manage hospital medical staff and physician specialties.</p>
         </div>
-        <Link to="/doctors/new" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+        <Link to="/doctors/new" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm">
           <Stethoscope className="w-4 h-4 mr-2" />Add Doctor
         </Link>
       </div>

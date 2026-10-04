@@ -121,10 +121,10 @@ export const PatientVitalsPage: React.FC = () => {
                         <span>Blood pressure: {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg</span>
                         <span>Heart rate: {record.heartRate} bpm</span>
                         <span>Pulse rate: {record.pulseRate} bpm</span>
-                        <span>Blood sugar: {record.sugarLevel}</span>
-                        <span>Temperature: {record.temperature}</span>
-                        <span>RBC count: {record.rbcCount}</span>
-                        <span>WBC count: {record.wbcCount}</span>
+                        <span>Blood sugar: {record.sugarLevel} mg/dL</span>
+                        <span>Temperature: {record.temperature} °F</span>
+                        <span>RBC count: {record.rbcCount} million/µL</span>
+                        <span>WBC count: {record.wbcCount} cells/µL</span>
                       </div>
                       {record.analysis?.message && (
                         <p className="mt-2 text-sm text-textPrimary">{record.analysis.message}</p>

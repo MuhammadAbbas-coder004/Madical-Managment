@@ -82,7 +82,7 @@ export const LabReportListPage: React.FC = () => {
           </div>
           <Link
             to="/lab-reports/upload"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-colors hover:bg-primary-hover"
           >
             <ClipboardPlus className="mr-2 h-4 w-4" />
             Create Lab Report

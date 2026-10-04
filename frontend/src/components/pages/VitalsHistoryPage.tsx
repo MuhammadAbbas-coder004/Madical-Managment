@@ -104,7 +104,7 @@ export const VitalsHistoryPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-textPrimary">Vitals History</h1>
           <p className="text-sm text-textSecondary mt-0.5">Review patient vital signs and clinical alerts.</p>
         </div>
-        <Link to="/vitals" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+        <Link to="/vitals" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm">
           <PlusCircle className="w-4 h-4 mr-2" />Record Vitals
         </Link>
       </div>
@@ -119,7 +119,7 @@ export const VitalsHistoryPage: React.FC = () => {
         />
         <button
           onClick={() => fetchVitals(patientId)}
-          className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary-hover text-surface rounded-md transition-colors"
         >
           Load
         </button>
@@ -171,10 +171,10 @@ export const VitalsHistoryPage: React.FC = () => {
                       <span>Blood pressure: {v.bloodPressureSystolic}/{v.bloodPressureDiastolic} mmHg</span>
                       <span>Heart rate: {v.heartRate} bpm</span>
                       <span>Pulse rate: {v.pulseRate} bpm</span>
-                      <span>Blood sugar: {v.sugarLevel}</span>
-                      <span>Temperature: {v.temperature}</span>
-                      <span>RBC count: {v.rbcCount}</span>
-                      <span>WBC count: {v.wbcCount}</span>
+                      <span>Blood sugar: {v.sugarLevel} mg/dL</span>
+                      <span>Temperature: {v.temperature} °F</span>
+                      <span>RBC count: {v.rbcCount} million/µL</span>
+                      <span>WBC count: {v.wbcCount} cells/µL</span>
                     </div>
                     {v.analysis?.message && (
                       <p className="text-xs text-textPrimary mt-2">{v.analysis.message}</p>

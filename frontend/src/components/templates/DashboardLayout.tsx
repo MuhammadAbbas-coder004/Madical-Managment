@@ -279,7 +279,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       >
         <div className="flex h-16 items-center justify-between border-b border-textPrimary/10 px-6">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">
               +
             </div>
             <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
@@ -328,7 +328,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       <aside className="hidden w-64 shrink-0 flex-col border-r border-textPrimary/10 bg-surface md:flex">
         <div className="flex h-16 items-center border-b border-textPrimary/10 px-6">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">
               +
             </div>
             <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
@@ -367,7 +367,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex min-h-[72px] items-center justify-between border-b border-textPrimary/10 bg-surface px-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-lg font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-lg font-bold text-surface">
               +
             </div>
             <span className="truncate font-semibold text-textPrimary">MedSystem</span>
@@ -430,8 +430,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             </button>
           </div>
         </header>
-        <main ref={contentRef} className="flex-1 p-4 sm:p-8 overflow-y-auto">
-          {children}
+        <main ref={contentRef} className="flex-1 overflow-y-auto p-4 sm:p-8">
+          <div className="mx-auto w-full max-w-[1100px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>

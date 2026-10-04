@@ -262,7 +262,7 @@ export const BillingListPage: React.FC = () => {
 
           <Link
             to="/billing/new"
-            className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Invoice

@@ -16,15 +16,15 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    primary: 'bg-primary hover:bg-primary-hover text-white',
+    primary: 'bg-primary hover:bg-primary-hover text-surface',
     secondary: 'bg-surface hover:bg-background text-textPrimary border border-textPrimary/10',
-    danger: 'bg-danger hover:opacity-90 text-white',
+    danger: 'bg-danger hover:opacity-90 text-surface',
   };
 
   return (
     <button
       disabled={disabled || isLoading}
-      className={`inline-flex items-center justify-center font-medium text-sm px-4 py-2 rounded-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ${variantStyles[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ${variantStyles[variant]} ${className}`}
       {...props}
     >
       {isLoading && <Spinner size="sm" className="mr-2" />}
