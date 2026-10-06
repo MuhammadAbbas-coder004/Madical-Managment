@@ -5,18 +5,6 @@ A full-stack **Medical Management System** backend built with **Node.js, TypeScr
 > ⚠️ This project is under active development. Some modules may still be incomplete.
 
 ---
-
-PORT=5000
-MONGODB_URI=mongodb+srv://mabbasmshahi2003_db_user:mabbas0008@medical-management.9rzf5w9.mongodb.net/project
-JWT_SECRET=your_secret_key
-REDIS_URL=redis://default:Z05Q9JR7PZV4Pb5KRLCIEKUn6b4sfdM8@kettle-ultraclean-sensory-22185.db.redis.io:17260
-
-
-
-
-
-
-
 ## 📖 Table of Contents
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
