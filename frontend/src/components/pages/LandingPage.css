@@ -1,0 +1,203 @@
+.face-scan-section {
+  overflow: hidden;
+}
+
+.face-scan-visual-shell {
+  perspective: 1100px;
+}
+
+.face-scan-visual {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+}
+
+.face-scan-image-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.35;
+  overflow: hidden;
+  border: 1px solid rgb(199 255 190 / 0.2);
+  border-radius: 1.5rem;
+  background: #111514;
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 0.35),
+    inset 0 0 48px rgb(199 255 190 / 0.04);
+  isolation: isolate;
+}
+
+.face-scan-attribution {
+  position: absolute;
+  bottom: 18px;
+  left: 16px;
+  z-index: 4;
+  color: rgb(232 245 230 / 0.58);
+  font-size: 9px;
+  text-decoration: none;
+}
+
+.face-scan-attribution:hover,
+.face-scan-attribution:focus-visible {
+  color: #e8f5e6;
+  text-decoration: underline;
+}
+
+.face-scan-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(199 255 190 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(199 255 190 / 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(transparent, #000 16%, #000 84%, transparent);
+}
+
+.face-scan-corners {
+  position: absolute;
+  inset: 10% 16%;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(#c7ffbe, #c7ffbe) left top / 2px 28px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) left top / 28px 2px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) right top / 2px 28px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) right top / 28px 2px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) left bottom / 2px 28px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) left bottom / 28px 2px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) right bottom / 2px 28px no-repeat,
+    linear-gradient(#c7ffbe, #c7ffbe) right bottom / 28px 2px no-repeat;
+  opacity: 0.7;
+}
+
+.face-scan-beam {
+  position: absolute;
+  top: 8%;
+  right: 10%;
+  left: 10%;
+  z-index: 3;
+  height: 1px;
+  pointer-events: none;
+  background: #c7ffbe;
+  box-shadow:
+    0 0 8px 2px rgb(199 255 190 / 0.75),
+    0 0 30px 8px rgb(199 255 190 / 0.22);
+  animation: face-scan-pass 5.5s ease-in-out infinite;
+}
+
+.face-scan-point {
+  position: absolute;
+  z-index: 3;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  border: 1px solid #e5ffe1;
+  border-radius: 50%;
+  background: #c7ffbe;
+  box-shadow: 0 0 12px 3px rgb(199 255 190 / 0.65);
+  animation: face-scan-pulse 2.8s ease-in-out infinite;
+}
+
+.face-scan-point-one {
+  top: 39%;
+  left: 41%;
+}
+
+.face-scan-point-two {
+  top: 41%;
+  right: 40%;
+  animation-delay: 0.45s;
+}
+
+.face-scan-point-three {
+  bottom: 23%;
+  left: 50%;
+  animation-delay: 0.9s;
+}
+
+.face-scan-status {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgb(199 255 190 / 0.22);
+  border-radius: 999px;
+  background: rgb(23 27 26 / 0.78);
+  padding: 8px 11px;
+  color: #e8f5e6;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  backdrop-filter: blur(10px);
+}
+
+.face-scan-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c7ffbe;
+  box-shadow: 0 0 8px rgb(199 255 190 / 0.8);
+}
+
+@keyframes face-scan-pass {
+  0%,
+  100% {
+    top: 8%;
+    opacity: 0.15;
+  }
+
+  8%,
+  92% {
+    opacity: 0.9;
+  }
+
+  50% {
+    top: 90%;
+    opacity: 0.75;
+  }
+}
+
+@keyframes face-scan-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@media (max-width: 639px) {
+  .face-scan-image-frame {
+    aspect-ratio: 1.2;
+    border-radius: 1.15rem;
+  }
+
+  .face-scan-grid {
+    background-size: 36px 36px;
+  }
+
+  .face-scan-status {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .face-scan-attribution {
+    bottom: 12px;
+    left: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .face-scan-beam,
+  .face-scan-point {
+    animation: none;
+  }
+}

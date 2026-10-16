@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -19,10 +19,66 @@ import {
 } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { AivoraLogo } from '../atoms/AivoraLogo';
+import './LandingPage.css';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
+
+const FaceScanModel = React.lazy(() =>
+  import('./FaceScanModel').then(({ FaceScanModel: Model }) => ({ default: Model }))
+);
+
+const setupRepeatableReveal = (
+  element: HTMLElement,
+  y: number,
+  duration: number,
+  delay = 0,
+  initialScale = 1
+) => {
+  gsap.set(element, { y, autoAlpha: 0, scale: initialScale });
+
+  let activeTween: gsap.core.Tween | undefined;
+  const enter = (direction: 1 | -1) => {
+    activeTween?.kill();
+    gsap.set(element, { y: y * direction, autoAlpha: 0, scale: initialScale });
+    activeTween = gsap.to(element, {
+      y: 0,
+      autoAlpha: 1,
+      scale: 1,
+      duration,
+      delay,
+      ease: 'power2.out',
+      overwrite: 'auto',
+    });
+  };
+  const leave = (direction: 1 | -1) => {
+    activeTween?.kill();
+    activeTween = gsap.to(element, {
+      y: y * direction,
+      autoAlpha: 0,
+      duration: 0.3,
+      ease: 'power2.in',
+      overwrite: 'auto',
+    });
+  };
+
+  const trigger = ScrollTrigger.create({
+    trigger: element,
+    start: 'top bottom',
+    end: 'bottom top',
+    onEnter: () => enter(1),
+    onLeave: () => leave(-1),
+    onEnterBack: () => enter(-1),
+    onLeaveBack: () => leave(1),
+  });
+
+  const rect = element.getBoundingClientRect();
+  if (rect.bottom > 0 && rect.top < window.innerHeight) {
+    enter(trigger.direction < 0 ? -1 : 1);
+  }
+};
 
 export const MedicalLogoMark: React.FC<{ className: string }> = ({ className }) => (
   <svg className={className} viewBox="0 0 100 100" fill="none" aria-hidden="true">
@@ -30,27 +86,6 @@ export const MedicalLogoMark: React.FC<{ className: string }> = ({ className }) 
     <path d="M96 39v22h-9c-13 0-22-7-31-16l-8-8 15-15 8 8c6 6 13 9 22 9h3Z" fill="#2563EB" />
     <path d="M61 96H39v-9c0-13 7-22 16-31l8-8 15 15-8 8c-6 6-9 13-9 22v3Z" fill="#2563EB" />
     <path d="M4 61V39h9c13 0 22 7 31 16l8 8-15 15-8-8c-6-6-13-9-22-9H4Z" fill="#2563EB" />
-  </svg>
-);
-
-// Approved Aivora Logo SVG (Preserved exactly as approved)
-export const AivoraLogo: React.FC<{ className?: string }> = ({ className = 'h-8 w-8' }) => (
-  <svg className={className} viewBox="0 0 34 34" fill="none" aria-hidden="true">
-    <rect width="34" height="34" rx="9" fill="#171B1A" />
-    <path
-      d="M17 7.5C11.753 7.5 7.5 11.753 7.5 17C7.5 22.247 11.753 26.5 17 26.5C22.247 26.5 26.5 22.247 26.5 17"
-      stroke="#C7FFBE"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-    />
-    <circle cx="21" cy="12.5" r="3" fill="#C7FFBE" />
-    <path
-      d="M12.5 17L15.5 20L21.5 13.5"
-      stroke="#C7FFBE"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
   </svg>
 );
 
@@ -75,11 +110,10 @@ export const LandingPage: React.FC = () => {
   const heroSectionRef = useRef<HTMLElement>(null);
   const heroVisualRef = useRef<HTMLDivElement>(null);
 
-
   const closeMenu = () => setIsMenuOpen(false);
 
   // Restrained elevation on scroll
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
@@ -174,136 +208,17 @@ export const LandingPage: React.FC = () => {
       });
 
       // 3. Section 3: Trust & Value Foundation
-      gsap.fromTo(
-        '#about .section-header',
-        { y: 26, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#about .section-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        '.value-card',
-        { y: 36, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          stagger: 0.13,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#value-cards-container',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
+      gsap.utils.toArray<HTMLElement>(
+        '#about .section-header, #solutions .section-header, #how-it-works-section .section-header, #platform .section-header, #benefits-section .section-header, #final-cta-content, footer .footer-col',
+        mainContainerRef.current
+      ).forEach((element, index) => {
+        setupRepeatableReveal(element, 26, 0.55, element.matches('footer .footer-col') ? (index % 4) * 0.08 : 0);
+      });
 
       // 4. Section 4: Main Features / Platform Capabilities
-      gsap.fromTo(
-        '#solutions .section-header',
-        { y: 26, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#solutions .section-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        '.gsap-feature-card',
-        { y: 32, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.55,
-          stagger: 0.1,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#features-container',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-
-      // 5. Section 5: How It Works
-      gsap.fromTo(
-        '#how-it-works-section .section-header',
-        { y: 26, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#how-it-works-section .section-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        '.gsap-step-item',
-        { y: 30, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          stagger: 0.15,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#steps-container',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-
-      // 6. Section 6: Clinical Cockpit Showcase
-      gsap.fromTo(
-        '#platform .section-header',
-        { y: 26, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#platform .section-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        '.cockpit-mockup',
-        { y: 38, opacity: 0, scale: 0.98 },
-        {
-          y: 0,
-          opacity: 1,
-          scale: 1,
-          duration: 0.75,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.cockpit-mockup',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
+      gsap.utils.toArray<HTMLElement>('.cockpit-mockup', mainContainerRef.current).forEach((element) => {
+        setupRepeatableReveal(element, 38, 0.75, 0, 0.98);
+      });
       gsap.to('.cockpit-ambient-glow', {
         scale: 1.25,
         opacity: 0.14,
@@ -315,79 +230,44 @@ export const LandingPage: React.FC = () => {
         },
       });
 
-      // 7. Section 7: Benefits
-      gsap.fromTo(
-        '#benefits-section .section-header',
-        { y: 26, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#benefits-section .section-header',
-            start: 'top 85%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        '.benefit-card',
-        { y: 32, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.55,
-          stagger: 0.12,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#benefits-container',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-
-      // 8. Section 8: Final CTA
-      gsap.fromTo(
-        '#final-cta-content',
-        { y: 32, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '#final-cta-content',
-            start: 'top 82%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-
-      // 9. Section 9: Footer
-      gsap.fromTo(
-        'footer .footer-col',
-        { y: 18, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          stagger: 0.09,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: 'footer',
-            start: 'top 92%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
     }, mainContainerRef);
 
     return () => {
       ctx.revert();
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const ctx = gsap.context(() => {
+      const cardSelectors = [
+        '.value-card',
+        '.gsap-feature-card',
+        '.gsap-step-item',
+        '.benefit-card',
+      ];
+      cardSelectors.forEach((selector) => {
+        gsap.utils.toArray<HTMLElement>(selector, mainContainerRef.current).forEach((card, index) => {
+          setupRepeatableReveal(card, 26, 0.55, (index % 4) * 0.08);
+        });
+      });
+    }, mainContainerRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const ctx = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>('.cockpit-card', mainContainerRef.current).forEach((card, index) => {
+        setupRepeatableReveal(card, 20, 0.45, index * 0.08);
+      });
+    }, mainContainerRef);
+
+    return () => ctx.revert();
+  }, [activeTab]);
 
   // Mobile menu open/close transition, Escape listener & scroll lock
   useEffect(() => {
@@ -422,17 +302,18 @@ export const LandingPage: React.FC = () => {
     };
   }, [isMenuOpen]);
 
-  // ── 3D Hero Tilt + Card Hover-Tilt ──────────────────────────────────────
+  // ── 3D Hero and card hover interactions ────────────────────────────────
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
+    const cleanupFns: Array<() => void> = [];
+    const isTouchDevice = window.matchMedia('(hover: none)').matches;
     const heroSection = heroSectionRef.current;
     const heroCard = heroVisualRef.current;
 
-    // ── 1. Hero card: 3D tilt on mouse (desktop) ──────────────────────────
     if (heroSection && heroCard) {
       const MAX_TILT = 8; // degrees
       const quickX = gsap.quickTo(heroCard, 'rotateY', { duration: 0.55, ease: 'power2.out' });
@@ -452,13 +333,14 @@ export const LandingPage: React.FC = () => {
         gsap.to(heroCard, { rotateX: 0, rotateY: 0, duration: 0.7, ease: 'elastic.out(1,0.5)' });
       };
 
-      heroSection.addEventListener('mousemove', handleMouseMove);
-      heroSection.addEventListener('mouseleave', handleMouseLeave);
+      if (!isTouchDevice) {
+        heroSection.addEventListener('mousemove', handleMouseMove);
+        heroSection.addEventListener('mouseleave', handleMouseLeave);
+      }
 
       // Mobile: gentle looping oscillation instead of mouse tracking
-      const isMobile = window.matchMedia('(hover: none)').matches;
       let mobileAnim: gsap.core.Tween | null = null;
-      if (isMobile) {
+      if (isTouchDevice) {
         mobileAnim = gsap.to(heroCard, {
           rotateY: 3,
           rotateX: -2,
@@ -468,66 +350,52 @@ export const LandingPage: React.FC = () => {
           repeat: -1,
         });
       }
-
-      return () => {
+      cleanupFns.push(() => {
         heroSection.removeEventListener('mousemove', handleMouseMove);
         heroSection.removeEventListener('mouseleave', handleMouseLeave);
         mobileAnim?.kill();
         gsap.killTweensOf(heroCard);
-      };
+      });
     }
 
-    // ── 2. Card hover-tilt (feature + value + step cards) ─────────────────
-    const isTouchDevice = window.matchMedia('(hover: none)').matches;
-    if (isTouchDevice) return;
-
-    const CARD_TILT = 6;
-    const cardSelectors = [
-      '.gsap-feature-card',
-      '.value-card',
-      '.gsap-step-item',
-      '.benefit-card',
-    ];
-
-    type CleanupFn = () => void;
-    const cleanupFns: CleanupFn[] = [];
-
-    cardSelectors.forEach((sel) => {
-      const cards = document.querySelectorAll<HTMLElement>(sel);
-      cards.forEach((card) => {
-        const qx = gsap.quickTo(card, 'rotateY', { duration: 0.35, ease: 'power2.out' });
-        const qy = gsap.quickTo(card, 'rotateX', { duration: 0.35, ease: 'power2.out' });
-
-        const onMove = (e: MouseEvent) => {
-          const r = card.getBoundingClientRect();
-          const dx = (e.clientX - r.left - r.width / 2) / (r.width / 2);
-          const dy = (e.clientY - r.top - r.height / 2) / (r.height / 2);
-          card.style.willChange = 'transform';
-          qx(dx * CARD_TILT);
-          qy(-dy * CARD_TILT);
-          // Lift the icon inside the card
+    if (!isTouchDevice) {
+      const cardSelectors = ['.gsap-feature-card', '.value-card', '.gsap-step-item', '.benefit-card'];
+      cardSelectors.forEach((selector) => {
+        gsap.utils.toArray<HTMLElement>(selector, mainContainerRef.current).forEach((card) => {
+          const quickRotateX = gsap.quickTo(card, 'rotateX', { duration: 0.35, ease: 'power2.out' });
+          const quickRotateY = gsap.quickTo(card, 'rotateY', { duration: 0.35, ease: 'power2.out' });
           const icon = card.querySelector<HTMLElement>('.card-icon-inner');
-          if (icon) gsap.to(icon, { z: 8, duration: 0.3, ease: 'power2.out' });
-        };
 
-        const onLeave = () => {
-          gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.5, ease: 'power2.out' });
-          card.style.willChange = '';
-          const icon = card.querySelector<HTMLElement>('.card-icon-inner');
-          if (icon) gsap.to(icon, { z: 0, duration: 0.4, ease: 'power2.out' });
-        };
+          const handleMouseMove = (event: MouseEvent) => {
+            const rect = card.getBoundingClientRect();
+            const horizontal = (event.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+            const vertical = (event.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+            card.style.willChange = 'transform';
+            quickRotateY(horizontal * 4);
+            quickRotateX(-vertical * 4);
+            if (icon) gsap.to(icon, { z: 6, duration: 0.3, ease: 'power2.out' });
+          };
 
-        card.addEventListener('mousemove', onMove);
-        card.addEventListener('mouseleave', onLeave);
-        cleanupFns.push(() => {
-          card.removeEventListener('mousemove', onMove);
-          card.removeEventListener('mouseleave', onLeave);
-          gsap.killTweensOf(card);
+          const handleMouseLeave = () => {
+            gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.5, ease: 'power2.out' });
+            card.style.willChange = '';
+            if (icon) gsap.to(icon, { z: 0, duration: 0.4, ease: 'power2.out' });
+          };
+
+          card.addEventListener('mousemove', handleMouseMove);
+          card.addEventListener('mouseleave', handleMouseLeave);
+          cleanupFns.push(() => {
+            card.removeEventListener('mousemove', handleMouseMove);
+            card.removeEventListener('mouseleave', handleMouseLeave);
+            gsap.killTweensOf(card);
+            if (icon) gsap.killTweensOf(icon);
+          });
         });
       });
-    });
 
-    return () => cleanupFns.forEach((fn) => fn());
+    }
+
+    return () => cleanupFns.forEach((cleanup) => cleanup());
   }, []);
 
   return (
@@ -813,7 +681,63 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ── SECTION 3: TRUST & VALUE INTRODUCTION ── */}
+      {/* ── SECTION 3: AI FACE SCAN ── */}
+      <section
+        id="face-scan"
+        className="face-scan-section border-t border-white/[0.08] bg-[#171B1A] py-16 text-white sm:py-20 lg:py-24"
+      >
+        <div className="mx-auto grid max-w-[1360px] items-center gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-8">
+          <div className="face-scan-visual-shell mx-auto w-full max-w-[600px]">
+            <div className="face-scan-visual">
+              <div className="face-scan-image-frame">
+                <React.Suspense
+                  fallback={<div className="face-scan-model" role="status" aria-label="Loading 3D face model" />}
+                >
+                  <FaceScanModel />
+                </React.Suspense>
+                <div className="face-scan-grid" aria-hidden="true" />
+                <div className="face-scan-corners" aria-hidden="true" />
+                <div className="face-scan-beam" aria-hidden="true" />
+                <span className="face-scan-point face-scan-point-one" aria-hidden="true" />
+                <span className="face-scan-point face-scan-point-two" aria-hidden="true" />
+                <span className="face-scan-point face-scan-point-three" aria-hidden="true" />
+                <div className="face-scan-status" aria-hidden="true">
+                  <span className="face-scan-status-dot" />
+                  FACIAL MAPPING
+                </div>
+                <a
+                  className="face-scan-attribution"
+                  href="https://poly.pizza/m/eqJEiOX0Fhl"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="3D face model by hedy magroun, licensed under Creative Commons Attribution 3.0"
+                >
+                  3D model by hedy magroun · CC BY 3.0
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-[560px] lg:mx-0">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#C7FFBE]/25 bg-[#C7FFBE]/[0.08] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C7FFBE]">
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Wellness Experience
+            </span>
+            <h2 className="mt-5 text-[clamp(2rem,4vw,3.1rem)] font-medium leading-[1.12] tracking-[-0.04em] text-white">
+              Explore AI-Powered Face Scanning
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-white/70 sm:text-lg">
+              A guided facial analysis experience may estimate selected wellness indicators from visual cues. It is for general information only and is not a diagnosis or a substitute for professional medical advice.
+            </p>
+            <div className="mt-7 flex items-center gap-3 text-sm text-white/55">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-[#C7FFBE]" />
+              <span>Informational estimates only — no diagnosis or guaranteed health results.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 4: TRUST & VALUE INTRODUCTION ── */}
       <section id="about" className="border-t border-[#E8ECEB] bg-white py-20 text-[#171B1A] sm:py-24 lg:py-28">
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
@@ -1091,21 +1015,21 @@ export const LandingPage: React.FC = () => {
             <div className="p-6 sm:p-8">
               {activeTab === 'vitals' && (
                 <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="rounded-xl border border-white/10 bg-[#161B1A] p-5">
+                  <div className="cockpit-card rounded-xl border border-white/10 bg-[#161B1A] p-5">
                     <p className="text-xs font-medium text-white/50">Resting Heart Rate</p>
                     <p className="mt-2 text-3xl font-semibold text-white">68 <span className="text-sm font-normal text-white/50">bpm</span></p>
                     <p className="mt-3 flex items-center gap-1.5 text-xs text-[#52B441]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Optimal resting cadence
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#161B1A] p-5">
+                  <div className="cockpit-card rounded-xl border border-white/10 bg-[#161B1A] p-5">
                     <p className="text-xs font-medium text-white/50">Blood Pressure</p>
                     <p className="mt-2 text-3xl font-semibold text-white">118/78 <span className="text-sm font-normal text-white/50">mmHg</span></p>
                     <p className="mt-3 flex items-center gap-1.5 text-xs text-[#52B441]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Normotensive range
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#161B1A] p-5">
+                  <div className="cockpit-card rounded-xl border border-white/10 bg-[#161B1A] p-5">
                     <p className="text-xs font-medium text-white/50">Oxygen Saturation</p>
                     <p className="mt-2 text-3xl font-semibold text-white">99% <span className="text-sm font-normal text-white/50">SpO2</span></p>
                     <p className="mt-3 flex items-center gap-1.5 text-xs text-[#52B441]">
@@ -1117,7 +1041,7 @@ export const LandingPage: React.FC = () => {
 
               {activeTab === 'records' && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
+                  <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-[#C7FFBE]" />
                       <div>
@@ -1129,7 +1053,7 @@ export const LandingPage: React.FC = () => {
                       Verified
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
+                  <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
                     <div className="flex items-center gap-3">
                       <Pill className="h-5 w-5 text-[#C7FFBE]" />
                       <div>
@@ -1146,7 +1070,7 @@ export const LandingPage: React.FC = () => {
 
               {activeTab === 'appointments' && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
+                  <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
                     <div className="flex items-center gap-3">
                       <CalendarDays className="h-5 w-5 text-[#C7FFBE]" />
                       <div>
@@ -1158,7 +1082,7 @@ export const LandingPage: React.FC = () => {
                       Confirmed
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
+                  <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#161B1A] p-4 text-sm">
                     <div className="flex items-center gap-3">
                       <CalendarDays className="h-5 w-5 text-[#C7FFBE]" />
                       <div>

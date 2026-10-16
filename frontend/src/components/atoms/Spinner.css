@@ -1,0 +1,23 @@
+.aivora-loading-logo {
+  flex: none;
+  animation: aivora-loading-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes aivora-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aivora-loading-logo {
+    animation: none;
+  }
+}

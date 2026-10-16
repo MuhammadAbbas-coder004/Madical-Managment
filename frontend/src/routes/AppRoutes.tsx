@@ -1,44 +1,46 @@
 // Defines public, role-aware, and protected application routes.
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { GuestRoute, ProtectedRoute } from './ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
+import { Spinner } from '../components/atoms/Spinner';
 
 // --- Auth Pages (Public) ---
-import { LoginPage } from '../components/pages/LoginPage';
-import { RegisterPage } from '../components/pages/RegisterPage';
-import { LandingPage } from '../components/pages/LandingPage';
-import { FaceEnrollPage } from '../components/pages/FaceEnrollPage';
-import { ForgotPasswordPage } from '../components/pages/ForgotPasswordPage';
-import { VerifyOtpPage } from '../components/pages/VerifyOtpPage';
-import { ResetPasswordPage } from '../components/pages/ResetPasswordPage';
+const LoginPage = lazy(() => import('../components/pages/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })));
+const RegisterPage = lazy(() => import('../components/pages/RegisterPage').then(({ RegisterPage }) => ({ default: RegisterPage })));
+const LandingPage = lazy(() => import('../components/pages/LandingPage').then(({ LandingPage }) => ({ default: LandingPage })));
+const FaceEnrollPage = lazy(() => import('../components/pages/FaceEnrollPage').then(({ FaceEnrollPage }) => ({ default: FaceEnrollPage })));
+const ForgotPasswordPage = lazy(() => import('../components/pages/ForgotPasswordPage').then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })));
+const VerifyOtpPage = lazy(() => import('../components/pages/VerifyOtpPage').then(({ VerifyOtpPage }) => ({ default: VerifyOtpPage })));
+const ResetPasswordPage = lazy(() => import('../components/pages/ResetPasswordPage').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })));
 
 // --- Clinical Modules (Protected) ---
-import { DashboardPage } from '../components/pages/DashboardPage';
-import { DoctorDashboardPage } from '../components/pages/DoctorDashboardPage';
-import { PatientListPage } from '../components/pages/PatientListPage';
-import { PatientCreatePage } from '../components/pages/PatientCreatePage';
-import { PatientDetailPage } from '../components/pages/PatientDetailPage';
-import { DoctorListPage } from '../components/pages/DoctorListPage';
-import { DoctorCreatePage } from '../components/pages/DoctorCreatePage';
-import { DoctorDetailPage } from '../components/pages/DoctorDetailPage';
-import { AppointmentListPage } from '../components/pages/AppointmentListPage';
-import { AppointmentBookPage } from '../components/pages/AppointmentBookPage';
-import { VitalsRecordPage } from '../components/pages/VitalsRecordPage';
-import { PatientVitalsPage } from '../components/pages/PatientVitalsPage';
-import { PrescriptionListPage } from '../components/pages/PrescriptionListPage';
-import { PrescriptionCreatePage } from '../components/pages/PrescriptionCreatePage';
-import { MedicalRecordListPage } from '../components/pages/MedicalRecordListPage';
-import { MedicalRecordCreatePage } from '../components/pages/MedicalRecordCreatePage';
-import { LabReportListPage } from '../components/pages/LabReportListPage';
-import { LabReportUploadPage } from '../components/pages/LabReportUploadPage';
-import { PatientLabReportsPage } from '../components/pages/PatientLabReportsPage';
-import { BillingListPage } from '../components/pages/BillingListPage';
-import { BillingCreatePage } from '../components/pages/BillingCreatePage';
-import { PharmacyListPage } from '../components/pages/PharmacyListPage';
-import { PharmacyAddPage } from '../components/pages/PharmacyAddPage';
-import { PatientPortalPage } from '../components/pages/PatientPortalPage';
-import { DoctorAppointmentListPage, PatientAppointmentListPage } from '../components/pages/MyAppointmentListPage';
+const DashboardPage = lazy(() => import('../components/pages/DashboardPage').then(({ DashboardPage }) => ({ default: DashboardPage })));
+const DoctorDashboardPage = lazy(() => import('../components/pages/DoctorDashboardPage').then(({ DoctorDashboardPage }) => ({ default: DoctorDashboardPage })));
+const PatientListPage = lazy(() => import('../components/pages/PatientListPage').then(({ PatientListPage }) => ({ default: PatientListPage })));
+const PatientCreatePage = lazy(() => import('../components/pages/PatientCreatePage').then(({ PatientCreatePage }) => ({ default: PatientCreatePage })));
+const PatientDetailPage = lazy(() => import('../components/pages/PatientDetailPage').then(({ PatientDetailPage }) => ({ default: PatientDetailPage })));
+const DoctorListPage = lazy(() => import('../components/pages/DoctorListPage').then(({ DoctorListPage }) => ({ default: DoctorListPage })));
+const DoctorCreatePage = lazy(() => import('../components/pages/DoctorCreatePage').then(({ DoctorCreatePage }) => ({ default: DoctorCreatePage })));
+const DoctorDetailPage = lazy(() => import('../components/pages/DoctorDetailPage').then(({ DoctorDetailPage }) => ({ default: DoctorDetailPage })));
+const AppointmentListPage = lazy(() => import('../components/pages/AppointmentListPage').then(({ AppointmentListPage }) => ({ default: AppointmentListPage })));
+const AppointmentBookPage = lazy(() => import('../components/pages/AppointmentBookPage').then(({ AppointmentBookPage }) => ({ default: AppointmentBookPage })));
+const VitalsRecordPage = lazy(() => import('../components/pages/VitalsRecordPage').then(({ VitalsRecordPage }) => ({ default: VitalsRecordPage })));
+const PatientVitalsPage = lazy(() => import('../components/pages/PatientVitalsPage').then(({ PatientVitalsPage }) => ({ default: PatientVitalsPage })));
+const PrescriptionListPage = lazy(() => import('../components/pages/PrescriptionListPage').then(({ PrescriptionListPage }) => ({ default: PrescriptionListPage })));
+const PrescriptionCreatePage = lazy(() => import('../components/pages/PrescriptionCreatePage').then(({ PrescriptionCreatePage }) => ({ default: PrescriptionCreatePage })));
+const MedicalRecordListPage = lazy(() => import('../components/pages/MedicalRecordListPage').then(({ MedicalRecordListPage }) => ({ default: MedicalRecordListPage })));
+const MedicalRecordCreatePage = lazy(() => import('../components/pages/MedicalRecordCreatePage').then(({ MedicalRecordCreatePage }) => ({ default: MedicalRecordCreatePage })));
+const LabReportListPage = lazy(() => import('../components/pages/LabReportListPage').then(({ LabReportListPage }) => ({ default: LabReportListPage })));
+const LabReportUploadPage = lazy(() => import('../components/pages/LabReportUploadPage').then(({ LabReportUploadPage }) => ({ default: LabReportUploadPage })));
+const PatientLabReportsPage = lazy(() => import('../components/pages/PatientLabReportsPage').then(({ PatientLabReportsPage }) => ({ default: PatientLabReportsPage })));
+const BillingListPage = lazy(() => import('../components/pages/BillingListPage').then(({ BillingListPage }) => ({ default: BillingListPage })));
+const BillingCreatePage = lazy(() => import('../components/pages/BillingCreatePage').then(({ BillingCreatePage }) => ({ default: BillingCreatePage })));
+const PharmacyListPage = lazy(() => import('../components/pages/PharmacyListPage').then(({ PharmacyListPage }) => ({ default: PharmacyListPage })));
+const PharmacyAddPage = lazy(() => import('../components/pages/PharmacyAddPage').then(({ PharmacyAddPage }) => ({ default: PharmacyAddPage })));
+const PatientPortalPage = lazy(() => import('../components/pages/PatientPortalPage').then(({ PatientPortalPage }) => ({ default: PatientPortalPage })));
+const DoctorAppointmentListPage = lazy(() => import('../components/pages/MyAppointmentListPage').then(({ DoctorAppointmentListPage }) => ({ default: DoctorAppointmentListPage })));
+const PatientAppointmentListPage = lazy(() => import('../components/pages/MyAppointmentListPage').then(({ PatientAppointmentListPage }) => ({ default: PatientAppointmentListPage })));
 
 // Renders the correct dashboard based on the logged-in user's role
 const RoleAwareDashboard: React.FC = () => {
@@ -87,6 +89,13 @@ export const AppRoutes: React.FC = () => {
   const token = useAuthStore((state) => state.token);
 
   return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Loading page">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
     <Routes>
       {/* Public landing and auth pages redirect signed-in users to their dashboard. */}
       <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
@@ -308,5 +317,6 @@ export const AppRoutes: React.FC = () => {
       {/* Fallback */}
       <Route path="*" element={<Navigate to={token ? '/dashboard' : '/'} replace />} />
     </Routes>
+    </Suspense>
   );
 };

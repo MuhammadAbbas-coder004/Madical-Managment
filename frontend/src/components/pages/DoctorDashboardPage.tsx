@@ -7,7 +7,6 @@ import {
   Clock,
   FileText,
   CheckCircle,
-  Loader2,
 } from 'lucide-react';
 import api from '../../shared/services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -337,7 +336,7 @@ export const DoctorDashboardPage: React.FC = () => {
                 >
                   {alertsLoading ? (
                     <div className="flex items-center gap-2 py-4 text-textSecondary text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Spinner size="sm" />
                       Checking vitals…
                     </div>
                   ) : criticalAlerts.length === 0 ? (
