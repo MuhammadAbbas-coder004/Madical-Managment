@@ -28,7 +28,9 @@ const resourceId = (label: string) =>
 // ---------------------------------------------------------------------------
 
 export const registerSchema = z.object({
-  username: nonEmptyString('Username').min(3, 'Username must be at least 3 characters'),
+  username: nonEmptyString('Username')
+    .min(3, 'Username must be at least 3 characters')
+    .max(80, 'Username cannot exceed 80 characters'),
   email: z.string({ error: 'Email is required' }).trim().email('Must be a valid email address'),
   password: z
     .string({ error: 'Password is required' })

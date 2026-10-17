@@ -34,18 +34,6 @@ export class AuthController {
         throw new AppError(409, 'An account already exists with this email');
       }
 
-      // --- Check password uniqueness ---
-      const allUsers = await UserModel.find({}, { password: 1 });
-      for (const existingUser of allUsers) {
-        const isSamePassword = await PasswordHasher.comparePassword(
-          password,
-          existingUser.password
-        );
-        if (isSamePassword) {
-          throw new AppError(400, 'This password is already in use. Please choose a different password.');
-        }
-      }
-
       // Hash password and save new user
       const hashedPassword = await PasswordHasher.hashPassword(password);
       const newUser = new UserModel({
@@ -61,13 +49,40 @@ export class AuthController {
         success: true,
         message: 'User registered successfully',
         user: {
-          id: newUser._id,
+          id: newUser._id.toString(),
           username: newUser.username,
           email: newUser.email,
           role: newUser.role,
+          authProvider: newUser.authProvider,
+          createdAt: newUser.createdAt,
+          faceEnrollmentStatus: newUser.faceEnrollmentStatus,
         },
       });
     } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 11000
+      ) {
+        const duplicateKey =
+          ('keyPattern' in error && typeof error.keyPattern === 'object' && error.keyPattern !== null
+            ? error.keyPattern
+            : 'keyValue' in error && typeof error.keyValue === 'object' && error.keyValue !== null
+              ? error.keyValue
+              : {}) as Record<string, unknown>;
+        next(
+          new AppError(
+            409,
+            'email' in duplicateKey
+              ? 'An account already exists with this email'
+              : 'username' in duplicateKey
+                ? 'Username is already taken'
+                : 'An account already exists with this email or username'
+          )
+        );
+        return;
+      }
       next(error);
     }
   };
@@ -89,7 +104,7 @@ export class AuthController {
         queryConditions.push({ username: username.trim() });
       }
 
-      const user = await UserModel.findOne({ $or: queryConditions });
+      const user = await UserModel.findOne({ $or: queryConditions }).select('+password');
       if (!user) {
         throw new AppError(401, 'Invalid credentials');
       }
@@ -111,8 +126,9 @@ export class AuthController {
       }
       if (linkedId && linkedId !== user.linkedId) {
         user.linkedId = linkedId;
-        await user.save();
       }
+      user.lastLoginAt = new Date();
+      await user.save();
 
       // Generate JWT with userId, role, and linkedId
       const token = JwtService.generateToken(user._id.toString(), user.role, linkedId);

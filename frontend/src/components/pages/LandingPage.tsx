@@ -422,17 +422,17 @@ export const LandingPage: React.FC = () => {
               }`}
           >
 
-            {/* Left: Aivora Logo & Wordmark */}
+            {/* Left: Medivanta logo and wordmark */}
             <a
               ref={logoRef}
               href="#top"
-              aria-label="Aivora Home"
+              aria-label="Medivanta Home"
               className="group inline-flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] transition-transform duration-200 group-hover:scale-105 group-hover:border-[#C7FFBE]/40">
                 <AivoraLogo className="h-7 w-7" />
               </div>
-              <span className="text-[21px] font-bold tracking-[-0.03em] text-white">Aivora</span>
+              <span className="text-[21px] font-bold tracking-[-0.03em] text-white">Medivanta</span>
             </a>
 
             {/* Center: Navigation Links */}
@@ -495,14 +495,14 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center justify-between pb-6 border-b border-white/10">
             <a
               href="#top"
-              aria-label="Aivora Home"
+              aria-label="Medivanta Home"
               onClick={closeMenu}
               className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
                 <AivoraLogo className="h-7 w-7" />
               </div>
-              <span className="text-xl font-bold tracking-[-0.03em] text-white">Aivora</span>
+              <span className="text-xl font-bold tracking-[-0.03em] text-white">Medivanta</span>
             </a>
             <button
               type="button"

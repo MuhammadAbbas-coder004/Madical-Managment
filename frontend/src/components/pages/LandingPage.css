@@ -19,7 +19,9 @@
   overflow: hidden;
   border: 1px solid rgb(199 255 190 / 0.2);
   border-radius: 1.5rem;
-  background: #111514;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgb(47 71 57 / 0.38), transparent 58%),
+    linear-gradient(145deg, #121816, #0c100f 75%);
   box-shadow:
     0 24px 64px rgb(0 0 0 / 0.35),
     inset 0 0 48px rgb(199 255 190 / 0.04);
@@ -95,7 +97,8 @@
   border: 1px solid #e5ffe1;
   border-radius: 50%;
   background: #c7ffbe;
-  box-shadow: 0 0 12px 3px rgb(199 255 190 / 0.65);
+  box-shadow: 0 0 10px 2px rgb(199 255 190 / 0.48);
+  opacity: 0.62;
   animation: face-scan-pulse 2.8s ease-in-out infinite;
 }
 

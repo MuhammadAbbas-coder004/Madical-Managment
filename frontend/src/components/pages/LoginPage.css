@@ -1,0 +1,183 @@
+.medivanta-login {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgb(35 48 42 / 0.72), transparent 58%),
+    #171b1a;
+}
+
+.medivanta-login-glow {
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+  opacity: 0.12;
+}
+
+.medivanta-login-glow-left {
+  top: -12rem;
+  left: -11rem;
+  background: #c7ffbe;
+}
+
+.medivanta-login-glow-right {
+  right: -13rem;
+  bottom: -14rem;
+  background: #79d894;
+}
+
+.medivanta-login .medivanta-login-panel {
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(23 27 26 / 0.84);
+  backdrop-filter: blur(20px);
+}
+
+.medivanta-login .medivanta-login-card {
+  border-color: rgb(255 255 255 / 0.1);
+  background: #202725;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.18);
+}
+
+.medivanta-login .medivanta-login-card:hover,
+.medivanta-login .medivanta-login-card:focus-within,
+.medivanta-login .medivanta-login-panel:hover,
+.medivanta-login .medivanta-login-panel:focus-within,
+.medivanta-login .medivanta-face-panel:hover,
+.medivanta-login .medivanta-face-panel:focus-within {
+  scale: none;
+  border-color: rgb(255 255 255 / 0.1);
+  box-shadow: none;
+}
+
+.medivanta-login .login-heading {
+  font-size: clamp(1.8rem, 3vw, 2.3rem) !important;
+  font-weight: 600 !important;
+}
+
+.medivanta-login .login-heading::before {
+  display: none !important;
+}
+
+.medivanta-login-card label {
+  color: rgb(255 255 255 / 0.82);
+}
+
+.medivanta-login-card input {
+  min-height: 2.8rem;
+  border-color: rgb(255 255 255 / 0.12);
+  background: #171d1a;
+  color: #fff;
+}
+
+.medivanta-login-card input::placeholder {
+  color: rgb(255 255 255 / 0.32);
+}
+
+.medivanta-login-card input:focus {
+  border-color: #c7ffbe;
+  --tw-ring-color: rgb(199 255 190 / 0.18);
+}
+
+.medivanta-password-toggle {
+  color: #aab6ae;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.medivanta-password-toggle:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.medivanta-password-toggle:focus-visible,
+.medivanta-provider-button:focus-visible {
+  outline: 2px solid #c7ffbe;
+  outline-offset: 2px;
+}
+
+.medivanta-login .medivanta-login-submit {
+  color: #171b1a;
+  background: #c7ffbe;
+  box-shadow: 0 8px 24px rgb(199 255 190 / 0.14);
+}
+
+.medivanta-login .medivanta-login-submit:hover {
+  background: #d8ffd1;
+  box-shadow: 0 12px 30px rgb(199 255 190 / 0.22);
+}
+
+.medivanta-login .medivanta-login-submit:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.medivanta-login .medivanta-provider-button {
+  border-color: rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.86);
+  background: rgb(255 255 255 / 0.035);
+}
+
+.medivanta-login .medivanta-provider-button:hover {
+  border-color: rgb(199 255 190 / 0.45);
+  background: rgb(199 255 190 / 0.07);
+}
+
+.medivanta-auth-notice {
+  display: flex;
+  gap: 0.6rem;
+  border: 1px solid rgb(199 255 190 / 0.2);
+  border-radius: 0.85rem;
+  background: rgb(199 255 190 / 0.06);
+  padding: 0.8rem;
+  color: rgb(255 255 255 / 0.76);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.medivanta-face-panel {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgb(199 255 190 / 0.13), transparent 52%),
+    linear-gradient(145deg, #222a26, #111614 72%);
+}
+
+.medivanta-face-model {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.medivanta-face-loading {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgb(199 255 190 / 0.11), transparent 45%),
+    linear-gradient(145deg, #222a26, #111614 72%);
+}
+
+.medivanta-face-panel::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(13 17 15 / 0.62), transparent 35%, transparent 64%, rgb(13 17 15 / 0.7));
+  content: '';
+}
+
+.medivanta-login .face-scan-model-canvas {
+  touch-action: none;
+}
+
+@media (max-width: 1023px) {
+  .medivanta-face-panel {
+    min-height: 360px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .medivanta-login *,
+  .medivanta-login *::before,
+  .medivanta-login *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
