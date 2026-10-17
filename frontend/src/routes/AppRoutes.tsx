@@ -6,13 +6,14 @@ import { useAuthStore } from '../store/authStore';
 import { Spinner } from '../components/atoms/Spinner';
 
 // --- Auth Pages (Public) ---
-const LoginPage = lazy(() => import('../components/pages/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })));
-const RegisterPage = lazy(() => import('../components/pages/RegisterPage').then(({ RegisterPage }) => ({ default: RegisterPage })));
+import { LoginPage } from '../components/pages/LoginPage';
+import { RegisterPage } from '../components/pages/RegisterPage';
 const LandingPage = lazy(() => import('../components/pages/LandingPage').then(({ LandingPage }) => ({ default: LandingPage })));
 const FaceEnrollPage = lazy(() => import('../components/pages/FaceEnrollPage').then(({ FaceEnrollPage }) => ({ default: FaceEnrollPage })));
 const ForgotPasswordPage = lazy(() => import('../components/pages/ForgotPasswordPage').then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })));
 const VerifyOtpPage = lazy(() => import('../components/pages/VerifyOtpPage').then(({ VerifyOtpPage }) => ({ default: VerifyOtpPage })));
 const ResetPasswordPage = lazy(() => import('../components/pages/ResetPasswordPage').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })));
+const OAuthCallbackPage = lazy(() => import('../components/pages/OAuthCallbackPage').then(({ OAuthCallbackPage }) => ({ default: OAuthCallbackPage })));
 
 // --- Clinical Modules (Protected) ---
 const DashboardPage = lazy(() => import('../components/pages/DashboardPage').then(({ DashboardPage }) => ({ default: DashboardPage })));
@@ -46,6 +47,7 @@ const PatientAppointmentListPage = lazy(() => import('../components/pages/MyAppo
 const RoleAwareDashboard: React.FC = () => {
   const { user } = useAuthStore();
   if (user?.role?.toLowerCase() === 'doctor') return <DoctorDashboardPage />;
+  if (user?.role?.toLowerCase() === 'patient') return <PatientPortalPage />;
   return <DashboardPage />;
 };
 
@@ -103,6 +105,7 @@ export const AppRoutes: React.FC = () => {
       {/* Public Authentication Routes */}
       <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+      <Route path="/auth/callback" element={<OAuthCallbackPage />} />
       <Route path="/face-enrollment-prompt" element={<FaceEnrollPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-otp" element={<VerifyOtpPage />} />

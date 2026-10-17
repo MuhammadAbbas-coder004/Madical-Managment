@@ -1,14 +1,9 @@
 import { io, Socket } from 'socket.io-client';
+import api from './api';
 
-const resolveSocketUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    return envUrl.trim().replace(/\/api\/?$/, '');
-  }
-  return 'http://localhost:5000';
-};
+const socketUrl = api.defaults.baseURL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
 
-export const socket: Socket = io(resolveSocketUrl(), {
+export const socket: Socket = io(socketUrl, {
   autoConnect: true,
   withCredentials: true,
   transports: ['websocket', 'polling'],

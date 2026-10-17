@@ -42,7 +42,6 @@ export const errorMiddleware = (
     res.status(err.statusCode).json({
       success: false,
       message: err.message,
-      ...(isDev && err.stack ? { stack: err.stack } : {}),
     });
     return;
   }
@@ -62,10 +61,8 @@ export const errorMiddleware = (
       ? err?.message || 'Something went wrong'
       : 'Internal Server Error';
 
-  // In production, never send stack traces to the client
   res.status(statusCode).json({
     success: false,
     message,
-    ...(isDev && err?.stack ? { stack: err.stack } : {}),
   });
 };

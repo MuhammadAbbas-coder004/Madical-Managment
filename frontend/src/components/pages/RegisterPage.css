@@ -62,8 +62,9 @@
   color: rgb(255 255 255 / 0.82);
 }
 
-.medivanta-register-card input {
-  min-height: 2.8rem;
+.medivanta-register-card input,
+.medivanta-register-card select {
+  min-height: 2.5rem;
   border-color: rgb(255 255 255 / 0.12);
   background: #171d1a;
   color: #fff;
@@ -73,9 +74,11 @@
   color: rgb(255 255 255 / 0.32);
 }
 
-.medivanta-register-card input:focus {
+.medivanta-register-card input:focus,
+.medivanta-register-card select:focus {
   border-color: #c7ffbe;
   --tw-ring-color: rgb(199 255 190 / 0.18);
+  outline: none;
 }
 
 .medivanta-register-password-toggle {

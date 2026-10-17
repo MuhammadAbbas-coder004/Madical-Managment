@@ -14,11 +14,20 @@ declare module 'axios' {
  */
 const resolveBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl || typeof envUrl !== 'string' || !envUrl.trim()) {
-    return 'http://localhost:5000/api';
+  const configuredUrl =
+    typeof envUrl === 'string' && envUrl.trim()
+      ? envUrl.trim()
+      : 'http://localhost:5000/api';
+  const apiUrl = new URL(configuredUrl);
+  const browserHost = typeof window === 'undefined' ? '' : window.location.hostname;
+  const isLoopback = (host: string) => host === 'localhost' || host === '127.0.0.1';
+
+  if (isLoopback(browserHost) && isLoopback(apiUrl.hostname)) {
+    apiUrl.hostname = browserHost;
   }
-  const trimmed = envUrl.trim();
-  return trimmed.endsWith('/api') ? trimmed : `${trimmed.replace(/\/+$/, '')}/api`;
+
+  const baseUrl = apiUrl.toString().replace(/\/+$/, '');
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 };
 
 /**

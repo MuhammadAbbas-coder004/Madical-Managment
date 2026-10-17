@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { PatientApplicationService } from '../../application/patient/PatientApplicationService';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
+import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
 import { AppError } from '../../domain/errors/AppError';
 
 export class PatientController {
@@ -42,11 +44,30 @@ export class PatientController {
       if (!user || user.role !== 'patient') {
         throw new AppError(403, 'Forbidden');
       }
-      if (!user.linkedId) {
-        throw new AppError(404, 'No patient profile is linked to your account.');
+
+      let linkedId = user.linkedId;
+      if (!linkedId) {
+        let patientDoc = await PatientModel.findOne({ email: user.email });
+        if (!patientDoc) {
+          const nameParts = (user.username || 'Patient User').trim().split(/\s+/);
+          const firstName = nameParts[0] || 'Patient';
+          const lastName = nameParts.slice(1).join(' ') || 'User';
+          const newPatientId = randomUUID();
+          patientDoc = await PatientModel.create({
+            patientId: newPatientId,
+            firstName,
+            lastName,
+            email: user.email,
+            phone: 'Not provided',
+            dateOfBirth: new Date('2000-01-01'),
+          });
+        }
+        linkedId = patientDoc.patientId;
+        user.linkedId = linkedId;
+        await user.save();
       }
 
-      const patient = await this.patientService.getPatient(user.linkedId);
+      const patient = await this.patientService.getPatient(linkedId);
       res.status(200).json({
         success: true,
         data: {

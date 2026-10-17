@@ -27,15 +27,48 @@ const resourceId = (label: string) =>
 // Auth schemas
 // ---------------------------------------------------------------------------
 
-export const registerSchema = z.object({
-  username: nonEmptyString('Username')
-    .min(3, 'Username must be at least 3 characters')
-    .max(80, 'Username cannot exceed 80 characters'),
-  email: z.string({ error: 'Email is required' }).trim().email('Must be a valid email address'),
-  password: z
-    .string({ error: 'Password is required' })
-    .min(8, 'Password must be at least 8 characters'),
-});
+export const registerSchema = z
+  .object({
+    username: nonEmptyString('Username')
+      .min(3, 'Username must be at least 3 characters')
+      .max(80, 'Username cannot exceed 80 characters'),
+    fullName: z.string().trim().max(120).optional(),
+    email: z.string({ error: 'Email is required' }).trim().email('Must be a valid email address'),
+    phoneNumber: z
+      .string()
+      .trim()
+      .refine(
+        (val) => !val || /^\+[1-9]\d{6,14}$/.test(val.replace(/[\s\-()]/g, '')),
+        { message: 'Phone number must include country code and 7-15 digits (e.g. +1234567890)' }
+      )
+      .optional(),
+    phone: z.string().trim().optional(),
+    password: z
+      .string({ error: 'Password is required' })
+      .min(8, 'Password must be at least 8 characters'),
+    role: z.enum(['patient', 'doctor']).optional(),
+    specialty: z.string().trim().optional(),
+    licenseNumber: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'doctor') {
+      if (!data.specialty || data.specialty.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Medical specialty is required for doctor registration',
+          path: ['specialty'],
+        });
+      }
+      if (!data.licenseNumber || data.licenseNumber.trim().length < 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Medical license/registration number is required for doctor registration',
+          path: ['licenseNumber'],
+        });
+      }
+    }
+  });
+
 
 export const loginSchema = z
   .object({

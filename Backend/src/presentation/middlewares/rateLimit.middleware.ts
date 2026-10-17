@@ -54,6 +54,20 @@ export const registerRateLimiter = rateLimit({
   },
 });
 
+export const oauthRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  statusCode: 429,
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      success: false,
+      message: 'Too many sign-in attempts. Please wait and try again.',
+    });
+  },
+});
+
 /**
  * Relaxed general rate limiter for general/clinical API usage
  * Ensures regular doctors, nurses, and clinical operations are not aggressively blocked.

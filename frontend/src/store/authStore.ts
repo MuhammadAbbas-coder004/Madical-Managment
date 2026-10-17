@@ -7,10 +7,19 @@ export interface User {
   id: string;
   name?: string;
   username?: string;
+  fullName?: string;
   email: string;
+  phoneNumber?: string;
+  phone?: string;
   role: string;
+  status?: string;
   patientId?: string;
   doctorId?: string;
+  doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+  specialty?: string;
+  licenseNumber?: string;
+  authProvider?: string;
+  faceEnrollmentStatus?: string;
 }
 
 interface AuthState {

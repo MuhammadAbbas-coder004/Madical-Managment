@@ -5,7 +5,30 @@ import { AppRoutes } from './routes/AppRoutes';
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1D2220',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '0.85rem',
+            fontSize: '0.875rem',
+          },
+          success: {
+            iconTheme: {
+              primary: '#C7FFBE',
+              secondary: '#171B1A',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#171B1A',
+            },
+          },
+        }}
+      />
       <AppRoutes />
     </BrowserRouter>
   );

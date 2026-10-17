@@ -1,5 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { JwtService, type JwtPayload } from '../auth/JwtService';
+import { TokenBlacklistService } from '../auth/TokenBlacklistService';
 import { env } from '../config/env';
 
 let io: SocketIOServer | null = null;
@@ -13,6 +15,19 @@ export interface CriticalVitalsNotification {
   analysis?: any;
   recordedAt?: Date | string;
 }
+
+const tokenFromCookieHeader = (header: string | undefined): string | null => {
+  const tokenCookie = header
+    ?.split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith('token='));
+  if (!tokenCookie) return null;
+  try {
+    return decodeURIComponent(tokenCookie.slice('token='.length));
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Initializes Socket.io with the HTTP server and shared CORS settings.
@@ -43,25 +58,49 @@ export const initSocket = (
     },
   });
 
+  io.use(async (socket, next) => {
+    const token = tokenFromCookieHeader(socket.handshake.headers.cookie);
+    if (!token) {
+      next(new Error('Unauthorized'));
+      return;
+    }
+
+    try {
+      if (await TokenBlacklistService.isTokenBlacklisted(token)) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+      const user = JwtService.verifyToken(token);
+      if (!user.userId || !user.role) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+      socket.data.user = user;
+      next();
+    } catch {
+      next(new Error('Unauthorized'));
+    }
+  });
+
   io.on('connection', (socket: Socket) => {
-    // Join user-specific private room
+    const user = socket.data.user as JwtPayload;
+    const userId = user.userId;
+    const role = user.role.toLowerCase().trim();
+
     socket.on('join', (userId: string) => {
-      if (userId) {
+      if (userId === user.userId) {
         socket.join(userId);
       }
     });
 
-    // Join role-based room (e.g. "doctor", "admin")
     socket.on('join-role', (role: string) => {
-      if (role) {
-        const normalizedRole = role.toLowerCase().trim();
-        socket.join(normalizedRole);
+      if (typeof role === 'string' && role.toLowerCase().trim() === user.role.toLowerCase()) {
+        socket.join(role.toLowerCase().trim());
       }
     });
 
-    // Generic room join handler
     socket.on('join-room', (room: string) => {
-      if (room) {
+      if (room === userId || (typeof room === 'string' && room.toLowerCase().trim() === role)) {
         socket.join(room);
       }
     });

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
+import { beginOAuth, type OAuthProvider } from '../../shared/services/oauth';
+import { FaceScanModal } from '../molecules/FaceScanModal';
 import './LoginPage.css';
 
 const FaceScanModel = lazy(() =>
@@ -40,13 +42,56 @@ const AppleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shri
   </svg>
 );
 
+const ProviderSpinner: React.FC = () => (
+  <svg
+    className="h-4 w-4 shrink-0 animate-spin text-[#C7FFBE]"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="3.5"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+    />
+  </svg>
+);
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [providerLoading, setProviderLoading] = useState<OAuthProvider | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [signInNotice, setSignInNotice] = useState<string | null>(null);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const resetStates = () => {
+      setProviderLoading(null);
+      setIsSubmitting(false);
+    };
+
+    window.addEventListener('pageshow', resetStates);
+    window.addEventListener('popstate', resetStates);
+    window.addEventListener('focus', resetStates);
+
+    return () => {
+      window.removeEventListener('pageshow', resetStates);
+      window.removeEventListener('popstate', resetStates);
+      window.removeEventListener('focus', resetStates);
+    };
+  }, []);
 
   const {
     register,
@@ -60,14 +105,19 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     setSignInNotice(null);
     try {
-      const response = await api.post('/auth/login', {
-        email: data.email,
-        password: data.password,
-      }, { skipToast: true }) as {
+      const response = await api.post(
+        '/auth/login',
+        {
+          email: data.email,
+          password: data.password,
+        },
+        { skipToast: true }
+      ) as {
         user?: {
           id: string;
           name?: string;
           username?: string;
+          fullName?: string;
           email: string;
           role: string;
           patientId?: string;
@@ -80,54 +130,68 @@ export const LoginPage: React.FC = () => {
         throw new Error('Login succeeded but the server did not return a user account.');
       }
       login(response.user, response.token || COOKIE_SESSION);
-      toast.success(response.message || 'Login successful!');
+      toast.success('Welcome Back!');
       navigate('/dashboard');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Invalid email or password';
-      toast.error(message);
+      const message = error instanceof Error ? error.message : 'Invalid credentials';
+      setSignInNotice(message);
+      if (
+        message.includes('Connection') ||
+        message.includes('Network') ||
+        message.includes('unavailable') ||
+        message.includes('ECONNREFUSED')
+      ) {
+        toast.error(`Connection Problem: ${message}`);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleGoogleLogin = () => {
-    setSignInNotice(
-      'Google sign-in is unavailable because this installation has no Google OAuth callback, token verification, or provider configuration. Use email and password instead.'
-    );
-  };
+  const handleProviderLogin = (provider: OAuthProvider) => {
+    if (providerLoading) return;
+    setSignInNotice(null);
+    setProviderLoading(provider);
 
-  const handleAppleLogin = () => {
-    setSignInNotice(
-      'Apple sign-in is unavailable because this installation has no Apple OAuth callback, identity-token verification, or provider configuration. Use email and password instead.'
-    );
-  };
-
-  const handleFaceLogin = () => {
-    setSignInNotice(
-      'Face sign-in is unavailable: this server has no verified biometric or passkey enrollment and verification flow. Use email and password instead.'
-    );
+    try {
+      beginOAuth(provider);
+    } catch (error) {
+      setProviderLoading(null);
+      const msg = error instanceof Error ? error.message : 'Unable to connect to sign-in provider.';
+      setSignInNotice(msg);
+      toast.error(msg);
+    }
   };
 
   return (
-    <main ref={containerRef} className="medivanta-login relative flex min-h-screen items-start justify-center overflow-hidden px-4 py-8 sm:px-6 lg:items-center lg:py-12">
+    <main ref={containerRef} className="medivanta-login relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-3 sm:px-6 lg:py-5">
       <div aria-hidden="true" className="medivanta-login-glow medivanta-login-glow-left" />
       <div aria-hidden="true" className="medivanta-login-glow medivanta-login-glow-right" />
 
-      <div className="relative z-10 grid w-full max-w-6xl items-stretch gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8">
-        <section className="gsap-card medivanta-login-panel flex flex-col justify-center rounded-[1.75rem] p-6 shadow-2xl sm:p-9 lg:p-10">
-          <Link to="/" className="mb-8 inline-flex w-fit items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
-            <AivoraLogo className="h-11 w-11" />
-            <span className="text-lg font-semibold tracking-tight text-white">Medivanta</span>
+      <div className="relative z-10 grid w-full max-w-5xl items-stretch gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:gap-7">
+        <section className="gsap-card medivanta-login-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-6 lg:p-7">
+          <Link to="/" className="mb-2.5 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
+            <AivoraLogo className="h-8 w-8" />
+            <span className="text-base font-semibold tracking-tight text-white">Medivanta</span>
           </Link>
 
-          <div className="mb-7">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#C7FFBE]">Welcome back</p>
-            <h1 className="login-heading text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">Sign in to your account</h1>
-            <p className="mt-3 text-sm leading-6 text-white/65">Securely continue to your healthcare workspace.</p>
+          <div className="mb-3">
+            <h1 className="login-heading text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl">
+              Welcome Back
+            </h1>
+            <p className="mt-1 text-xs text-white/70">
+              Your health journey continues here.
+            </p>
           </div>
 
-          <Card className="medivanta-login-card rounded-2xl border-white/10 p-5 shadow-xl sm:p-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Card className="medivanta-login-card rounded-2xl border-white/10 p-3.5 shadow-xl sm:p-4">
+            <p className="mb-2.5 text-xs text-white/60">
+              Sign in to access your personalized healthcare dashboard.
+            </p>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-2.5">
               <FormField
                 label="Email address"
                 type="email"
@@ -153,29 +217,34 @@ export const LoginPage: React.FC = () => {
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   aria-pressed={showPassword}
-                  className="medivanta-password-toggle absolute right-3 top-[34px] inline-flex h-9 w-9 items-center justify-center rounded-lg"
+                  className="medivanta-password-toggle absolute right-2.5 top-[30px] inline-flex h-8 w-8 items-center justify-center rounded-lg"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
 
-              <div className="flex justify-end">
-                <Link to="/forgot-password" className="rounded-sm text-sm font-semibold text-[#C7FFBE] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
+              <div className="flex justify-end pt-0.5">
+                <Link to="/forgot-password" className="rounded-sm text-xs font-semibold text-[#C7FFBE] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
                   Forgot password?
                 </Link>
               </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="medivanta-login-submit mt-1 min-h-12 w-full rounded-xl text-sm font-semibold shadow-lg transition-[transform,background-color,box-shadow] duration-200"
-                isLoading={isSubmitting}
-              >
-                Login
-              </Button>
+              <div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="medivanta-login-submit mt-1 min-h-10 w-full rounded-xl text-sm font-semibold shadow-lg transition-[transform,background-color,box-shadow] duration-200"
+                  isLoading={isSubmitting}
+                >
+                  {isSubmitting ? 'Signing in…' : 'Login'}
+                </Button>
+                <p className="mt-1.5 text-center text-[0.72rem] text-white/50">
+                  Securely access your Medivanta account.
+                </p>
+              </div>
             </form>
 
-            <div className="relative my-5">
+            <div className="relative my-3.5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/10" />
               </div>
@@ -184,75 +253,89 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-2">
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-provider-button flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl"
-                onClick={handleGoogleLogin}
+                className="medivanta-provider-button flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
+                onClick={() => handleProviderLogin('google')}
+                disabled={isSubmitting || Boolean(providerLoading)}
+                aria-label="Continue with Google"
+                aria-busy={providerLoading === 'google'}
               >
-                <GoogleLogo />
-                Continue with Google
+                {providerLoading === 'google' ? <ProviderSpinner /> : <GoogleLogo className="h-4 w-4 shrink-0" />}
+                <span>Google</span>
               </Button>
 
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-provider-button flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl"
-                onClick={handleAppleLogin}
+                className="medivanta-provider-button flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
+                onClick={() => handleProviderLogin('apple')}
+                disabled={isSubmitting || Boolean(providerLoading)}
+                aria-label="Continue with Apple"
+                aria-busy={providerLoading === 'apple'}
               >
-                <AppleLogo className="h-4 w-4 shrink-0 fill-current" />
-                Continue with Apple
+                {providerLoading === 'apple' ? <ProviderSpinner /> : <AppleLogo className="h-4 w-4 shrink-0 fill-current" />}
+                <span>Apple</span>
               </Button>
 
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-provider-button col-span-full flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl"
-                onClick={handleFaceLogin}
+                className="medivanta-provider-button col-span-full flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
+                onClick={() => setIsFaceModalOpen(true)}
               >
                 <ScanFace className="h-4 w-4 text-[#C7FFBE]" aria-hidden="true" />
-                Sign in with Face
+                <span>Sign in with Face</span>
               </Button>
             </div>
 
+            {providerLoading && (
+              <p className="mt-2 text-center text-xs text-white/55" role="status" aria-live="polite">
+                Connecting to {providerLoading === 'google' ? 'Google' : 'Apple'}…
+              </p>
+            )}
+
             {signInNotice && (
-              <div className="medivanta-auth-notice mt-4" role="status" aria-live="polite">
+              <div className="medivanta-auth-notice mt-3" role="status" aria-live="polite">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C7FFBE]" aria-hidden="true" />
                 <p>{signInNotice}</p>
               </div>
             )}
 
-            <p className="mt-6 text-center text-sm text-white/55">
+            <p className="mt-3.5 text-center text-xs text-white/60">
               New to Medivanta?{' '}
-              <Link to="/register" className="rounded-sm font-semibold text-[#C7FFBE] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
-                Create an account
+              <Link to="/register" className="font-semibold text-[#C7FFBE] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
+                Create your account
               </Link>
             </p>
           </Card>
         </section>
 
-        <aside className="gsap-card medivanta-face-panel relative flex min-h-[320px] flex-col justify-between overflow-hidden rounded-[1.75rem] border border-white/10 shadow-2xl sm:min-h-[430px] lg:min-h-full">
+        <aside className="gsap-card medivanta-face-panel relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[1.5rem] border border-white/10 shadow-2xl sm:min-h-[380px] lg:min-h-full">
           <div className="medivanta-face-model">
             <Suspense fallback={<div className="medivanta-face-loading" aria-hidden="true" />}>
               <FaceScanModel followPointer />
             </Suspense>
           </div>
-          <div className="pointer-events-none relative z-10 flex items-start justify-between p-6 sm:p-8">
-            <div>
-              <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#C7FFBE]/90">Medical intelligence</p>
-              <h2 className="text-2xl font-medium tracking-tight text-white sm:text-3xl">A clearer view of care.</h2>
+          <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-5 sm:p-6">
+            <div className="flex justify-end">
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[0.68rem] text-white/70 backdrop-blur">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#C7FFBE]" aria-hidden="true" />
+                Secure Clinical Workspace
+              </div>
             </div>
-          </div>
-          <div className="pointer-events-none relative z-10 flex items-end justify-between gap-4 p-6 sm:p-8">
-            <p className="max-w-xs text-xs leading-5 text-white/55">Move your pointer or drag across the face to explore the interactive 3D model.</p>
-            <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[0.65rem] text-white/65 backdrop-blur sm:flex">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#C7FFBE]" aria-hidden="true" />
-              Secure clinical workspace
-            </div>
+            <div />
           </div>
         </aside>
       </div>
+
+      <FaceScanModal
+        isOpen={isFaceModalOpen}
+        onClose={() => setIsFaceModalOpen(false)}
+        mode="login"
+      />
     </main>
   );
 };

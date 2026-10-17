@@ -53,11 +53,36 @@
 
 /* ── Base resets ──────────────────────────────────────────────────── */
 
-body {
+html {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: theme('colors.background');
+  background-color: #171b1a;
   color: theme('colors.textPrimary');
   margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #171b1a;
+  color: theme('colors.textPrimary');
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #171b1a;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
@@ -179,5 +204,19 @@ main textarea {
   button:active:not(:disabled),
   [role="button"]:active:not(:disabled) {
     transform: none;
+  }
+}
+
+@keyframes medivanta-scan-beam {
+  0% {
+    top: 5%;
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0.2;
   }
 }

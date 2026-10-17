@@ -226,6 +226,16 @@ export const DoctorDashboardPage: React.FC = () => {
           </p>
         </div>
 
+        {user?.doctorVerificationStatus === 'pending' && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+            <div>
+              <strong className="block text-sm font-semibold text-white mb-0.5">Doctor Credential Verification Pending</strong>
+              Your medical credentials {user.specialty ? `(Specialty: ${user.specialty}` : ''}{user.licenseNumber ? `, License: ${user.licenseNumber})` : ')'} are currently under administrative review. Full clinical authorizations will be enabled once your license is authenticated.
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="flex items-center justify-center py-20 text-primary">
             <Spinner size="lg" />

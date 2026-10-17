@@ -1,8 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import type { Request, Response } from 'express';
 import { PasswordHasher } from '../../src/infrastructure/auth/PasswordHasher';
 import { JwtService } from '../../src/infrastructure/auth/JwtService';
+import { AuthController } from '../../src/presentation/controllers/Auth.controller';
 
 describe('Auth Business Logic & Utilities', () => {
+  it('reports face verification as unavailable without claiming HSM is required', async () => {
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn();
+    const response = {
+      status,
+      json,
+    } as unknown as Response;
+
+    await new AuthController().faceVerify(
+      { body: {} } as Request,
+      response,
+      vi.fn()
+    );
+
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      verified: false,
+      configured: false,
+      message: expect.stringContaining('no server-side biometric verification service is configured'),
+    });
+    expect(JSON.stringify(json.mock.calls)).not.toContain('HSM');
+  });
+
   describe('PasswordHasher', () => {
     const samplePassword = 'MedicalSecurePassword123!';
 

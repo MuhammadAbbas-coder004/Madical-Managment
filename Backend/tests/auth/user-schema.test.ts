@@ -68,4 +68,36 @@ describe('MongoDB user account schema', () => {
   it('does not return password hashes in ordinary user queries', () => {
     expect(userSchema.path('password').options.select).toBe(false);
   });
+
+  it('supports provider accounts without creating a password credential', async () => {
+    const user = new UserModel({
+      username: 'Google Patient',
+      email: 'google@example.com',
+      authProvider: 'google',
+      providerSubject: 'google-subject-123',
+    });
+
+    await expect(user.validate()).resolves.toBeUndefined();
+    expect(user.password).toBeUndefined();
+  });
+
+  it('persists phone number, full name, status, and verification flags correctly', async () => {
+    const user = new UserModel({
+      username: 'Sarah Connor',
+      fullName: 'Sarah Connor',
+      email: 'sarah@example.com',
+      phoneNumber: '+14155552671',
+      phone: '+14155552671',
+      password: '$2b$10$hashed-password-12345',
+      role: 'patient',
+    });
+
+    await expect(user.validate()).resolves.toBeUndefined();
+    expect(user.phoneNumber).toBe('+14155552671');
+    expect(user.phone).toBe('+14155552671');
+    expect(user.fullName).toBe('Sarah Connor');
+    expect(user.status).toBe('active');
+    expect(user.isEmailVerified).toBe(false);
+    expect(user.isPhoneVerified).toBe(false);
+  });
 });

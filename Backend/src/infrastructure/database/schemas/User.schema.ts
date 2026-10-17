@@ -2,13 +2,22 @@ import mongoose, { Document } from 'mongoose';
 
 export interface IUserDocument extends Document {
   username: string;
+  fullName?: string;
   email: string;
-  password: string;
+  phoneNumber?: string;
+  phone?: string;
+  password?: string;
   role: 'admin' | 'doctor' | 'nurse' | 'patient';
   linkedId?: string;
   authProvider: 'password' | 'google' | 'apple';
   providerSubject?: string;
+  status: 'active' | 'pending' | 'suspended';
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
   faceEnrollmentStatus: 'unavailable' | 'not_enrolled' | 'enrolled';
+  doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+  specialty?: string;
+  licenseNumber?: string;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +32,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: 80,
     },
+    fullName: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
     email: {
       type: String,
       required: true,
@@ -30,9 +44,35 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      maxlength: 30,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: 30,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'pending', 'suspended'],
+      default: 'active',
+      required: true,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
+    },
     password: {
       type: String,
-      required: true,
+      required: function (this: IUserDocument) {
+        return this.authProvider === 'password';
+      },
       select: false,
     },
     role: {
@@ -61,6 +101,21 @@ const userSchema = new mongoose.Schema(
       default: 'unavailable',
       required: true,
     },
+    doctorVerificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected', 'not_applicable'],
+      default: 'not_applicable',
+    },
+    specialty: {
+      type: String,
+      trim: true,
+      required: false,
+    },
+    licenseNumber: {
+      type: String,
+      trim: true,
+      required: false,
+    },
     lastLoginAt: {
       type: Date,
       required: false,
@@ -68,6 +123,7 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 userSchema.index(
   { authProvider: 1, providerSubject: 1 },
