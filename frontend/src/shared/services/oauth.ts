@@ -2,7 +2,11 @@ import api from './api';
 
 export type OAuthProvider = 'google' | 'apple';
 
-export const beginOAuth = (provider: OAuthProvider, role?: 'patient' | 'doctor'): void => {
+export const beginOAuth = (
+  provider: OAuthProvider,
+  role?: 'patient' | 'doctor',
+  flow: 'login' | 'register' = 'login'
+): void => {
   const apiBaseUrl = api.defaults.baseURL;
   if (!apiBaseUrl) {
     throw new Error('Authentication server URL is not configured.');
@@ -13,5 +17,6 @@ export const beginOAuth = (provider: OAuthProvider, role?: 'patient' | 'doctor')
   if (role) {
     url.searchParams.set('role', role);
   }
+  url.searchParams.set('flow', flow);
   window.location.assign(url.toString());
 };

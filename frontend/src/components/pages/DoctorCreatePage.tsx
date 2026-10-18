@@ -56,7 +56,7 @@ export const DoctorCreatePage: React.FC = () => {
             </div>
             <FormField label="Specialization" type="text" placeholder="e.g. Cardiology, Neurology" required error={errors.specialization?.message} {...register('specialization')} />
             <FormField label="Email Address" type="email" placeholder="doctor@hospital.com" required error={errors.email?.message} {...register('email')} />
-            <FormField label="Phone Number" type="tel" placeholder="+1 555 987 6543" required error={errors.phone?.message} {...register('phone')} />
+            <FormField label="Phone Number" type="tel" placeholder="Enter phone number" required error={errors.phone?.message} {...register('phone')} />
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button type="button" variant="secondary" onClick={() => navigate('/doctors')}>Cancel</Button>
               <Button type="submit" variant="primary" isLoading={isSubmitting}>Save Doctor Profile</Button>

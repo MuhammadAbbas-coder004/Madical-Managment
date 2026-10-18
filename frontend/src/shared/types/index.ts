@@ -10,21 +10,23 @@ export interface User {
 
 export interface Patient {
   patientId: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   fullName?: string;
   email: string;
-  phone: string;
+  phone?: string;
+  dateOfBirth?: string;
 }
 
 export interface Doctor {
   doctorId: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   fullName?: string;
   email: string;
-  phone: string;
-  specialization: string;
+  phone?: string;
+  specialization?: string;
+  licenseNumber?: string;
 }
 
 export interface Appointment {

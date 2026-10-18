@@ -1,41 +1,60 @@
-import React, { useRef } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
-import { Card } from '../molecules/Card';
-import { Button } from '../atoms/Button';
-import { useFadeUp } from '../../shared/hooks/useFadeUp';
+import toast from 'react-hot-toast';
+import api from '../../shared/services/api';
+import { useAuthStore } from '../../store/authStore';
+import { FaceScanModal } from '../molecules/FaceScanModal';
+
+interface FaceEnrollmentResponse {
+  enrolled: boolean;
+  faceEnrollmentStatus: string;
+}
 
 export const FaceEnrollPage: React.FC = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const login = useAuthStore((state) => state.login);
 
-  const handleContinue = () => {
-    navigate('/login');
-  };
+  const finish = useCallback(() => {
+    if (user) {
+      navigate(user.role.toLowerCase() === 'patient' ? '/portal' : '/dashboard', { replace: true });
+    } else {
+      navigate('/login', { replace: true });
+    }
+  }, [navigate, user]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  useFadeUp(containerRef);
+  const enrollFace = useCallback(async (image: Blob) => {
+    const formData = new FormData();
+    formData.append('image', image, 'face-enrollment.jpg');
+    formData.append('consent', 'true');
+    const result = await api.post(
+      '/auth/face-enroll',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        skipToast: true,
+      }
+    ) as unknown as FaceEnrollmentResponse;
+
+    if (!result.enrolled || result.faceEnrollmentStatus !== 'enrolled') {
+      throw new Error('The server did not confirm face enrollment. Please retry.');
+    }
+
+    if (user && token) {
+      login({ ...user, faceEnrollmentStatus: 'enrolled' }, token);
+    }
+    toast.success('Face enrollment completed.');
+  }, [login, token, user]);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="text-center py-8 px-6">
-          <div className="mx-auto w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-5">
-            <ShieldAlert className="w-9 h-9" />
-          </div>
-          <h2 className="text-xl font-bold text-textPrimary">Face sign-in is unavailable</h2>
-          <p className="text-sm text-textSecondary mt-2 mb-6">
-            This server does not support secure biometric enrollment, liveness detection, or server-verified face authentication. No face image or biometric data was captured or stored.
-          </p>
-          <p className="text-xs text-textSecondary mb-6">
-            Use your password to sign in. Device passkeys can be added when the server supports WebAuthn; your device verifies its biometrics locally and does not enroll a face with this website.
-          </p>
-          <div className="space-y-3">
-            <Button variant="primary" className="w-full py-2.5" onClick={handleContinue}>
-              Continue to sign in
-            </Button>
-          </div>
-        </Card>
-      </div>
-    </div>
+    <main className="min-h-screen bg-[#171B1A]">
+      <FaceScanModal
+        isOpen
+        onClose={finish}
+        mode="enrollment"
+        onEnrollmentCapture={enrollFace}
+      />
+    </main>
   );
 };

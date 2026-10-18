@@ -16,7 +16,7 @@ export interface OAuthIdentity {
   provider: OAuthProvider;
   subject: string;
   email: string;
-  displayName: string;
+  displayName?: string;
 }
 
 export interface OAuthTransaction {
@@ -28,6 +28,7 @@ export interface OAuthStatePayload {
   nonce: string;
   clientOrigin?: string;
   role?: 'patient' | 'doctor';
+  flow?: 'login' | 'register';
   exp: number;
   salt: string;
 }
@@ -57,6 +58,87 @@ const APPLE_JWKS = createRemoteJWKSet(
   new URL('https://appleid.apple.com/auth/keys')
 );
 const OAUTH_TRANSACTION_MAX_AGE_SECONDS = 10 * 60;
+const SAFE_GOOGLE_ERROR_CODES = new Set([
+  'access_denied',
+  'invalid_client',
+  'invalid_grant',
+  'invalid_request',
+  'invalid_scope',
+  'redirect_uri_mismatch',
+  'temporarily_unavailable',
+  'unauthorized_client',
+  'unsupported_grant_type',
+  'unsupported_response_type',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'ETIMEDOUT',
+]);
+
+const safeGoogleExchangeErrorCode = (value: unknown): string => {
+  if (typeof value === 'string' && SAFE_GOOGLE_ERROR_CODES.has(value)) return value;
+  return 'unrecognized_provider_error';
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+interface GoogleExchangeFailureMetadata {
+  httpStatus: string | number;
+  providerCode: string;
+  idTokenPresent: boolean;
+  category: string;
+}
+
+const inspectGoogleExchangeFailure = (error: unknown): GoogleExchangeFailureMetadata => {
+  let httpStatus: string | number = 'unknown';
+  let providerCode = 'unrecognized_provider_error';
+  let category = 'unexpected';
+  let idTokenPresent = false;
+
+  if (isRecord(error)) {
+    const response = isRecord(error.response) ? error.response : undefined;
+    const responseData = response && isRecord(response.data) ? response.data : undefined;
+    const errorData = isRecord(error.data) ? error.data : undefined;
+    const data = responseData || errorData;
+
+    if (typeof response?.status === 'number') httpStatus = response.status;
+    else if (typeof error.status === 'number') httpStatus = error.status;
+
+    if (data) {
+      idTokenPresent = typeof data.id_token === 'string' && data.id_token.length > 0;
+      providerCode = safeGoogleExchangeErrorCode(data.error);
+    }
+
+    const code = typeof error.code === 'string' ? error.code : '';
+    const cause = isRecord(error.cause) ? error.cause : undefined;
+    const causeCode = typeof cause?.code === 'string' ? cause.code : '';
+    const networkCode = code || causeCode;
+
+    if (providerCode !== 'unrecognized_provider_error') {
+      category = 'google_oauth_rejected';
+    } else if (/^(ERR_TLS|CERT_|DEPTH_ZERO_SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE)/.test(networkCode)) {
+      category = 'tls';
+    } else if (['ETIMEDOUT', 'TimeoutError', 'ESOCKETTIMEDOUT'].includes(networkCode)) {
+      category = 'timeout';
+    } else if (
+      ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH'].includes(
+        networkCode
+      )
+    ) {
+      category = 'network';
+    } else if (typeof httpStatus === 'number') {
+      category = 'provider_http_error';
+    }
+  }
+
+  return { httpStatus, providerCode, idTokenPresent, category };
+};
+
+export const googleExchangeFailureDetails = (error: unknown): string => {
+  const { httpStatus, providerCode, idTokenPresent, category } = inspectGoogleExchangeFailure(error);
+  return `http_status=${httpStatus}, provider_code=${providerCode}, id_token_present=${idTokenPresent}, category=${category}`;
+};
 
 const providerConfig = (provider: OAuthProvider) => {
   if (provider === 'google') {
@@ -99,6 +181,8 @@ export const parseAndVerifyOAuthState = (stateString: string | undefined): OAuth
   try {
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8')) as OAuthStatePayload;
     if (typeof payload.nonce !== 'string' || typeof payload.exp !== 'number') return null;
+    if (payload.role !== undefined && payload.role !== 'patient' && payload.role !== 'doctor') return null;
+    if (payload.flow !== undefined && payload.flow !== 'login' && payload.flow !== 'register') return null;
     if (payload.exp < Date.now()) return null;
     return payload;
   } catch {
@@ -108,7 +192,8 @@ export const parseAndVerifyOAuthState = (stateString: string | undefined): OAuth
 
 export const createOAuthTransaction = (
   clientOrigin?: string,
-  role?: 'patient' | 'doctor'
+  role?: 'patient' | 'doctor',
+  flow: 'login' | 'register' = 'login'
 ): OAuthTransaction => {
   const nonce = randomBytes(32).toString('base64url');
   if (!clientOrigin && !role) {
@@ -119,7 +204,7 @@ export const createOAuthTransaction = (
   }
   const exp = Date.now() + OAUTH_TRANSACTION_MAX_AGE_SECONDS * 1000;
   const salt = randomBytes(16).toString('base64url');
-  const state = signOAuthState({ nonce, clientOrigin, role, exp, salt });
+  const state = signOAuthState({ nonce, clientOrigin, role, flow, exp, salt });
   return {
     state,
     nonce,
@@ -198,16 +283,38 @@ const exchangeAuthorizationCode = async (
   if (provider === 'google') {
     const client = getGoogleOAuthClient(redirectUri);
     try {
-      const { tokens } = await client.getToken(code);
+      const { tokens, res } = await client.getToken(code);
       if (!tokens.id_token) {
+        console.error(
+          `[OAuth] Google authorization code exchange returned no ID token ` +
+            `(http_status=${res?.status ?? 'unknown'}, provider_code=none, id_token_present=false, category=unexpected_response).`
+        );
         throw new Error('google_identity_token_missing');
       }
+      console.info(
+        `[OAuth] Google authorization code exchange completed ` +
+          `(http_status=${res?.status ?? 'unknown'}, provider_code=none, id_token_present=true, category=success).`
+      );
       return tokens.id_token;
     } catch (error: unknown) {
       if (error instanceof Error && error.message === 'google_identity_token_missing') {
         throw error;
       }
-      console.error('Google authorization code exchange failed:', error);
+      const diagnostics = inspectGoogleExchangeFailure(error);
+      console.error(
+        `[OAuth] Google authorization code exchange failed ` +
+          `(http_status=${diagnostics.httpStatus}, provider_code=${diagnostics.providerCode}, ` +
+          `id_token_present=${diagnostics.idTokenPresent}, category=${diagnostics.category}).`
+      );
+      if (diagnostics.providerCode === 'invalid_client') {
+        throw new Error('google_client_invalid');
+      }
+      if (diagnostics.providerCode === 'unauthorized_client') {
+        throw new Error('google_client_unauthorized');
+      }
+      if (diagnostics.providerCode === 'redirect_uri_mismatch') {
+        throw new Error('google_redirect_mismatch');
+      }
       throw new Error('google_code_exchange_failed');
     }
   }
@@ -301,10 +408,9 @@ export const verifyProviderIdentityToken = async (
   ) {
     throw new Error(`${provider}_identity_claims_invalid`);
   }
-  const displayName =
-    (typeof claims.name === 'string' && claims.name.trim()) ||
-    (typeof claims.given_name === 'string' && claims.given_name.trim()) ||
-    email.split('@')[0];
+  const displayName = [claims.name, claims.given_name].find(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0
+  )?.trim();
 
   return { provider, subject: claims.sub, email, displayName };
 };
@@ -320,8 +426,8 @@ export const verifyAuthorizationCode = async (
   return verifyProviderIdentityToken(provider, identityToken, nonce, clientId);
 };
 
-const safeUsernameBase = (name: string, email: string): string => {
-  const normalizedName = name
+const safeUsernameBase = (name: string | undefined, email: string): string => {
+  const normalizedName = (name || '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9_]+/g, '_')
@@ -338,52 +444,80 @@ const findAvailableUsername = async (base: string): Promise<string> => {
   return candidate;
 };
 
+const findOAuthSubjectUser = (identity: OAuthIdentity): Promise<IUserDocument | null> =>
+  identity.provider === 'google'
+    ? UserModel.findOne({
+        $or: [
+          { googleSubject: identity.subject },
+          { authProvider: 'google', providerSubject: identity.subject },
+        ],
+      })
+    : UserModel.findOne({
+        authProvider: identity.provider,
+        providerSubject: identity.subject,
+      });
+
 export const findOrCreateOAuthUser = async (
   identity: OAuthIdentity,
-  preferredRole?: 'patient' | 'doctor'
+  preferredRole?: 'patient' | 'doctor',
+  flow: 'login' | 'register' = 'login'
 ): Promise<{ user: IUserDocument; created: boolean }> => {
-  const identityKey = { authProvider: identity.provider, providerSubject: identity.subject };
-  const existingIdentity = await UserModel.findOne(identityKey);
-  if (existingIdentity) {
-    if (identity.displayName && !existingIdentity.fullName) {
-      existingIdentity.fullName = identity.displayName;
-    }
-    existingIdentity.isEmailVerified = true;
-    if (identity.email && existingIdentity.email !== identity.email) {
-      const emailOwner = await UserModel.findOne({ email: identity.email });
-      if (emailOwner && !emailOwner._id.equals(existingIdentity._id)) {
-        throw new Error('oauth_account_conflict');
-      }
-      existingIdentity.email = identity.email;
-    }
-    existingIdentity.lastLoginAt = new Date();
-    await existingIdentity.save();
-    return { user: existingIdentity, created: false };
-  }
+  const normalizedEmail = (identity.email || '').trim().toLowerCase();
 
-  if (!identity.email) {
+  if (!normalizedEmail) {
     throw new Error('oauth_email_unavailable');
   }
 
-  const emailOwner = await UserModel.findOne({ email: identity.email });
-  if (emailOwner) {
+  const subjectUser = await findOAuthSubjectUser(identity);
+  const emailUser = await UserModel.findOne({ email: normalizedEmail });
+  if (subjectUser && emailUser && subjectUser._id.toString() !== emailUser._id.toString()) {
     throw new Error('oauth_account_conflict');
   }
+  const existingUser = subjectUser || emailUser;
 
-  const role = preferredRole === 'doctor' ? 'doctor' : 'patient';
-  const username = await findAvailableUsername(safeUsernameBase(identity.displayName, identity.email));
+  if (existingUser && flow === 'register') {
+    throw new Error('oauth_already_registered');
+  }
+
+  // Existing accounts sign in without applying new registration choices.
+  if (existingUser) {
+    if (
+      identity.provider === 'google' &&
+      existingUser.googleSubject &&
+      existingUser.googleSubject !== identity.subject
+    ) {
+      throw new Error('oauth_account_conflict');
+    }
+    existingUser.isEmailVerified = true;
+    if (identity.provider === 'google' && !existingUser.googleSubject) {
+      existingUser.googleSubject = identity.subject;
+    }
+    if (!existingUser.providerSubject && existingUser.authProvider === identity.provider) {
+      existingUser.providerSubject = identity.subject;
+    }
+    existingUser.lastLoginAt = new Date();
+    await existingUser.save();
+    return { user: existingUser, created: false };
+  }
+
+  const role: 'patient' | 'doctor' = preferredRole === 'doctor' ? 'doctor' : 'patient';
+  const username = await findAvailableUsername(
+    safeUsernameBase(identity.displayName, normalizedEmail)
+  );
+
   const user = new UserModel({
     username,
-    fullName: identity.displayName || username,
-    email: identity.email,
+    fullName: identity.displayName,
+    email: normalizedEmail,
     authProvider: identity.provider,
     providerSubject: identity.subject,
+    ...(identity.provider === 'google' ? { googleSubject: identity.subject } : {}),
     status: 'active',
     isEmailVerified: true,
     isPhoneVerified: false,
-    faceEnrollmentStatus: 'unavailable',
+    faceEnrollmentStatus: 'not_enrolled',
     role,
-    ...(role === 'doctor' ? { doctorVerificationStatus: 'pending' } : {}),
+    doctorVerificationStatus: role === 'doctor' ? 'pending' : 'not_applicable',
     lastLoginAt: new Date(),
   });
 
@@ -397,11 +531,36 @@ export const findOrCreateOAuthUser = async (
       'code' in error &&
       error.code === 11000
     ) {
-      const racedIdentity = await UserModel.findOne(identityKey);
-      if (racedIdentity) {
-        racedIdentity.lastLoginAt = new Date();
-        await racedIdentity.save();
-        return { user: racedIdentity, created: false };
+      const racedSubjectUser = await findOAuthSubjectUser(identity);
+      const racedEmailUser = await UserModel.findOne({ email: normalizedEmail });
+      if (
+        racedSubjectUser &&
+        racedEmailUser &&
+        racedSubjectUser._id.toString() !== racedEmailUser._id.toString()
+      ) {
+        throw new Error('oauth_account_conflict');
+      }
+      const racedUser = racedSubjectUser || racedEmailUser;
+      if (racedUser) {
+        if (flow === 'register') {
+          throw new Error('oauth_already_registered');
+        }
+        if (
+          identity.provider === 'google' &&
+          racedUser.googleSubject &&
+          racedUser.googleSubject !== identity.subject
+        ) {
+          throw new Error('oauth_account_conflict');
+        }
+        if (identity.provider === 'google' && !racedUser.googleSubject) {
+          racedUser.googleSubject = identity.subject;
+        }
+        if (!racedUser.providerSubject && racedUser.authProvider === identity.provider) {
+          racedUser.providerSubject = identity.subject;
+        }
+        racedUser.lastLoginAt = new Date();
+        await racedUser.save();
+        return { user: racedUser, created: false };
       }
       throw new Error('oauth_account_conflict');
     }

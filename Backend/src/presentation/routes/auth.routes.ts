@@ -1,13 +1,17 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { AuthController } from '../controllers/Auth.controller';
 import { OAuthController } from '../controllers/OAuth.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, faceEnrollmentAuthMiddleware } from '../middlewares/auth.middleware';
 import {
+  faceEnrollmentRateLimiter,
+  faceVerificationRateLimiter,
   loginRateLimiter,
   oauthRateLimiter,
   passwordResetRateLimiter,
   registerRateLimiter,
 } from '../middlewares/rateLimit.middleware';
+import { AppError } from '../../domain/errors/AppError';
 import { validate } from '../middlewares/validate.middleware';
 import {
   registerSchema,
@@ -20,13 +24,36 @@ import {
 const authRouter = Router();
 const authController = new AuthController();
 const oauthController = new OAuthController();
+const faceImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
+      callback(new AppError(400, 'Only JPEG and PNG camera images are accepted.'));
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 // Registration endpoint
 authRouter.post('/register', registerRateLimiter, validate(registerSchema), authController.register);
 
 // Strict rate limit: 5 attempts per 15 minutes per IP
 authRouter.post('/login', loginRateLimiter, validate(loginSchema), authController.login);
-authRouter.post('/face-verify', authController.faceVerify);
+authRouter.post(
+  '/face-verify',
+  faceVerificationRateLimiter,
+  faceImageUpload.single('image'),
+  authController.faceVerify
+);
+authRouter.post(
+  '/face-enroll',
+  faceEnrollmentAuthMiddleware,
+  faceEnrollmentRateLimiter,
+  faceImageUpload.single('image'),
+  authController.enrollFace
+);
 authRouter.post('/logout', authController.logout);
 authRouter.get('/session', authMiddleware, authController.providerSession);
 

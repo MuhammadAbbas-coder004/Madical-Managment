@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
 import { PatientApplicationService } from '../../application/patient/PatientApplicationService';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 import { AppError } from '../../domain/errors/AppError';
 
 export class PatientController {
@@ -21,10 +21,12 @@ export class PatientController {
         dateOfBirth,
       });
 
-      await UserModel.findOneAndUpdate(
-        { email: email.trim().toLowerCase(), role: 'patient' },
-        { linkedId: patientId }
-      );
+      const user = await UserModel.findOne({ email: email.trim().toLowerCase(), role: 'patient' });
+      if (user) {
+        await PatientModel.findOneAndUpdate({ patientId }, { userId: user._id });
+        user.linkedId = patientId;
+        await user.save();
+      }
 
       res.status(201).json({
         success: true,
@@ -45,26 +47,9 @@ export class PatientController {
         throw new AppError(403, 'Forbidden');
       }
 
-      let linkedId = user.linkedId;
+      const linkedId = await ensureUserProfile(user);
       if (!linkedId) {
-        let patientDoc = await PatientModel.findOne({ email: user.email });
-        if (!patientDoc) {
-          const nameParts = (user.username || 'Patient User').trim().split(/\s+/);
-          const firstName = nameParts[0] || 'Patient';
-          const lastName = nameParts.slice(1).join(' ') || 'User';
-          const newPatientId = randomUUID();
-          patientDoc = await PatientModel.create({
-            patientId: newPatientId,
-            firstName,
-            lastName,
-            email: user.email,
-            phone: 'Not provided',
-            dateOfBirth: new Date('2000-01-01'),
-          });
-        }
-        linkedId = patientDoc.patientId;
-        user.linkedId = linkedId;
-        await user.save();
+        throw new AppError(500, 'Unable to link patient profile');
       }
 
       const patient = await this.patientService.getPatient(linkedId);

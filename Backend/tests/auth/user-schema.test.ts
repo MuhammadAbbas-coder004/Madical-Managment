@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { UserModel, userSchema } from '../../src/infrastructure/database/schemas/User.schema';
+import { PatientModel } from '../../src/infrastructure/database/schemas/Patient.schema';
+import { DoctorModel } from '../../src/infrastructure/database/schemas/Doctor.schema';
 import { registerSchema } from '../../src/presentation/schemas';
 
 describe('MongoDB user account schema', () => {
-  it('normalizes email and assigns password auth and unavailable face-enrollment defaults', async () => {
+  it('normalizes email and assigns password auth and not-enrolled face defaults', async () => {
     const user = new UserModel({
       username: 'Sample Patient',
       email: '  SAMPLE@Example.com ',
@@ -12,7 +14,7 @@ describe('MongoDB user account schema', () => {
 
     expect(user.email).toBe('sample@example.com');
     expect(user.authProvider).toBe('password');
-    expect(user.faceEnrollmentStatus).toBe('unavailable');
+    expect(user.faceEnrollmentStatus).toBe('not_enrolled');
     expect(user.role).toBe('patient');
     await expect(user.validate()).resolves.toBeUndefined();
   });
@@ -65,6 +67,14 @@ describe('MongoDB user account schema', () => {
     expect(userSchema.path('lastLoginAt')).toBeDefined();
   });
 
+  it('enforces unique Google identities independently of the account login provider', () => {
+    const googleSubjectIndex = userSchema.indexes().find(
+      ([spec, options]) => 'googleSubject' in spec && options.unique === true
+    );
+
+    expect(googleSubjectIndex?.[1].sparse).toBe(true);
+  });
+
   it('does not return password hashes in ordinary user queries', () => {
     expect(userSchema.path('password').options.select).toBe(false);
   });
@@ -99,5 +109,32 @@ describe('MongoDB user account schema', () => {
     expect(user.status).toBe('active');
     expect(user.isEmailVerified).toBe(false);
     expect(user.isPhoneVerified).toBe(false);
+  });
+
+  it('allows a patient profile with only a linked ID and email', async () => {
+    const patient = new PatientModel({
+      patientId: 'patient-profile-id',
+      email: '  PATIENT@EXAMPLE.COM ',
+      userId: new UserModel({ username: 'Patient Name', email: 'patient@example.com' })._id,
+    });
+
+    await expect(patient.validate()).resolves.toBeUndefined();
+    expect(patient.email).toBe('patient@example.com');
+    expect(patient.phone).toBeUndefined();
+    expect(patient.dateOfBirth).toBeUndefined();
+    expect(patient.firstName).toBeUndefined();
+    expect(patient.lastName).toBeUndefined();
+  });
+
+  it('allows a doctor profile without unprovided professional details', async () => {
+    const doctor = new DoctorModel({
+      doctorId: 'doctor-profile-id',
+      email: 'doctor@example.com',
+    });
+
+    await expect(doctor.validate()).resolves.toBeUndefined();
+    expect(doctor.phone).toBeUndefined();
+    expect(doctor.specialization).toBeUndefined();
+    expect(doctor.licenseNumber).toBeUndefined();
   });
 });

@@ -3,30 +3,28 @@ import type { Request, Response } from 'express';
 import { PasswordHasher } from '../../src/infrastructure/auth/PasswordHasher';
 import { JwtService } from '../../src/infrastructure/auth/JwtService';
 import { AuthController } from '../../src/presentation/controllers/Auth.controller';
+import { env } from '../../src/infrastructure/config/env';
 
 describe('Auth Business Logic & Utilities', () => {
-  it('reports face verification as unavailable without requiring an image or claiming HSM is required', async () => {
-    const status = vi.fn().mockReturnThis();
-    const json = vi.fn();
-    const response = {
-      status,
-      json,
-    } as unknown as Response;
+  it('reports face verification as unavailable when the service is disabled', async () => {
+    const originalSetting = env.FACE_ENROLLMENT_ENABLED;
+    env.FACE_ENROLLMENT_ENABLED = false;
+    const next = vi.fn();
 
-    await new AuthController().faceVerify(
-      { body: {} } as Request,
-      response,
-      vi.fn()
-    );
+    try {
+      await new AuthController().faceVerify(
+        { body: {} } as Request,
+        {} as Response,
+        next
+      );
 
-    expect(status).toHaveBeenCalledWith(503);
-    expect(json).toHaveBeenCalledWith({
-      success: false,
-      verified: false,
-      configured: false,
-      message: expect.stringContaining('no server-side biometric verification service is configured'),
-    });
-    expect(JSON.stringify(json.mock.calls)).not.toContain('HSM');
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        statusCode: 503,
+        message: expect.stringContaining('Face verification is not configured'),
+      }));
+    } finally {
+      env.FACE_ENROLLMENT_ENABLED = originalSetting;
+    }
   });
 
   describe('PasswordHasher', () => {

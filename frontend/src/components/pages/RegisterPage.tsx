@@ -4,15 +4,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ScanFace, ShieldCheck, Stethoscope, User, UserRoundPlus } from 'lucide-react';
+import { Eye, EyeOff, ScanFace, ShieldCheck, Stethoscope, User, UserRoundPlus, X } from 'lucide-react';
 import api from '../../shared/services/api';
 import { AivoraLogo } from '../atoms/AivoraLogo';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
-import { useFadeUp } from '../../shared/hooks/useFadeUp';
-import { beginOAuth, type OAuthProvider } from '../../shared/services/oauth';
 import { FaceScanModal } from '../molecules/FaceScanModal';
+import { useFadeUp } from '../../shared/hooks/useFadeUp';
+import { beginOAuth } from '../../shared/services/oauth';
 import './RegisterPage.css';
 
 const FaceScanModel = lazy(() =>
@@ -47,9 +47,15 @@ const registerSchema = z
     phoneNumber: z
       .string()
       .trim()
-      .min(7, 'Phone number must be at least 7 digits')
-      .max(16, 'Phone number cannot exceed 16 digits')
-      .regex(/^[\d\s\-()]+$/, 'Phone number must contain only numbers and standard separators'),
+      .optional()
+      .refine(
+        (value) =>
+          !value ||
+          (/^[\d\s\-()]+$/.test(value) &&
+            value.replace(/\D/g, '').length >= 7 &&
+            value.replace(/\D/g, '').length <= 15),
+        'Enter 7-15 digits using only standard phone number separators'
+      ),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
     specialty: z.string().trim().optional(),
@@ -76,6 +82,13 @@ const registerSchema = z
         });
       }
     }
+    if (data.phoneNumber && !data.countryCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select a country calling code when providing a phone number',
+        path: ['countryCode'],
+      });
+    }
   });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -99,12 +112,6 @@ const GoogleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shr
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-  </svg>
-);
-
-const AppleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shrink-0' }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8.92-2.87-.93.04-2.02.63-2.66 1.38-.56.65-.99 1.69-.87 2.73 1.05.08 2.06-.54 2.61-1.24z" />
   </svg>
 );
 
@@ -135,30 +142,29 @@ const ProviderSpinner: React.FC = () => (
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<'patient' | 'doctor'>('patient');
-  const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+1');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-  const [faceEnrolled, setFaceEnrolled] = useState(false);
-  const [providerLoading, setProviderLoading] = useState<OAuthProvider | null>(null);
+  const [providerLoading, setProviderLoading] = useState<'google' | null>(null);
+  const [isGoogleRoleDialogOpen, setIsGoogleRoleDialogOpen] = useState(false);
+  const [googleSignupRole, setGoogleSignupRole] = useState<'patient' | 'doctor' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [pendingFaceImage, setPendingFaceImage] = useState<Blob | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const oauthStartInProgress = useRef(false);
+  const submitInProgress = useRef(false);
 
   useEffect(() => {
     const resetStates = () => {
+      oauthStartInProgress.current = false;
       setProviderLoading(null);
-      setIsSubmitting(false);
     };
 
     window.addEventListener('pageshow', resetStates);
-    window.addEventListener('popstate', resetStates);
-    window.addEventListener('focus', resetStates);
 
     return () => {
       window.removeEventListener('pageshow', resetStates);
-      window.removeEventListener('popstate', resetStates);
-      window.removeEventListener('focus', resetStates);
     };
   }, []);
 
@@ -174,12 +180,13 @@ export const RegisterPage: React.FC = () => {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       role: 'patient',
-      countryCode: '+1',
+      countryCode: '',
       phoneNumber: '',
     },
   });
 
   const password = watch('password', '');
+  const selectedCountryCode = watch('countryCode', '');
   const strength = passwordStrength(password);
 
   const handleRoleSelect = (role: 'patient' | 'doctor') => {
@@ -188,24 +195,26 @@ export const RegisterPage: React.FC = () => {
   };
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (submitInProgress.current) return;
+    submitInProgress.current = true;
     setIsSubmitting(true);
     setAuthNotice(null);
 
-    // Normalize phone number to E.164 standard format with selected country code
-    const rawDigits = data.phoneNumber.replace(/[^\d]/g, '');
-    const normalizedPhone = `${selectedCountryCode}${rawDigits}`;
+    const rawDigits = data.phoneNumber?.replace(/\D/g, '') ?? '';
+    const normalizedPhone = rawDigits ? `${data.countryCode}${rawDigits}` : undefined;
 
     try {
-      await api.post(
+      const response = await api.post(
         '/auth/register',
         {
           username: data.username.trim(),
           fullName: data.username.trim(),
-          email: data.email.trim(),
-          phoneNumber: normalizedPhone,
-          phone: normalizedPhone,
+          email: data.email.trim().toLowerCase(),
           password: data.password,
           role: data.role,
+          ...(normalizedPhone
+            ? { phoneNumber: normalizedPhone, phone: normalizedPhone }
+            : {}),
           ...(data.role === 'doctor'
             ? {
                 specialty: data.specialty?.trim(),
@@ -215,44 +224,86 @@ export const RegisterPage: React.FC = () => {
         },
         { skipToast: true }
       );
-      toast.success('Account Created Successfully!');
+      const registration = response as {
+        user?: { faceEnrollmentAvailable?: boolean };
+      };
+
+      if (pendingFaceImage && registration.user?.faceEnrollmentAvailable) {
+        const formData = new FormData();
+        formData.append('image', pendingFaceImage, 'face-enrollment.jpg');
+        formData.append('consent', 'true');
+        try {
+          const enrollment = await api.post('/auth/face-enroll', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            skipToast: true,
+          }) as { enrolled?: boolean; faceEnrollmentStatus?: string };
+          if (!enrollment.enrolled || enrollment.faceEnrollmentStatus !== 'enrolled') {
+            throw new Error('The server did not confirm face enrollment. Please sign in and retry.');
+          }
+          toast.success('Account created and face enrollment completed.');
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : 'Face enrollment could not be completed.';
+          toast.success('Account created. You can sign in normally.');
+          toast.error(`Face enrollment was not completed: ${message}`);
+        }
+      } else if (pendingFaceImage) {
+        toast.success('Account created. You can sign in normally.');
+        toast.error('Face enrollment is unavailable because this server has no enrollment service configured.');
+      } else {
+        toast.success('Account created. You can sign in now.');
+      }
+      setPendingFaceImage(null);
       navigate('/login');
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
           : 'Unable to create your account. Please try again.';
-      setAuthNotice(message);
+      const normalizedMessage = /already registered|email.*already exists/i.test(message)
+        ? 'This user is already registered. Please log in.'
+        : /username is already taken/i.test(message)
+          ? 'This name is already taken. Please choose another.'
+          : message;
+      setAuthNotice(normalizedMessage);
 
       if (
-        message.includes('already exists') ||
-        message.includes('taken') ||
-        message.includes('409')
+        normalizedMessage === 'This user is already registered. Please log in.'
       ) {
-        toast.error('An account with this email already exists.');
+        toast.error('This user is already registered. Please log in.');
       } else if (
-        message.includes('Connection') ||
-        message.includes('Network') ||
-        message.includes('unavailable') ||
-        message.includes('ECONNREFUSED')
+        normalizedMessage.includes('Connection') ||
+        normalizedMessage.includes('Network') ||
+        normalizedMessage.includes('unavailable') ||
+        normalizedMessage.includes('ECONNREFUSED')
       ) {
-        toast.error(`Connection Problem: ${message}`);
+        toast.error(`Connection Problem: ${normalizedMessage}`);
       } else {
-        toast.error(message);
+        toast.error(normalizedMessage);
       }
     } finally {
+      submitInProgress.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const startProviderSignUp = (provider: OAuthProvider) => {
-    if (providerLoading) return;
+  const startProviderSignUp = () => {
+    if (providerLoading || isSubmitting) return;
     setAuthNotice(null);
-    setProviderLoading(provider);
+    setGoogleSignupRole(null);
+    setIsGoogleRoleDialogOpen(true);
+  };
+
+  const continueGoogleSignUp = () => {
+    if (!googleSignupRole || oauthStartInProgress.current || providerLoading || isSubmitting) return;
+    oauthStartInProgress.current = true;
+    setProviderLoading('google');
+    setIsGoogleRoleDialogOpen(false);
 
     try {
-      beginOAuth(provider, selectedRole);
+      beginOAuth('google', googleSignupRole, 'register');
     } catch (error) {
+      oauthStartInProgress.current = false;
       setProviderLoading(null);
       const msg =
         error instanceof Error ? error.message : 'Unable to connect to sign-up provider.';
@@ -264,12 +315,12 @@ export const RegisterPage: React.FC = () => {
   return (
     <main
       ref={containerRef}
-      className="medivanta-register relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-3 sm:px-6 lg:py-5"
+      className="medivanta-register relative flex min-h-[100dvh] w-full items-start justify-center px-4 py-4 sm:px-6 sm:py-6 lg:py-8"
     >
       <div aria-hidden="true" className="medivanta-register-glow medivanta-register-glow-left" />
       <div aria-hidden="true" className="medivanta-register-glow medivanta-register-glow-right" />
 
-      <div className="relative z-10 grid w-full max-w-5xl items-stretch gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:gap-7">
+      <div className="relative z-10 my-auto grid w-full max-w-5xl min-w-0 items-stretch gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:gap-7">
         <section className="gsap-card medivanta-register-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-5 lg:p-6">
           <Link
             to="/"
@@ -402,15 +453,18 @@ export const RegisterPage: React.FC = () => {
               {/* Phone Number with Country Calling Code Selector */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-white/80">
-                  Phone Number <span className="text-[#C7FFBE]">*</span>
+                  Phone Number <span className="text-white/45">(optional)</span>
                 </label>
                 <div className="flex gap-2">
                   <select
                     value={selectedCountryCode}
-                    onChange={(e) => setSelectedCountryCode(e.target.value)}
+                    onChange={(event) =>
+                      setValue('countryCode', event.target.value, { shouldValidate: true })
+                    }
                     aria-label="Country Calling Code"
                     className="w-28 rounded-xl border border-white/15 bg-[#171d1a] px-2.5 text-xs text-white focus:border-[#c7ffbe] focus:outline-none"
                   >
+                    <option value="" className="bg-[#171B1A] text-white">Code</option>
                     {COUNTRY_CALLING_CODES.map((item) => (
                       <option key={`${item.code}-${item.country}`} value={item.code} className="bg-[#171B1A] text-white">
                         {item.code} ({item.country})
@@ -420,9 +474,8 @@ export const RegisterPage: React.FC = () => {
                   <div className="flex-1">
                     <input
                       type="tel"
-                      placeholder="Enter your phone number"
+                      placeholder="Phone number (optional)"
                       autoComplete="tel-national"
-                      required
                       className={`w-full rounded-xl border bg-[#171d1a] px-3 text-xs text-white placeholder-white/30 transition-colors focus:border-[#c7ffbe] focus:outline-none ${
                         errors.phoneNumber ? 'border-red-500' : 'border-white/15'
                       }`}
@@ -432,6 +485,9 @@ export const RegisterPage: React.FC = () => {
                 </div>
                 {errors.phoneNumber && (
                   <p className="mt-1 text-[0.68rem] text-red-400">{errors.phoneNumber.message}</p>
+                )}
+                {errors.countryCode && (
+                  <p className="mt-1 text-[0.68rem] text-red-400">{errors.countryCode.message}</p>
                 )}
               </div>
 
@@ -489,33 +545,60 @@ export const RegisterPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Set Up Face Scan Option */}
-              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#C7FFBE]/10 text-[#C7FFBE]">
-                    <ScanFace className="h-3.5 w-3.5" />
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C7FFBE]/10 text-[#C7FFBE]">
+                      <ScanFace className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white">Optional Face Registration</p>
+                      <p className="text-[0.62rem] text-white/50">
+                        Capture here; enrollment is submitted after account creation.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-white">Biometric Face Verification</p>
-                    <p className="text-[0.62rem] text-white/50">
-                      {faceEnrolled ? 'Face scanned' : 'Optional biometric presence verification'}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsFaceModalOpen(true)}
+                    disabled={isSubmitting || Boolean(providerLoading)}
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#C7FFBE]/50 px-3 py-1.5 text-xs font-semibold text-[#C7FFBE] transition-colors hover:bg-[#C7FFBE]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ScanFace className="h-3.5 w-3.5" aria-hidden="true" />
+                    {pendingFaceImage ? 'Retake face scan' : 'Open face scan'}
+                  </button>
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsFaceModalOpen(true)}
-                  className="text-xs px-2.5 py-1 border border-white/10 text-[#C7FFBE] hover:bg-[#C7FFBE]/10 min-h-8"
-                >
-                  {faceEnrolled ? 'Re-scan' : 'Set Up Scan'}
-                </Button>
+                {pendingFaceImage && (
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-[#C7FFBE]/[0.06] px-2.5 py-2">
+                    <p className="text-[0.68rem] text-white/70" role="status">
+                      Camera frame captured. It has not been enrolled yet.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFaceImage(null)}
+                      aria-label="Remove captured face image"
+                      className="rounded p-1 text-white/55 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {authNotice && (
                 <div className="medivanta-register-notice" role="alert" aria-live="polite">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C7FFBE]" aria-hidden="true" />
-                  <p>{authNotice}</p>
+                  <p>
+                    {authNotice}
+                    {authNotice === 'This user is already registered. Please log in.' && (
+                      <>
+                        {' '}
+                        <Link className="font-semibold text-[#C7FFBE] underline" to="/login">
+                          Log in
+                        </Link>
+                      </>
+                    )}
+                  </p>
                 </div>
               )}
 
@@ -525,6 +608,7 @@ export const RegisterPage: React.FC = () => {
                   variant="primary"
                   className="medivanta-register-submit mt-1 min-h-10 w-full rounded-xl text-sm font-semibold shadow-lg transition-[transform,background-color,box-shadow] duration-200"
                   isLoading={isSubmitting}
+                  disabled={Boolean(providerLoading)}
                 >
                   {isSubmitting
                     ? 'Creating account…'
@@ -545,36 +629,24 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid gap-2.5">
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-register-provider flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
-                onClick={() => startProviderSignUp('google')}
+                className="medivanta-register-provider flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium"
+                onClick={startProviderSignUp}
                 disabled={isSubmitting || Boolean(providerLoading)}
                 aria-label="Continue with Google"
                 aria-busy={providerLoading === 'google'}
               >
                 {providerLoading === 'google' ? <ProviderSpinner /> : <GoogleLogo className="h-4 w-4 shrink-0" />}
-                <span>Google</span>
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="medivanta-register-provider flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
-                onClick={() => startProviderSignUp('apple')}
-                disabled={isSubmitting || Boolean(providerLoading)}
-                aria-label="Continue with Apple"
-                aria-busy={providerLoading === 'apple'}
-              >
-                {providerLoading === 'apple' ? <ProviderSpinner /> : <AppleLogo className="h-4 w-4 shrink-0 fill-current" />}
-                <span>Apple</span>
+                <span>Continue with Google</span>
               </Button>
             </div>
 
             {providerLoading && (
               <p className="mt-2 text-center text-xs text-white/55" role="status" aria-live="polite">
-                Connecting to {providerLoading === 'google' ? 'Google' : 'Apple'}…
+                Connecting to Google…
               </p>
             )}
 
@@ -608,11 +680,93 @@ export const RegisterPage: React.FC = () => {
         </aside>
       </div>
 
+      {isGoogleRoleDialogOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setGoogleSignupRole(null);
+              setIsGoogleRoleDialogOpen(false);
+            }
+          }}
+        >
+          <section
+            aria-labelledby="google-signup-role-title"
+            aria-modal="true"
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#202725] p-6 text-white shadow-2xl"
+            role="dialog"
+          >
+            <h2 id="google-signup-role-title" className="text-lg font-semibold text-white">
+              Choose your account type
+            </h2>
+            <p className="mt-1 text-xs text-white/65">
+              Select Patient or Doctor to continue with Google registration.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Google sign-up role">
+              {(['patient', 'doctor'] as const).map((role) => {
+                const selected = googleSignupRole === role;
+                const Icon = role === 'patient' ? User : Stethoscope;
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setGoogleSignupRole(role)}
+                    className={`group relative flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border p-3.5 text-center transition-all duration-200 ${
+                      selected
+                        ? 'border-[#C7FFBE] bg-[#C7FFBE]/10 text-[#C7FFBE] shadow-[0_0_18px_rgba(199,255,190,0.18)] ring-1 ring-[#C7FFBE]'
+                        : 'border-white/10 bg-white/[0.03] text-white hover:border-white/25 hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
+                        selected ? 'bg-[#C7FFBE]/20 text-[#C7FFBE]' : 'bg-white/5 text-white/70 group-hover:text-white'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold capitalize">{role}</span>
+                      <span className="block text-[0.62rem] text-white/50">
+                        {role === 'patient' ? 'Health records & care' : 'Clinical dashboard'}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-10 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-semibold text-white hover:bg-white/15 hover:text-white transition-colors"
+                onClick={() => {
+                  setGoogleSignupRole(null);
+                  setIsGoogleRoleDialogOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                className="min-h-10 rounded-xl px-5 text-xs font-semibold"
+                disabled={!googleSignupRole}
+                onClick={continueGoogleSignUp}
+              >
+                Continue with Google
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
       <FaceScanModal
         isOpen={isFaceModalOpen}
         onClose={() => setIsFaceModalOpen(false)}
-        onComplete={() => setFaceEnrolled(true)}
         mode="enrollment"
+        captureOnly
+        onEnrollmentCapture={async (image) => setPendingFaceImage(image)}
       />
     </main>
   );

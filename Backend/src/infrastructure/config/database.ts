@@ -1,3 +1,4 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
 import { env } from './env';
 import { UserModel } from '../database/schemas/User.schema';
@@ -43,10 +44,56 @@ const attachConnectionListeners = () => {
   });
 };
 
+/**
+ * Validates and ensures DNS SRV resolution works for mongodb+srv:// URIs.
+ * On Windows, local router DNS often refuses UDP port 53 for SRV records (querySrv ECONNREFUSED).
+ * If local DNS fails, automatically configures reliable public DNS resolvers (8.8.8.8, 1.1.1.1).
+ */
+export const ensureSrvDnsSupport = async (uri: string): Promise<void> => {
+  if (!uri || !uri.startsWith('mongodb+srv://')) return;
+
+  const match = uri.match(/^mongodb\+srv:\/\/(?:[^@]+@)?([^/?#]+)/);
+  if (!match) return;
+
+  const hostname = match[1];
+  const srvRecord = `_mongodb._tcp.${hostname}`;
+
+  try {
+    await dns.promises.resolveSrv(srvRecord);
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? err.code : '';
+    const currentServers = dns.getServers();
+    console.warn(
+      `[Database] Local DNS server (${currentServers.join(', ')}) failed SRV resolution for ${hostname} (${code}). ` +
+        `Switching Node.js DNS to public resolvers (8.8.8.8, 1.1.1.1) to resolve Atlas cluster...`
+    );
+
+    dns.setServers(['8.8.8.8', '1.1.1.1', '1.0.0.1']);
+
+    try {
+      const addresses = await dns.promises.resolveSrv(srvRecord);
+      console.log(
+        `[Database] Public DNS successfully resolved ${addresses.length} MongoDB Atlas shard addresses for ${hostname}.`
+      );
+    } catch (fallbackError: unknown) {
+      const fallbackCode =
+        fallbackError && typeof fallbackError === 'object' && 'code' in fallbackError
+          ? fallbackError.code
+          : 'unknown';
+      console.error(
+        `[Database] DNS SRV resolution failed even with public resolvers (${fallbackCode}). ` +
+          `Network may be blocking UDP port 53 or cluster hostname may be incorrect.`
+      );
+    }
+  }
+};
+
 export const connectDatabase = async (): Promise<void> => {
   if (mongoose.connection.readyState === 1) return;
 
   attachConnectionListeners();
+
+  await ensureSrvDnsSupport(env.MONGODB_URI);
 
   const sanitizedTarget = sanitizeMongoUri(env.MONGODB_URI);
 
@@ -86,6 +133,23 @@ export const connectDatabase = async (): Promise<void> => {
     console.error(
       `❌ Failed to connect to MongoDB at ${sanitizedTarget} (${errorName}): ${sanitizedError}`
     );
+
+    if (/querySrv|ECONNREFUSED|ENOTFOUND/.test(sanitizedError)) {
+      console.error(
+        `👉 DIAGNOSTIC: DNS SRV resolution failed. Your network or router blocks SRV DNS lookups. ` +
+          `To bypass SRV DNS entirely, obtain the standard (non-SRV) replica set connection string from MongoDB Atlas ` +
+          `(Atlas > Database > Connect > Drivers > select driver version 3.4 or earlier to view the full host list).`
+      );
+    } else if (/bad auth|authentication failed/i.test(sanitizedError)) {
+      console.error(
+        `👉 DIAGNOSTIC: MongoDB authentication failed. Verify the database user username and password in MongoDB Atlas > Database Access.`
+      );
+    } else if (/ServerSelectionError|timed out|whitelist/i.test(sanitizedError)) {
+      console.error(
+        `👉 DIAGNOSTIC: Atlas cluster unreachable or IP not allowed. In MongoDB Atlas, go to Network Access > IP Access List, and ensure your current IP address (or 0.0.0.0/0) is active.`
+      );
+    }
+
     throw new Error(`Database connection failed: ${sanitizedError}`);
   }
 };

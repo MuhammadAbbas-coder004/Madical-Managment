@@ -1,6 +1,23 @@
 import dotenv from 'dotenv';
-// Load environment variables from .env file
-dotenv.config();
+import { resolve } from 'path';
+
+const inheritedGoogleEnvironment = {
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+};
+const backendEnvPath = resolve(__dirname, '../../../.env');
+const dotenvResult = dotenv.config({ path: backendEnvPath, override: true });
+const backendEnvValues = dotenvResult.parsed || {};
+
+const googleConfigSource = (key: keyof typeof inheritedGoogleEnvironment): string => {
+  if (backendEnvValues[key]) {
+    return inheritedGoogleEnvironment[key] && inheritedGoogleEnvironment[key] !== backendEnvValues[key]
+      ? 'Backend/.env (overrode stale process environment)'
+      : 'Backend/.env';
+  }
+  return process.env[key] ? 'process_environment' : 'missing';
+};
 
 export interface EnvConfig {
   PORT: number;
@@ -27,6 +44,9 @@ export interface EnvConfig {
   TWILIO_SID: string;
   TWILIO_AUTH_TOKEN: string;
   TWILIO_PHONE: string;
+  FACE_ENROLLMENT_ENABLED: boolean;
+  AWS_REGION: string;
+  REKOGNITION_COLLECTION_ID: string;
 }
 
 export const validateEnv = (): EnvConfig => {
@@ -81,13 +101,24 @@ export const validateEnv = (): EnvConfig => {
     errors.push('API_BASE_URL must be explicitly set in production.');
   }
 
+  const faceEnrollmentSetting = process.env.FACE_ENROLLMENT_ENABLED?.trim().toLowerCase();
+  if (faceEnrollmentSetting && !['true', 'false'].includes(faceEnrollmentSetting)) {
+    errors.push('FACE_ENROLLMENT_ENABLED must be "true" or "false".');
+  }
+  const faceEnrollmentEnabled = faceEnrollmentSetting === 'true';
+  const awsRegion = process.env.AWS_REGION?.trim() || '';
+  const rekognitionCollectionId = process.env.REKOGNITION_COLLECTION_ID?.trim() || '';
+  if (faceEnrollmentEnabled && !awsRegion) {
+    errors.push('AWS_REGION is required when FACE_ENROLLMENT_ENABLED=true.');
+  }
+  if (faceEnrollmentEnabled && !rekognitionCollectionId) {
+    errors.push('REKOGNITION_COLLECTION_ID is required when FACE_ENROLLMENT_ENABLED=true.');
+  }
+
   const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || '';
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() || '';
   const googleRedirectUri =
     process.env.GOOGLE_REDIRECT_URI?.trim() || `${apiBaseUrl.replace(/\/+$/, '')}/auth/google/callback`;
-  if (Boolean(googleClientId) !== Boolean(googleClientSecret)) {
-    errors.push('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.');
-  }
   try {
     const googleRedirect = new URL(googleRedirectUri);
     if (!['http:', 'https:'].includes(googleRedirect.protocol)) {
@@ -169,8 +200,21 @@ export const validateEnv = (): EnvConfig => {
     TWILIO_SID: process.env.TWILIO_SID?.trim() || '',
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN?.trim() || '',
     TWILIO_PHONE: process.env.TWILIO_PHONE?.trim() || '',
+    FACE_ENROLLMENT_ENABLED: faceEnrollmentEnabled,
+    AWS_REGION: awsRegion,
+    REKOGNITION_COLLECTION_ID: rekognitionCollectionId,
   };
 };
 
 export const env: EnvConfig = validateEnv();
+
+console.info(
+  `[OAuth] Google runtime configuration (client_id_source=${googleConfigSource('GOOGLE_CLIENT_ID')}, ` +
+    `client_id_configured=${Boolean(env.GOOGLE_CLIENT_ID)}, ` +
+    `client_secret_source=${googleConfigSource('GOOGLE_CLIENT_SECRET')}, ` +
+    `client_secret_configured=${Boolean(env.GOOGLE_CLIENT_SECRET)}, ` +
+    `redirect_uri_source=${googleConfigSource('GOOGLE_REDIRECT_URI')}, ` +
+    `redirect_uri=${env.GOOGLE_REDIRECT_URI}).`
+);
+
 export default env;

@@ -7,6 +7,7 @@ export class TokenBlacklistService {
       await redisClient.set(`blacklist:${token}`, 'blacklisted', 'EX', Math.floor(expiryInSeconds));
     } catch (error: any) {
       console.warn('⚠️ [TokenBlacklistService] Could not blacklist token in Redis:', error.message || error);
+      throw error;
     }
   }
 
@@ -15,8 +16,8 @@ export class TokenBlacklistService {
       const result = await redisClient.exists(`blacklist:${token}`);
       return result === 1;
     } catch (error: any) {
-      console.warn('⚠️ [TokenBlacklistService] Could not check blacklist in Redis, failing open:', error.message || error);
-      return false;
+      console.warn('⚠️ [TokenBlacklistService] Could not check token blacklist in Redis:', error.message || error);
+      throw error;
     }
   }
 }

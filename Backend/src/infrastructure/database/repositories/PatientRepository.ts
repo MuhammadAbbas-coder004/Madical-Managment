@@ -48,7 +48,7 @@ export class PatientRepository implements IPatientRepository {
       lastName: doc.lastName,
       email: new Email(doc.email),
       phone: doc.phone,
-      dateOfBirth: new Date(doc.dateOfBirth),
+      dateOfBirth: doc.dateOfBirth ? new Date(doc.dateOfBirth) : undefined,
     });
   }
 }

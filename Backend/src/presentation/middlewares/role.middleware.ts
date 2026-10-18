@@ -3,15 +3,22 @@ import { AuthenticatedRequest } from './auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
 
+const doctorVerificationMessage = 'Doctor account verification is pending';
+
+const isDoctorVerified = async (userId: string): Promise<boolean> => {
+  const user = await UserModel.findById(userId).select('role doctorVerificationStatus');
+  return user?.role === 'doctor' && user.doctorVerificationStatus === 'verified';
+};
+
 /**
  * Role-based authorization middleware.
  * Runs after authMiddleware.
  * Validates req.user.role against the allowed roles.
- * Admin has full access.
- * Returns 403 Forbidden if the role is not allowed.
+ * Admin has full access. Doctors must be approved before accessing clinician routes.
+ * Returns 403 Forbidden if the role is not allowed or doctor approval is pending.
  */
 export const requireRole = (...roles: string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user || !req.user.role) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
@@ -20,16 +27,30 @@ export const requireRole = (...roles: string[]) => {
     const userRole = req.user.role.toLowerCase();
     const normalizedAllowedRoles = roles.map((r) => r.toLowerCase());
 
-    // Admin has full access to all resources
-    if (userRole === 'admin' || normalizedAllowedRoles.includes(userRole)) {
+    if (userRole === 'admin') {
       next();
       return;
     }
 
-    res.status(403).json({
-      success: false,
-      message: 'Forbidden: Insufficient permissions to access this resource',
-    });
+    if (!normalizedAllowedRoles.includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: Insufficient permissions to access this resource',
+      });
+      return;
+    }
+
+    if (userRole === 'doctor') {
+      if (!req.user.userId || !(await isDoctorVerified(req.user.userId))) {
+        res.status(403).json({
+          success: false,
+          message: doctorVerificationMessage,
+        });
+        return;
+      }
+    }
+
+    next();
   };
 };
 
@@ -58,8 +79,22 @@ export const requirePatientSelfOrRole = (
         allowedStaffRoles.length > 0 ? allowedStaffRoles : ['admin', 'doctor', 'nurse']
       ).map((r) => r.toLowerCase());
 
-      // Admin and authorized staff (Doctor, Nurse, Admin) can access patient data as per their role
-      if (userRole === 'admin' || staffRoles.includes(userRole)) {
+      if (userRole === 'admin') {
+        next();
+        return;
+      }
+
+      if (staffRoles.includes(userRole)) {
+        if (
+          userRole === 'doctor' &&
+          (!req.user.userId || !(await isDoctorVerified(req.user.userId)))
+        ) {
+          res.status(403).json({
+            success: false,
+            message: doctorVerificationMessage,
+          });
+          return;
+        }
         next();
         return;
       }

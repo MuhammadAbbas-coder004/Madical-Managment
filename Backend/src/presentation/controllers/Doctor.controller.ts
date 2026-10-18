@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { DoctorApplicationService } from '../../application/doctor/DoctorApplicationService';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
+import { DoctorModel } from '../../infrastructure/database/schemas/Doctor.schema';
 import { AppError } from '../../domain/errors/AppError';
 
 export class DoctorController {
@@ -19,10 +20,12 @@ export class DoctorController {
         specialization,
       });
 
-      await UserModel.findOneAndUpdate(
-        { email: email.trim().toLowerCase(), role: 'doctor' },
-        { linkedId: doctorId }
-      );
+      const user = await UserModel.findOne({ email: email.trim().toLowerCase(), role: 'doctor' });
+      if (user) {
+        await DoctorModel.findOneAndUpdate({ doctorId }, { userId: user._id });
+        user.linkedId = doctorId;
+        await user.save();
+      }
 
       res.status(201).json({
         success: true,

@@ -10,8 +10,21 @@ const failureMessages: Record<string, string> = {
   cancelled: 'Sign-in was cancelled. You can try again whenever you are ready.',
   invalid_callback: 'The sign-in response could not be verified. Please start again.',
   account_conflict: 'An account already uses this email with another sign-in method. Sign in using that method first.',
+  already_registered: 'This user is already registered. Please log in.',
+  email_unavailable: 'Google did not provide a verified email address for this account. Check your Google account and try again.',
   database_unavailable: 'We could not reach the account database. Your sign-in was not completed; please try again later.',
   not_configured: 'This sign-in provider is not configured on the server yet.',
+  invalid_role: 'Choose Patient or Doctor before continuing with Google.',
+  google_redirect_mismatch: 'Google rejected the callback URL. In Google Cloud Console, add http://localhost:5000/api/auth/google/callback as an authorized redirect URI.',
+  google_client_invalid: 'Google rejected the OAuth client. Check that the Client ID and Client Secret belong to the same Web application client, then restart the backend.',
+  google_client_unauthorized: 'This Google OAuth client is not authorized for the requested sign-in. Check the client type and consent-screen configuration.',
+  google_access_restricted: 'Google policy blocks this account from signing in. Check the consent screen test-user list or organization access policy.',
+  google_request_invalid: 'Google rejected the sign-in request. Check the OAuth client configuration and requested scopes.',
+  google_exchange_failed: 'Google could not verify the sign-in request. Confirm the server client ID and secret belong to the same OAuth client and that the registered callback URL is exact.',
+  google_identity_rejected: 'Google returned identity details that could not be verified. Please retry, or contact support if this keeps happening.',
+  account_creation_failed: 'Google sign-in was verified, but Medivanta could not create or find the account.',
+  profile_setup_failed: 'Your account was verified, but Medivanta could not finish setting up its profile.',
+  session_creation_failed: 'Your account was verified, but Medivanta could not start a secure session. Please try again.',
   provider_error: 'The identity provider could not complete sign-in. Please try again.',
 };
 
@@ -19,10 +32,15 @@ interface SessionResponse {
   user?: {
     id: string;
     username?: string;
+    fullName?: string;
+    name?: string;
     email: string;
     role: string;
     patientId?: string;
     doctorId?: string;
+    doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+    specialty?: string;
+    licenseNumber?: string;
   };
 }
 
@@ -32,8 +50,8 @@ export const OAuthCallbackPage = () => {
   const login = useAuthStore((state) => state.login);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const status = searchParams.get('status');
+  const enrollFaceAfterSignup = searchParams.get('enroll_face') === '1';
   const reason = searchParams.get('reason') || 'provider_error';
-  const provider = searchParams.get('provider');
   const error = status === 'success'
     ? sessionError
     : failureMessages[reason] || failureMessages.provider_error;
@@ -48,8 +66,17 @@ export const OAuthCallbackPage = () => {
         const { user } = response as SessionResponse;
         if (!user) throw new Error('The server did not return the authenticated account.');
         login(user, COOKIE_SESSION);
-        toast.success('Welcome Back!');
-        navigate('/dashboard', { replace: true });
+        toast.success(enrollFaceAfterSignup ? 'Account created successfully.' : 'Welcome Back!');
+        if (enrollFaceAfterSignup) {
+          navigate('/face-enrollment-prompt', { replace: true });
+          return;
+        }
+        const role = user.role?.toLowerCase();
+        if (role === 'patient') {
+          navigate('/portal', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       })
       .catch((caught: unknown) => {
         if (!active) return;
@@ -62,14 +89,14 @@ export const OAuthCallbackPage = () => {
     return () => {
       active = false;
     };
-  }, [login, navigate, status]);
+  }, [enrollFaceAfterSignup, login, navigate, status]);
 
   if (!error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#171B1A] px-5 text-white">
         <div role="status" className="flex items-center gap-3 text-sm text-white/75">
           <Spinner size="sm" />
-          Verifying {provider === 'apple' ? 'Apple' : 'Google'} sign-in…
+          Verifying Google sign-in…
         </div>
       </main>
     );
@@ -83,7 +110,7 @@ export const OAuthCallbackPage = () => {
         <p role="alert" className="mb-7 text-sm leading-6 text-white/65">{error}</p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link className="rounded-xl bg-[#C7FFBE] px-5 py-3 text-sm font-semibold text-[#171B1A] hover:bg-[#d8ffd1]" to="/login">
-            Try signing in
+            Log in
           </Link>
           <Link className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/5" to="/register">
             Create account

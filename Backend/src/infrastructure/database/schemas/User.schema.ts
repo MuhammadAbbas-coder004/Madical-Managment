@@ -11,10 +11,15 @@ export interface IUserDocument extends Document {
   linkedId?: string;
   authProvider: 'password' | 'google' | 'apple';
   providerSubject?: string;
+  googleSubject?: string;
   status: 'active' | 'pending' | 'suspended';
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
-  faceEnrollmentStatus: 'unavailable' | 'not_enrolled' | 'enrolled';
+  faceEnrollmentStatus: 'unavailable' | 'not_enrolled' | 'enrolling' | 'enrolled';
+  faceProviderFaceId?: string;
+  faceEnrollmentStartedAt?: Date;
+  faceEnrolledAt?: Date;
+  faceConsentAt?: Date;
   doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
   specialty?: string;
   licenseNumber?: string;
@@ -95,11 +100,30 @@ const userSchema = new mongoose.Schema(
       trim: true,
       required: false,
     },
+    googleSubject: {
+      type: String,
+      trim: true,
+      required: false,
+    },
     faceEnrollmentStatus: {
       type: String,
-      enum: ['unavailable', 'not_enrolled', 'enrolled'],
-      default: 'unavailable',
+      enum: ['unavailable', 'not_enrolled', 'enrolling', 'enrolled'],
+      default: 'not_enrolled',
       required: true,
+    },
+    faceProviderFaceId: {
+      type: String,
+      select: false,
+    },
+    faceEnrollmentStartedAt: {
+      type: Date,
+      select: false,
+    },
+    faceEnrolledAt: {
+      type: Date,
+    },
+    faceConsentAt: {
+      type: Date,
     },
     doctorVerificationStatus: {
       type: String,
@@ -130,6 +154,13 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: { providerSubject: { $type: 'string' } },
+  }
+);
+userSchema.index(
+  { googleSubject: 1 },
+  {
+    unique: true,
+    sparse: true,
   }
 );
 

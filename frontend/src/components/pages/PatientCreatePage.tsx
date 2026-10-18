@@ -58,7 +58,7 @@ export const PatientCreatePage: React.FC = () => {
             </div>
             <FormField label="Email Address" type="email" placeholder="patient@example.com" required error={errors.email?.message} {...register('email')} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Phone Number" type="tel" placeholder="+1 555 123 4567" required error={errors.phone?.message} {...register('phone')} />
+              <FormField label="Phone Number" type="tel" placeholder="Enter phone number" required error={errors.phone?.message} {...register('phone')} />
               <FormField label="Date of Birth" type="date" required error={errors.dateOfBirth?.message} {...register('dateOfBirth')} />
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t border-border">

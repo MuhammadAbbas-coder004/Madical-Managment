@@ -12,7 +12,7 @@ import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
-import { beginOAuth, type OAuthProvider } from '../../shared/services/oauth';
+import { beginOAuth } from '../../shared/services/oauth';
 import { FaceScanModal } from '../molecules/FaceScanModal';
 import './LoginPage.css';
 
@@ -21,7 +21,7 @@ const FaceScanModel = lazy(() =>
 );
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -33,12 +33,6 @@ const GoogleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shr
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-  </svg>
-);
-
-const AppleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shrink-0' }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8.92-2.87-.93.04-2.02.63-2.66 1.38-.56.65-.99 1.69-.87 2.73 1.05.08 2.06-.54 2.61-1.24z" />
   </svg>
 );
 
@@ -70,26 +64,25 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [providerLoading, setProviderLoading] = useState<OAuthProvider | null>(null);
+  const [providerLoading, setProviderLoading] = useState<'google' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [signInNotice, setSignInNotice] = useState<string | null>(null);
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const oauthStartInProgress = useRef(false);
+  const submitInProgress = useRef(false);
+  const faceLoginInProgress = useRef(false);
 
   useEffect(() => {
     const resetStates = () => {
+      oauthStartInProgress.current = false;
       setProviderLoading(null);
-      setIsSubmitting(false);
     };
 
     window.addEventListener('pageshow', resetStates);
-    window.addEventListener('popstate', resetStates);
-    window.addEventListener('focus', resetStates);
 
     return () => {
       window.removeEventListener('pageshow', resetStates);
-      window.removeEventListener('popstate', resetStates);
-      window.removeEventListener('focus', resetStates);
     };
   }, []);
 
@@ -102,13 +95,15 @@ export const LoginPage: React.FC = () => {
   useFadeUp(containerRef);
 
   const onSubmit = async (data: LoginFormData) => {
+    if (submitInProgress.current) return;
+    submitInProgress.current = true;
     setIsSubmitting(true);
     setSignInNotice(null);
     try {
       const response = await api.post(
         '/auth/login',
         {
-          email: data.email,
+          email: data.email.trim().toLowerCase(),
           password: data.password,
         },
         { skipToast: true }
@@ -131,7 +126,12 @@ export const LoginPage: React.FC = () => {
       }
       login(response.user, response.token || COOKIE_SESSION);
       toast.success('Welcome Back!');
-      navigate('/dashboard');
+      const role = response.user.role?.toLowerCase();
+      if (role === 'patient') {
+        navigate('/portal');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Invalid credentials';
       setSignInNotice(message);
@@ -146,18 +146,21 @@ export const LoginPage: React.FC = () => {
         toast.error(message);
       }
     } finally {
+      submitInProgress.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const handleProviderLogin = (provider: OAuthProvider) => {
-    if (providerLoading) return;
+  const handleProviderLogin = () => {
+    if (oauthStartInProgress.current || providerLoading || isSubmitting) return;
+    oauthStartInProgress.current = true;
     setSignInNotice(null);
-    setProviderLoading(provider);
+    setProviderLoading('google');
 
     try {
-      beginOAuth(provider);
+      beginOAuth('google', 'patient');
     } catch (error) {
+      oauthStartInProgress.current = false;
       setProviderLoading(null);
       const msg = error instanceof Error ? error.message : 'Unable to connect to sign-in provider.';
       setSignInNotice(msg);
@@ -165,12 +168,48 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleFaceVerification = async (image: Blob) => {
+    if (faceLoginInProgress.current) return;
+    faceLoginInProgress.current = true;
+    setSignInNotice(null);
+    try {
+      const formData = new FormData();
+      formData.append('image', image, 'face-login.jpg');
+      formData.append('consent', 'true');
+      const response = await api.post('/auth/face-verify', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        skipToast: true,
+      }) as {
+        verified?: boolean;
+        user?: {
+          id: string;
+          name?: string;
+          username?: string;
+          fullName?: string;
+          email: string;
+          role: string;
+          patientId?: string;
+          doctorId?: string;
+        };
+      };
+
+      if (!response.verified || !response.user) {
+        throw new Error('Face sign-in could not be verified. Please use your email and password.');
+      }
+      login(response.user, COOKIE_SESSION);
+      toast.success('Face sign-in verified. Welcome back!');
+      navigate(response.user.role.toLowerCase() === 'patient' ? '/portal' : '/dashboard');
+    } finally {
+      faceLoginInProgress.current = false;
+    }
+  };
+
   return (
-    <main ref={containerRef} className="medivanta-login relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-3 sm:px-6 lg:py-5">
+    <main ref={containerRef} className="medivanta-login relative flex min-h-[100dvh] w-full items-start justify-center px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
       <div aria-hidden="true" className="medivanta-login-glow medivanta-login-glow-left" />
       <div aria-hidden="true" className="medivanta-login-glow medivanta-login-glow-right" />
 
-      <div className="relative z-10 grid w-full max-w-5xl items-stretch gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:gap-7">
+      <div className="relative z-10 my-auto grid w-full max-w-5xl min-w-0 items-stretch gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:gap-7">
         <section className="gsap-card medivanta-login-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-6 lg:p-7">
           <Link to="/" className="mb-2.5 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]">
             <AivoraLogo className="h-8 w-8" />
@@ -235,6 +274,7 @@ export const LoginPage: React.FC = () => {
                   variant="primary"
                   className="medivanta-login-submit mt-1 min-h-10 w-full rounded-xl text-sm font-semibold shadow-lg transition-[transform,background-color,box-shadow] duration-200"
                   isLoading={isSubmitting}
+                  disabled={Boolean(providerLoading)}
                 >
                   {isSubmitting ? 'Signing in…' : 'Login'}
                 </Button>
@@ -253,38 +293,26 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid gap-2.5">
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-provider-button flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
-                onClick={() => handleProviderLogin('google')}
+                className="medivanta-provider-button flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium"
+                onClick={handleProviderLogin}
                 disabled={isSubmitting || Boolean(providerLoading)}
                 aria-label="Continue with Google"
                 aria-busy={providerLoading === 'google'}
               >
                 {providerLoading === 'google' ? <ProviderSpinner /> : <GoogleLogo className="h-4 w-4 shrink-0" />}
-                <span>Google</span>
+                <span>Continue with Google</span>
               </Button>
 
               <Button
                 type="button"
                 variant="secondary"
-                className="medivanta-provider-button flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
-                onClick={() => handleProviderLogin('apple')}
-                disabled={isSubmitting || Boolean(providerLoading)}
-                aria-label="Continue with Apple"
-                aria-busy={providerLoading === 'apple'}
-              >
-                {providerLoading === 'apple' ? <ProviderSpinner /> : <AppleLogo className="h-4 w-4 shrink-0 fill-current" />}
-                <span>Apple</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="medivanta-provider-button col-span-full flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium"
+                className="medivanta-provider-button flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium"
                 onClick={() => setIsFaceModalOpen(true)}
+                disabled={Boolean(providerLoading) || isSubmitting}
               >
                 <ScanFace className="h-4 w-4 text-[#C7FFBE]" aria-hidden="true" />
                 <span>Sign in with Face</span>
@@ -293,7 +321,7 @@ export const LoginPage: React.FC = () => {
 
             {providerLoading && (
               <p className="mt-2 text-center text-xs text-white/55" role="status" aria-live="polite">
-                Connecting to {providerLoading === 'google' ? 'Google' : 'Apple'}…
+                Connecting to Google…
               </p>
             )}
 
@@ -335,6 +363,7 @@ export const LoginPage: React.FC = () => {
         isOpen={isFaceModalOpen}
         onClose={() => setIsFaceModalOpen(false)}
         mode="login"
+        onFaceVerification={handleFaceVerification}
       />
     </main>
   );

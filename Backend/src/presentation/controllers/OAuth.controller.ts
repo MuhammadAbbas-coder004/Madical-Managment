@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { randomUUID } from 'crypto';
 import { JwtService } from '../../infrastructure/auth/JwtService';
 import {
   buildAuthorizationUrl,
@@ -13,10 +12,11 @@ import {
   type OAuthProvider,
 } from '../../infrastructure/auth/OAuthService';
 import { env } from '../../infrastructure/config/env';
-import { DoctorModel } from '../../infrastructure/database/schemas/Doctor.schema';
-import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 
 const providerCookieName = (provider: OAuthProvider) => `oauth_${provider}`;
+const isOAuthRole = (value: unknown): value is 'patient' | 'doctor' =>
+  value === 'patient' || value === 'doctor';
 const allowedClientOrigins = (): Set<string> => {
   const clientUrl = new URL(env.CLIENT_URL);
   const origins = new Set([clientUrl.origin]);
@@ -29,20 +29,6 @@ const allowedClientOrigins = (): Set<string> => {
 };
 
 const defaultClientOrigin = () => new URL(env.CLIENT_URL).origin;
-
-const providerRedirectUriForRequest = (
-  provider: OAuthProvider,
-  req: Request
-): string | undefined => {
-  if (provider !== 'google' || !env.isDevelopment) return undefined;
-  const configuredRedirect = new URL(env.GOOGLE_REDIRECT_URI);
-  const loopbackHosts = ['localhost', '127.0.0.1'];
-  if (loopbackHosts.includes(configuredRedirect.hostname) && loopbackHosts.includes(req.hostname)) {
-    configuredRedirect.hostname = req.hostname;
-    return configuredRedirect.toString();
-  }
-  return undefined;
-};
 
 const clientOriginForRequest = (req: Request): string => {
   const requestOrigin = req.get('origin');
@@ -61,8 +47,107 @@ const providerFailureUrl = (
   clientOrigin = defaultClientOrigin()
 ) =>
   `${clientOrigin}/auth/callback?provider=${provider}&status=error&reason=${encodeURIComponent(reason)}`;
-const providerSuccessUrl = (provider: OAuthProvider, clientOrigin = defaultClientOrigin()) =>
-  `${clientOrigin}/auth/callback?provider=${provider}&status=success`;
+const providerSuccessUrl = (
+  provider: OAuthProvider,
+  clientOrigin = defaultClientOrigin(),
+  enrollFace = false
+) =>
+  `${clientOrigin}/auth/callback?provider=${provider}&status=success${enrollFace ? '&enroll_face=1' : ''}`;
+
+const safeOAuthFailureCode = (error: unknown): string => {
+  const allowedCodes = new Set([
+    'apple_not_configured',
+    'apple_code_exchange_failed',
+    'apple_identity_token_missing',
+    'apple_identity_claims_invalid',
+    'google_not_configured',
+    'google_code_exchange_failed',
+    'google_client_invalid',
+    'google_client_unauthorized',
+    'google_redirect_mismatch',
+    'google_identity_token_missing',
+    'google_identity_claims_invalid',
+    'oauth_account_conflict',
+    'oauth_email_unavailable',
+    'oauth_invalid_role',
+  ]);
+  if (error instanceof Error && allowedCodes.has(error.message)) return error.message;
+  if (typeof error === 'object' && error !== null && 'name' in error && typeof error.name === 'string') {
+    const safeErrorNames = new Set([
+      'MongoBulkWriteError',
+      'MongoNetworkError',
+      'MongoNotConnectedError',
+      'MongoServerError',
+      'MongoServerSelectionError',
+      'ValidationError',
+    ]);
+    if (safeErrorNames.has(error.name)) return error.name;
+  }
+  return 'unexpected_error';
+};
+
+const safeProviderErrorCode = (value: unknown): string => {
+  const safeCodes = new Set([
+    'access_denied',
+    'admin_policy_enforced',
+    'consent_required',
+    'disallowed_useragent',
+    'interaction_required',
+    'invalid_client',
+    'invalid_grant',
+    'invalid_request',
+    'invalid_scope',
+    'login_required',
+    'org_internal',
+    'redirect_uri_mismatch',
+    'request_denied',
+    'server_error',
+    'temporarily_unavailable',
+    'unauthorized_client',
+    'user_cancelled_authorize',
+    'unsupported_response_type',
+  ]);
+  return typeof value === 'string' && safeCodes.has(value) ? value : 'unrecognized_provider_error';
+};
+
+const callbackFailureReason = (
+  provider: OAuthProvider,
+  stage: string,
+  error: unknown
+): string => {
+  if (error instanceof Error) {
+    if (error.message === 'oauth_account_conflict') return 'account_conflict';
+    if (error.message === 'oauth_email_unavailable') return 'email_unavailable';
+    if (error.message === `${provider}_not_configured`) return 'not_configured';
+    if (error.message === 'google_client_invalid') return 'google_client_invalid';
+    if (error.message === 'google_client_unauthorized') return 'google_client_unauthorized';
+    if (error.message === 'google_redirect_mismatch') return 'google_redirect_mismatch';
+    if (
+      error.message === 'google_code_exchange_failed' ||
+      error.message === 'google_identity_token_missing'
+    ) {
+      return 'google_exchange_failed';
+    }
+    if (error.message === 'google_identity_claims_invalid') return 'google_identity_rejected';
+  }
+
+  if (stage === 'account_linking') return 'account_creation_failed';
+  if (stage === 'profile_linking') return 'profile_setup_failed';
+  if (stage === 'session_creation') return 'session_creation_failed';
+  return 'provider_error';
+};
+
+const providerCallbackFailureReason = (provider: OAuthProvider, code: string): string => {
+  if (code === 'access_denied' || code === 'user_cancelled_authorize') return 'cancelled';
+  if (provider !== 'google') return 'provider_error';
+
+  if (code === 'redirect_uri_mismatch') return 'google_redirect_mismatch';
+  if (code === 'invalid_client') return 'google_client_invalid';
+  if (code === 'unauthorized_client') return 'google_client_unauthorized';
+  if (code === 'admin_policy_enforced' || code === 'org_internal') return 'google_access_restricted';
+  if (code === 'invalid_request' || code === 'invalid_scope') return 'google_request_invalid';
+  return 'provider_error';
+};
 
 const cookieOptions = (provider: OAuthProvider) => ({
   httpOnly: true,
@@ -118,10 +203,24 @@ export class OAuthController {
   public start = (provider: OAuthProvider) => (req: Request, res: Response): void => {
     const clientOrigin = clientOriginForRequest(req);
     try {
-      const preferredRole = req.query?.role === 'doctor' ? 'doctor' : 'patient';
-      const redirectUri = providerRedirectUriForRequest(provider, req);
-      const transaction = { ...createOAuthTransaction(clientOrigin, preferredRole), clientOrigin, role: preferredRole };
-      const authorizationUrl = buildAuthorizationUrl(provider, transaction, redirectUri);
+      const requestedRole = req.query?.role;
+      const requestedFlow = req.query?.flow;
+      if (
+        (provider === 'google' && !isOAuthRole(requestedRole)) ||
+        (requestedRole !== undefined && !isOAuthRole(requestedRole)) ||
+        (requestedFlow !== undefined && requestedFlow !== 'login' && requestedFlow !== 'register')
+      ) {
+        throw new Error('oauth_invalid_role');
+      }
+      const preferredRole = isOAuthRole(requestedRole) ? requestedRole : undefined;
+      const flow = requestedFlow === 'register' ? 'register' : 'login';
+      const transaction = {
+        ...createOAuthTransaction(clientOrigin, preferredRole, flow),
+        clientOrigin,
+        role: preferredRole,
+        flow,
+      };
+      const authorizationUrl = buildAuthorizationUrl(provider, transaction);
       res.cookie(
         providerCookieName(provider),
         Buffer.from(JSON.stringify(transaction)).toString('base64url'),
@@ -129,9 +228,15 @@ export class OAuthController {
       );
       res.redirect(302, authorizationUrl);
     } catch (error) {
-      const reason = error instanceof Error && error.message === `${provider}_not_configured`
-        ? 'not_configured'
-        : 'provider_error';
+      const reason =
+        error instanceof Error && error.message === `${provider}_not_configured`
+          ? 'not_configured'
+          : error instanceof Error && error.message === 'oauth_invalid_role'
+            ? 'invalid_role'
+            : 'provider_error';
+      console.error(
+        `[OAuth] ${provider} sign-in could not start (${reason}; code=${safeOAuthFailureCode(error)}).`
+      );
       res.redirect(302, providerFailureUrl(provider, reason, clientOrigin));
     }
   };
@@ -163,91 +268,86 @@ export class OAuthController {
             : undefined;
       const paramUser = req.query.user ?? req.body?.user;
 
-      // Verify state via cookie OR cryptographically signed HMAC token
+      // The signature binds the nonce, client origin, and selected role to this OAuth attempt.
       const signedState = parseAndVerifyOAuthState(paramState);
       const clientOrigin =
-        transaction?.clientOrigin || signedState?.clientOrigin || defaultClientOrigin();
-      const nonce = transaction?.nonce || signedState?.nonce;
+        signedState?.clientOrigin && allowedClientOrigins().has(signedState.clientOrigin)
+          ? signedState.clientOrigin
+          : transaction?.clientOrigin && allowedClientOrigins().has(transaction.clientOrigin)
+            ? transaction.clientOrigin
+            : defaultClientOrigin();
 
-      const isStateValid =
-        (transaction && verifyOAuthState(transaction.state, paramState)) ||
-        Boolean(signedState);
-
-      if (!isStateValid || !nonce) {
-        res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
-        return;
-      }
-
+      // If the provider returned an error, handle and redirect with the specific provider error reason first
       if (paramError) {
-        const reason =
-          paramError === 'access_denied' || paramError === 'user_cancelled_authorize'
-            ? 'cancelled'
-            : 'provider_error';
+        const reason = providerCallbackFailureReason(provider, safeProviderErrorCode(paramError));
+        console.warn(
+          `[OAuth] ${provider} sign-in ended by provider (reason=${reason}, code=${safeProviderErrorCode(paramError)}).`
+        );
         res.redirect(302, providerFailureUrl(provider, reason, clientOrigin));
         return;
       }
 
       if (!paramCode) {
+        console.warn(
+          `[OAuth] ${provider} callback rejected: authorization_code_missing (category=invalid_callback, has_state=${Boolean(paramState)}).`
+        );
         res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
         return;
       }
 
+      if (!paramState) {
+        console.warn(`[OAuth] ${provider} callback rejected: state_missing (category=invalid_callback).`);
+        res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
+        return;
+      }
+
+      if (!signedState) {
+        console.warn(
+          `[OAuth] ${provider} callback rejected: state_signature_invalid_or_expired (category=invalid_callback, has_cookie=${Boolean(transaction)}).`
+        );
+        res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
+        return;
+      }
+
+      const nonce = signedState.nonce;
+      if (!nonce) {
+        console.warn(`[OAuth] ${provider} callback rejected: nonce_missing (category=invalid_callback).`);
+        res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
+        return;
+      }
+
+      if (provider === 'google' && !isOAuthRole(signedState.role)) {
+        console.warn(
+          `[OAuth] ${provider} callback rejected: role_missing_or_invalid (category=invalid_callback).`
+        );
+        res.redirect(302, providerFailureUrl(provider, 'invalid_callback', clientOrigin));
+        return;
+      }
+
+      const cookieMatches = transaction ? verifyOAuthState(transaction.state, paramState) : null;
+      console.info(
+        `[OAuth] ${provider} callback state verified (category=state_verified, hmac_valid=true, cookie_present=${Boolean(transaction)}, cookie_matches=${cookieMatches ?? 'n/a'}).`
+      );
+
+      let stage = 'code_exchange_or_identity_validation';
       try {
-        const redirectUri = providerRedirectUriForRequest(provider, req);
         const identity = await verifyAuthorizationCode(
           provider,
           paramCode,
-          nonce,
-          redirectUri
+          nonce
         );
         if (provider === 'apple') {
           identity.displayName = this.appleDisplayName(paramUser) || identity.displayName;
         }
-        const preferredRole = transaction?.role || signedState?.role;
-        const { user } = await findOrCreateOAuthUser(identity, preferredRole);
+        const preferredRole = signedState?.role;
+        const flow = signedState?.flow ?? 'login';
+        stage = 'account_linking';
+        const { user, created } = await findOrCreateOAuthUser(identity, preferredRole, flow);
 
-        let linkedId = user.linkedId;
-        if (!linkedId && user.role === 'patient') {
-          let patient = await PatientModel.findOne({ email: user.email });
-          if (!patient) {
-            const nameParts = (user.username || 'Patient User').trim().split(/\s+/);
-            const firstName = nameParts[0] || 'Patient';
-            const lastName = nameParts.slice(1).join(' ') || 'User';
-            const newPatientId = randomUUID();
-            patient = await PatientModel.create({
-              patientId: newPatientId,
-              firstName,
-              lastName,
-              email: user.email,
-              phone: 'Not provided',
-              dateOfBirth: new Date('2000-01-01'),
-            });
-          }
-          linkedId = patient.patientId;
-        } else if (!linkedId && user.role === 'doctor') {
-          let doctor = await DoctorModel.findOne({ email: user.email });
-          if (!doctor) {
-            const nameParts = (user.username || 'Doctor User').trim().split(/\s+/);
-            const firstName = nameParts[0] || 'Doctor';
-            const lastName = nameParts.slice(1).join(' ') || 'User';
-            const newDoctorId = randomUUID();
-            doctor = await DoctorModel.create({
-              doctorId: newDoctorId,
-              firstName,
-              lastName,
-              email: user.email,
-              phone: 'Not provided',
-              specialization: user.specialty || 'General Medicine',
-            });
-          }
-          linkedId = doctor.doctorId;
-        }
+        stage = 'profile_linking';
+        const linkedId = await ensureUserProfile(user);
 
-        if (linkedId && linkedId !== user.linkedId) {
-          user.linkedId = linkedId;
-          await user.save();
-        }
-
+        stage = 'session_creation';
         const token = JwtService.generateToken(user._id.toString(), user.role, linkedId);
         res.cookie('token', token, {
           httpOnly: true,
@@ -255,23 +355,36 @@ export class OAuthController {
           sameSite: env.isProduction ? 'strict' : 'lax',
           maxAge: 24 * 60 * 60 * 1000,
         });
-        res.redirect(302, providerSuccessUrl(provider, clientOrigin));
+        res.redirect(
+          302,
+          providerSuccessUrl(
+            provider,
+            clientOrigin,
+            created && flow === 'register' && env.FACE_ENROLLMENT_ENABLED
+          )
+        );
       } catch (error) {
         if (error instanceof Error && error.message === 'oauth_account_conflict') {
+          console.warn(`[OAuth] ${provider} sign-in rejected (account_conflict).`);
           res.redirect(302, providerFailureUrl(provider, 'account_conflict', clientOrigin));
+          return;
+        }
+        if (error instanceof Error && error.message === 'oauth_already_registered') {
+          console.info(`[OAuth] ${provider} registration rejected (already_registered).`);
+          res.redirect(302, providerFailureUrl(provider, 'already_registered', clientOrigin));
           return;
         }
 
         if (mongoose.connection.readyState !== 1 || this.isDatabaseConnectionError(error)) {
+          console.error(`[OAuth] ${provider} callback failed (stage=${stage}, code=database_unavailable).`);
           res.redirect(302, providerFailureUrl(provider, 'database_unavailable', clientOrigin));
           return;
         }
 
-        const reason =
-          error instanceof Error && error.message === `${provider}_not_configured`
-            ? 'not_configured'
-            : 'provider_error';
-        console.error(`OAuth callback failed for ${provider} (${reason}).`);
+        const reason = callbackFailureReason(provider, stage, error);
+        console.error(
+          `[OAuth] ${provider} callback failed (stage=${stage}, reason=${reason}, code=${safeOAuthFailureCode(error)}).`
+        );
         res.redirect(302, providerFailureUrl(provider, reason, clientOrigin));
       }
     };
@@ -299,4 +412,3 @@ export class OAuthController {
     }
   }
 }
-

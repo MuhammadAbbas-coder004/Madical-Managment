@@ -1,108 +1,259 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Camera, RefreshCw, Scan, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Camera, CheckCircle2, RefreshCw, Scan, ShieldAlert, X } from 'lucide-react';
+import './FaceScanModal.css';
 
 interface FaceScanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete?: () => void;
   mode: 'enrollment' | 'login';
+  onEnrollmentCapture?: (image: Blob) => Promise<void>;
+  onFaceVerification?: (image: Blob) => Promise<void>;
+  captureOnly?: boolean;
 }
 
-type ScanStage = 'idle' | 'initializing' | 'ready' | 'scanning' | 'verified' | 'failed';
+type ScanStage = 'idle' | 'initializing' | 'ready' | 'capturing' | 'failed' | 'captured' | 'enrolled';
+
+const waitForVideoReady = (video: HTMLVideoElement, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const isReady = () =>
+      video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+      video.videoWidth > 0 &&
+      video.videoHeight > 0;
+    let timeout: number;
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      signal.removeEventListener('abort', onAbort);
+      video.removeEventListener('loadeddata', onReady);
+      video.removeEventListener('canplay', onReady);
+      video.removeEventListener('playing', onReady);
+      video.removeEventListener('error', onError);
+    };
+    const onReady = () => {
+      if (!isReady()) return;
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('The camera connected, but the video preview could not be started.'));
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(new DOMException('Camera preview was cancelled.', 'AbortError'));
+    };
+
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    if (isReady()) {
+      resolve();
+      return;
+    }
+
+    video.addEventListener('loadeddata', onReady);
+    video.addEventListener('canplay', onReady);
+    video.addEventListener('playing', onReady);
+    video.addEventListener('error', onError);
+    signal.addEventListener('abort', onAbort, { once: true });
+    timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('The camera connected, but no video became available. Close other apps using the camera, then retry.'));
+    }, 5000);
+  });
+
+const getCameraErrorMessage = (error: unknown, phase: 'access' | 'preview') => {
+  const name = error instanceof Error ? error.name : '';
+
+  if (name === 'InsecureContextError') {
+    return 'Camera access requires a secure HTTPS connection or localhost.';
+  }
+  if (name === 'UnsupportedError') {
+    return 'Camera access is not supported by this browser. Try a current browser with camera support.';
+  }
+  if (phase === 'access') {
+    if (['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(name)) {
+      return 'Camera permission was denied or blocked. Allow camera access for this site in your browser and device settings, then retry.';
+    }
+    if (['NotFoundError', 'DevicesNotFoundError'].includes(name)) {
+      return 'No camera was found on this device. Connect or enable a camera, then retry.';
+    }
+    if (name === 'NotReadableError') {
+      return 'The camera could not be opened. Close other apps using it and check your device camera settings, then retry.';
+    }
+    if (name === 'AbortError') {
+      return 'Camera startup was interrupted. Check that the camera is available, then retry.';
+    }
+    if (name === 'OverconstrainedError') {
+      return 'No available camera can provide a compatible video preview.';
+    }
+    return 'Unable to access the camera. Check browser permissions and that a camera is connected, then retry.';
+  }
+
+  if (['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(name)) {
+    return 'The camera opened, but the browser blocked video playback. Allow camera access and retry.';
+  }
+  if (name === 'NotReadableError') {
+    return 'The camera preview stopped unexpectedly. Close other apps using the camera and retry.';
+  }
+  return error instanceof Error
+    ? error.message
+    : 'The camera preview could not be started. Check camera access and retry.';
+};
 
 export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   isOpen,
   onClose,
   mode,
+  onEnrollmentCapture,
+  onFaceVerification,
+  captureOnly = false,
 }) => {
   const [stage, setStage] = useState<ScanStage>('idle');
   const [failureReason, setFailureReason] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraRequestRef = useRef(0);
+  const activeCameraRequestRef = useRef<number | null>(null);
+  const cameraStartPromiseRef = useRef<Promise<MediaStream> | null>(null);
+  const previewAbortRef = useRef<AbortController | null>(null);
   const unavailableMessage = mode === 'login'
-    ? 'Face sign-in is unavailable because this server has no server-side biometric verification service. Please sign in with your email and password.'
-    : 'Face enrollment is unavailable because this server has no server-side biometric enrollment service.';
-  const displayStage = stage;
+    ? 'Face sign-in is unavailable. Please sign in with your email and password.'
+    : 'This enrollment session is not connected to an account. Please sign in or create an account, then retry.';
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     cameraRequestRef.current += 1;
+    activeCameraRequestRef.current = null;
+    previewAbortRef.current?.abort();
+    previewAbortRef.current = null;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
-  };
+  }, []);
 
   const handleClose = () => {
     stopCamera();
     setStage('idle');
     setFailureReason('');
+    setConsentGiven(false);
     onClose();
   };
 
   useEffect(() => {
-    if (!isOpen) stopCamera();
+    if (!isOpen) {
+      stopCamera();
+      return;
+    }
+
+    const rootOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
     return () => {
       stopCamera();
+      document.documentElement.style.overflow = rootOverflow;
+      document.body.style.overflow = bodyOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, stopCamera]);
 
   const startCamera = async () => {
-    stopCamera();
+    if (activeCameraRequestRef.current !== null) return;
+    if (!consentGiven) return;
+
     const requestId = ++cameraRequestRef.current;
+    activeCameraRequestRef.current = requestId;
     setFailureReason('');
     setStage('initializing');
 
+    let phase: 'access' | 'preview' = 'access';
     try {
       if (!window.isSecureContext) {
-        throw new Error('Camera access requires a secure HTTPS connection or localhost.');
+        throw Object.assign(new Error('Camera access requires a secure HTTPS connection or localhost.'), {
+          name: 'InsecureContextError',
+        });
       }
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Camera access is not supported by this browser.');
+        throw Object.assign(new Error('Camera access is not supported by this browser.'), {
+          name: 'UnsupportedError',
+        });
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-        audio: false,
-      });
+      let cameraRequest = cameraStartPromiseRef.current;
+      if (!cameraRequest) {
+        cameraRequest = navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+          audio: false,
+        });
+        cameraStartPromiseRef.current = cameraRequest;
+      }
 
-      if (requestId !== cameraRequestRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
+      let stream: MediaStream;
+      try {
+        stream = await cameraRequest;
+      } finally {
+        if (cameraStartPromiseRef.current === cameraRequest) {
+          cameraStartPromiseRef.current = null;
+        }
+      }
+
+      if (activeCameraRequestRef.current !== requestId) {
+        if (activeCameraRequestRef.current === null) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
         return;
       }
 
       streamRef.current = stream;
       const video = videoRef.current;
       if (!video) {
-        stopCamera();
-        throw new Error('The camera preview is unavailable. Please try again.');
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        throw new Error('The camera preview is not available. Close and reopen the preview, then retry.');
       }
+
+      phase = 'preview';
+      const abortController = new AbortController();
+      previewAbortRef.current = abortController;
       video.srcObject = stream;
       await video.play();
+      await waitForVideoReady(video, abortController.signal);
 
-      if (requestId === cameraRequestRef.current) setStage('ready');
-    } catch (error: unknown) {
-      if (requestId !== cameraRequestRef.current) return;
-      stopCamera();
-      setStage('failed');
-      if (error instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(error.name)) {
-        setFailureReason('Camera permission was denied. Allow camera access in your browser settings, then retry.');
-      } else if (error instanceof Error && ['NotFoundError', 'DevicesNotFoundError'].includes(error.name)) {
-        setFailureReason('No camera was found on this device.');
-      } else if (error instanceof Error && error.name === 'NotReadableError') {
-        setFailureReason('The camera is unavailable or already in use by another application.');
-      } else {
-        setFailureReason(error instanceof Error ? error.message : 'Unable to access the camera. Please try again.');
+      if (activeCameraRequestRef.current === requestId) {
+        activeCameraRequestRef.current = null;
+        previewAbortRef.current = null;
+        setStage('ready');
       }
+    } catch (error: unknown) {
+      if (activeCameraRequestRef.current !== requestId) return;
+      activeCameraRequestRef.current = null;
+      previewAbortRef.current?.abort();
+      previewAbortRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setStage('failed');
+      setFailureReason(getCameraErrorMessage(error, phase));
     }
   };
 
   const handleVerify = async () => {
+    if (!consentGiven) {
+      setStage('failed');
+      setFailureReason('Consent is required before sending a camera frame for biometric processing.');
+      return;
+    }
+
     const video = videoRef.current;
     if (!video || stage !== 'ready' || !video.videoWidth || !video.videoHeight) {
       setStage('failed');
@@ -120,15 +271,38 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       return;
     }
 
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const capture = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.85)
-    );
-    canvas.width = 0;
-    canvas.height = 0;
-    setStage('failed');
-    setFailureReason(capture ? unavailableMessage : 'A camera frame could not be captured. Please retry.');
-    stopCamera();
+    setStage('capturing');
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const capture = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/jpeg', 0.85)
+      );
+      if (!capture) throw new Error('A camera frame could not be captured. Please retry.');
+      stopCamera();
+
+      if (mode === 'enrollment') {
+        if (!onEnrollmentCapture) throw new Error(unavailableMessage);
+        await onEnrollmentCapture(capture);
+        setFailureReason('');
+        setStage(captureOnly ? 'captured' : 'enrolled');
+      } else {
+        if (!onFaceVerification) throw new Error(unavailableMessage);
+        await onFaceVerification(capture);
+      }
+    } catch (error: unknown) {
+      setStage('failed');
+      setFailureReason(
+        error instanceof Error
+          ? error.message
+          : mode === 'login'
+            ? 'Face sign-in could not be completed. Please retry or use your password.'
+            : 'Face enrollment could not be completed. Please retry.'
+      );
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
+      stopCamera();
+    }
   };
 
   if (!isOpen) return null;
@@ -138,38 +312,71 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="face-verification-heading"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      className="face-scan-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 backdrop-blur-md animate-fade-in sm:p-4"
     >
-      <div className="relative w-full max-w-lg rounded-3xl border border-[#C7FFBE]/20 bg-[#171B1A] p-6 sm:p-7 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_30px_rgba(199,255,190,0.08)] text-white">
+      <div className="face-scan-dialog relative flex w-full max-w-2xl flex-col rounded-3xl border border-[#C7FFBE]/20 bg-[#171B1A] p-4 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_30px_rgba(199,255,190,0.08)] sm:p-6">
         {/* Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-white/10">
+        <div className="face-scan-header flex shrink-0 items-start justify-between gap-4 border-b border-white/10 pb-3 sm:pb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex h-2 w-2 rounded-full bg-[#C7FFBE] animate-ping" />
+              <span className="inline-flex h-2 w-2 rounded-full bg-[#C7FFBE]" />
               <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-[#C7FFBE]">
-                Biometric Engine
+                Face {mode === 'login' ? 'sign-in' : 'registration'}
               </span>
             </div>
-            <h2 id="face-verification-heading" className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-              Face Verification
+            <h2 id="face-verification-heading" className="text-lg font-bold tracking-tight text-white sm:text-2xl">
+              {mode === 'login' ? 'Face sign-in' : 'Face registration'}
             </h2>
-            <p className="mt-1 text-xs text-white/65">
-              {mode === 'login' ? 'Face sign-in is currently unavailable.' : 'Face enrollment is currently unavailable.'}
+            <p className="mt-1 max-w-xl text-xs leading-relaxed text-white/65 sm:text-sm">
+              {mode === 'login'
+                ? 'A camera frame is compared on the server with your enrolled face. This similarity check does not detect presentation attacks.'
+                : captureOnly
+                  ? 'Capture a camera frame now. It will only be submitted for enrollment after your account is created.'
+                  : 'AWS Rekognition creates face enrollment data for your account. This does not verify legal identity or enable face sign-in.'}
             </p>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close biometric modal"
-            className="rounded-xl border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Close face scan"
+            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {(
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-white/70">
+            <input
+              type="checkbox"
+              checked={consentGiven}
+              disabled={stage === 'initializing' || stage === 'ready' || stage === 'capturing' || stage === 'captured' || stage === 'enrolled'}
+              onChange={(event) => {
+                setConsentGiven(event.target.checked);
+                if (!event.target.checked) {
+                  stopCamera();
+                  setFailureReason('');
+                  setStage('idle');
+                }
+              }}
+              className="mt-0.5 accent-[#C7FFBE]"
+            />
+            <span>
+              {mode === 'login'
+                ? 'I consent to sending this camera frame to AWS Rekognition to compare it with face data I previously enrolled. This comparison does not perform liveness detection, and AWS processes the image for matching.'
+                : captureOnly
+                  ? 'I consent to capturing a camera frame in this browser and submitting it for server-side face enrollment after account registration. The frame is not uploaded unless account creation succeeds.'
+                  : 'I consent to sending this camera frame to AWS Rekognition to create face enrollment data for my account. The frame is processed for enrollment and is not stored by Medivanta; AWS retains the face features in its configured collection.'}
+            </span>
+          </label>
+        )}
+
         {/* Viewport Container */}
-        <div className="my-5">
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-[#C7FFBE]/30 bg-[#0E1211] shadow-[0_0_30px_rgba(199,255,190,0.12)]">
+        <div className="face-scan-preview-wrap">
+          <div
+            className="face-scan-viewport relative mx-auto overflow-hidden rounded-2xl border border-[#C7FFBE]/30 bg-[#0E1211] shadow-[0_0_30px_rgba(199,255,190,0.12)]"
+            aria-busy={stage === 'initializing' || stage === 'capturing'}
+          >
             {/* Live Video Preview */}
             <video
               ref={videoRef}
@@ -177,13 +384,15 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
               playsInline
               muted
               className={`h-full w-full object-cover transition-opacity duration-300 ${
-                displayStage === 'ready' || displayStage === 'scanning' ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'
+                stage === 'ready' || stage === 'capturing'
+                  ? 'opacity-100'
+                  : 'pointer-events-none absolute inset-0 opacity-0'
               }`}
               style={{ transform: 'scaleX(-1)' }}
             />
 
             {/* Technical grid backdrop (when camera is not active) */}
-            {displayStage !== 'ready' && displayStage !== 'scanning' && (
+            {stage !== 'ready' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
                 <div
                   className="absolute inset-0 opacity-15"
@@ -194,19 +403,23 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                   aria-hidden="true"
                 />
 
-                {displayStage === 'idle' && (
+                {stage === 'idle' && (
                   <div className="relative z-10 flex flex-col items-center">
                     <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#C7FFBE]/30 bg-[#C7FFBE]/10 text-[#C7FFBE] shadow-[0_0_24px_rgba(199,255,190,0.2)]">
                       <Camera className="h-8 w-8" />
                     </div>
                     <p className="text-sm font-semibold text-white">Live Camera Preview</p>
                     <p className="mt-1 max-w-xs text-xs text-white/55">
-                      Click start to preview your camera. Video stays in this browser and is not used to authenticate.
+                      {mode === 'login'
+                        ? 'After you consent, one camera frame is sent to the server to compare with your enrolled face.'
+                        : captureOnly
+                          ? 'After you consent, one camera frame is captured and held temporarily in this browser until registration is submitted.'
+                          : 'After you consent, one camera frame is sent for server-side face enrollment.'}
                     </p>
                   </div>
                 )}
 
-                {displayStage === 'initializing' && (
+                {stage === 'initializing' && (
                   <div className="relative z-10 flex flex-col items-center">
                     <RefreshCw className="h-9 w-9 animate-spin text-[#C7FFBE]" />
                     <p className="mt-3 text-sm font-medium text-white">Preparing your camera…</p>
@@ -214,30 +427,42 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                   </div>
                 )}
 
-                {displayStage === 'verified' && (
-                  <div className="relative z-10 flex flex-col items-center animate-fade-in">
-                    <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full border border-[#C7FFBE] bg-[#C7FFBE]/15 text-[#C7FFBE] shadow-[0_0_30px_rgba(199,255,190,0.4)]">
-                      <ShieldCheck className="h-9 w-9" />
-                    </div>
-                    <p className="text-base font-bold text-[#C7FFBE]">Identity verified successfully.</p>
-                    <p className="mt-1 text-xs text-white/60">Biometric presence attested.</p>
-                  </div>
-                )}
-
-                {displayStage === 'failed' && (
+                {stage === 'failed' && (
                   <div className="relative z-10 flex flex-col items-center max-w-sm px-4">
                     <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-400">
                       <ShieldAlert className="h-7 w-7" />
                     </div>
-                    <p className="text-sm font-semibold text-white">Camera / Verification Status</p>
+                    <p className="text-sm font-semibold text-white">
+                      {mode === 'login' ? 'Camera or face sign-in unavailable' : 'Camera or face enrollment unavailable'}
+                    </p>
                     <p role="alert" className="mt-2 text-xs leading-relaxed text-white/70">{failureReason}</p>
+                  </div>
+                )}
+
+                {stage === 'enrolled' && (
+                  <div role="status" className="relative z-10 flex flex-col items-center max-w-sm px-4">
+                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#C7FFBE]" />
+                    <p className="text-sm font-semibold text-white">Face enrollment complete</p>
+                    <p className="mt-2 text-xs leading-relaxed text-white/70">
+                      AWS Rekognition confirmed enrollment for your account. Your camera frame was not stored by Medivanta.
+                    </p>
+                  </div>
+                )}
+
+                {stage === 'captured' && (
+                  <div role="status" className="relative z-10 flex flex-col items-center max-w-sm px-4">
+                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#C7FFBE]" />
+                    <p className="text-sm font-semibold text-white">Camera frame captured</p>
+                    <p className="mt-2 text-xs leading-relaxed text-white/70">
+                      This is not face enrollment or verification. The frame will be submitted for enrollment only after your account is created.
+                    </p>
                   </div>
                 )}
               </div>
             )}
 
             {/* Overlays on Live Video */}
-            {(displayStage === 'ready' || displayStage === 'scanning') && (
+            {(stage === 'ready' || stage === 'capturing') && (
               <>
                 {/* Elegant Corner Brackets */}
                 <div className="pointer-events-none absolute inset-6 flex flex-col justify-between" aria-hidden="true">
@@ -256,24 +481,23 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                   <div className="h-44 w-36 rounded-[50%] border border-[#C7FFBE]/30 shadow-[0_0_20px_rgba(199,255,190,0.15)]" />
                 </div>
 
-                {/* Smooth Scanning Laser Beam */}
-                {displayStage === 'scanning' && (
-                  <div
-                    className="pointer-events-none absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#C7FFBE] to-transparent shadow-[0_0_15px_#C7FFBE]"
-                    style={{
-                      animation: 'medivanta-scan-beam 2.2s ease-in-out infinite alternate',
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-
                 {/* Status Badge overlay */}
                 <div className="absolute bottom-3 inset-x-3 flex items-center justify-between rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-md border border-white/10 text-xs">
                   <span className="flex items-center gap-2 text-white/80">
-                    <span className={`h-2 w-2 rounded-full ${displayStage === 'scanning' ? 'bg-[#C7FFBE] animate-ping' : 'bg-[#C7FFBE]'}`} />
-                    {displayStage === 'scanning' ? 'Scanning in progress…' : 'Camera ready — position your face in the frame.'}
+                    <span className="h-2 w-2 rounded-full bg-[#C7FFBE]" />
+                    {stage === 'capturing'
+                      ? mode === 'enrollment'
+                        ? captureOnly ? 'Capturing frame for registration…' : 'Sending frame for server enrollment…'
+                        : 'Checking your enrolled face…'
+                      : 'Camera preview ready — position your face in the frame.'}
                   </span>
-                  <span className="font-mono text-[0.65rem] text-[#C7FFBE]">LIVE 60FPS</span>
+                  <span className="font-mono text-[0.65rem] text-[#C7FFBE]">
+                    {stage === 'capturing'
+                      ? mode === 'enrollment' && !captureOnly
+                        ? 'ENROLLING'
+                        : mode === 'login' ? 'VERIFYING' : 'CAPTURING'
+                      : 'CAMERA ON'}
+                  </span>
                 </div>
               </>
             )}
@@ -281,16 +505,17 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col gap-2.5">
-          {displayStage === 'idle' && (
+        <div className="face-scan-actions grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {stage === 'idle' && (
             <>
               <button
                 type="button"
                 onClick={startCamera}
+                disabled={!consentGiven}
                 className="group relative inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_20px_rgba(199,255,190,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(199,255,190,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE] active:scale-[0.99]"
               >
                 <Camera className="h-4 w-4 shrink-0 text-[#C7FFBE] transition-transform group-hover:scale-110" aria-hidden="true" />
-                <span>Start Face Scan</span>
+                <span>Start Camera Preview</span>
               </button>
               <button
                 type="button"
@@ -302,18 +527,28 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             </>
           )}
 
-          {displayStage === 'initializing' && (
+          {(stage === 'enrolled' || stage === 'captured') && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#C7FFBE] bg-[#C7FFBE] px-4 py-2.5 text-sm font-semibold text-[#171B1A]"
+            >
+              {stage === 'captured' ? 'Return to registration' : 'Done'}
+            </button>
+          )}
+
+          {stage === 'initializing' && (
             <button
               type="button"
               disabled
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/40 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]/70 cursor-not-allowed opacity-80"
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/40 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]/70 cursor-not-allowed opacity-80"
             >
               <RefreshCw className="h-4 w-4 animate-spin text-[#C7FFBE]" />
               <span>Preparing your camera…</span>
             </button>
           )}
 
-          {displayStage === 'ready' && (
+          {stage === 'ready' && (
             <>
               <button
                 type="button"
@@ -321,7 +556,11 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_24px_rgba(199,255,190,0.24)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_32px_rgba(199,255,190,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE] active:scale-[0.99]"
               >
                 <Scan className="h-4 w-4 shrink-0 text-[#C7FFBE] transition-transform group-hover:scale-110" />
-                <span>Verify Face Presence</span>
+                <span>
+                  {mode === 'enrollment'
+                    ? captureOnly ? 'Capture Frame' : 'Enroll Face'
+                    : 'Verify Face'}
+                </span>
               </button>
               <button
                 type="button"
@@ -333,29 +572,24 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             </>
           )}
 
-          {displayStage === 'scanning' && (
+          {stage === 'capturing' && (
             <button
               type="button"
               disabled
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/50 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] cursor-wait"
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/40 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]/80 cursor-wait"
             >
               <RefreshCw className="h-4 w-4 animate-spin text-[#C7FFBE]" />
-              <span>Scanning in progress…</span>
+              <span>
+                {mode === 'login'
+                  ? 'Verifying your face…'
+                  : mode === 'enrollment' && !captureOnly
+                    ? 'Enrolling face…'
+                    : 'Capturing camera frame…'}
+              </span>
             </button>
           )}
 
-          {displayStage === 'verified' && (
-            <button
-              type="button"
-              disabled
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#C7FFBE]/15 px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]"
-            >
-              <ShieldCheck className="h-5 w-5 text-[#C7FFBE]" />
-              <span>Identity verified successfully.</span>
-            </button>
-          )}
-
-          {displayStage === 'failed' && (
+          {stage === 'failed' && (
             <>
               <button
                 type="button"
@@ -363,7 +597,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_20px_rgba(199,255,190,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(199,255,190,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
               >
                 <RefreshCw className="h-4 w-4 shrink-0 text-[#C7FFBE]" />
-                <span>Retry Face Scan</span>
+                <span>Retry Camera Preview</span>
               </button>
               <button
                 type="button"

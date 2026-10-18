@@ -30,9 +30,11 @@ APPLE_REDIRECT_URI=https://<public-development-api-host>/api/auth/apple/callback
 
 1. Create a **Web application** OAuth client and configure the consent screen.
 2. Add `http://localhost:5173` to Authorized JavaScript origins for local development.
-3. Add the exact `GOOGLE_REDIRECT_URI` above to Authorized redirect URIs. For local development on both loopback names, also register `http://127.0.0.1:5000/api/auth/google/callback`; the API uses the matching loopback hostname for authorization-code exchange. Production must use the deployed HTTPS API callback URL.
+3. Add the exact `GOOGLE_REDIRECT_URI` above to Authorized redirect URIs. The API uses this configured URI unchanged for both authorization and code exchange. Production must use the deployed HTTPS API callback URL.
 4. Copy the client ID and secret to the server environment. Never expose the secret to the browser.
 5. The API requests `openid email profile`, validates Google’s signed ID token, issuer, audience, expiry, issued-at age, verified email, subject, and nonce, then stores/reuses the MongoDB identity.
+
+Google remains disabled unless both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are present. If the client secret is missing, the API can still start and email/password authentication remains available; add the secret only to `Backend/.env` to enable Google sign-in.
 
 ## Apple Developer
 

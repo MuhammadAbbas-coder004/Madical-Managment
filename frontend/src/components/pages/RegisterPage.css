@@ -1,7 +1,26 @@
 .medivanta-register {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
   background:
     radial-gradient(ellipse at 50% 45%, rgb(35 48 42 / 0.72), transparent 58%),
     #171b1a;
+}
+
+html:has(.medivanta-register),
+body:has(.medivanta-register) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.medivanta-register > .relative.z-10 {
+  min-width: 0;
+}
+
+.medivanta-register-panel,
+.medivanta-register-card {
+  min-width: 0;
 }
 
 .medivanta-register-glow {
@@ -204,7 +223,23 @@
 
 @media (max-width: 1023px) {
   .medivanta-register-face {
-    min-height: 360px;
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 639px) {
+  .medivanta-register .medivanta-register-face {
+    min-height: 160px;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 1024px) {
+  .medivanta-register {
+    padding-block: 1rem;
+  }
+
+  .medivanta-register-panel {
+    padding: 1.25rem;
   }
 }
 

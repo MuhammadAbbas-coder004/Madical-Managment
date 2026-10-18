@@ -4,20 +4,20 @@ import { AppError } from '../errors/AppError';
 
 export interface PatientProps {
   patientId: PatientId;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   email: Email;
-  phone: string;
-  dateOfBirth: Date;
+  phone?: string;
+  dateOfBirth?: Date;
 }
 
 export class Patient {
   private readonly _patientId: PatientId;
-  private _firstName: string;
-  private _lastName: string;
+  private _firstName?: string;
+  private _lastName?: string;
   private _email: Email;
-  private _phone: string;
-  private _dateOfBirth: Date;
+  private _phone?: string;
+  private _dateOfBirth?: Date;
 
   constructor(props: PatientProps) {
     this._patientId = props.patientId;
@@ -46,27 +46,27 @@ export class Patient {
     return this._patientId;
   }
 
-  public get firstName(): string {
+  public get firstName(): string | undefined {
     return this._firstName;
   }
 
-  public get lastName(): string {
+  public get lastName(): string | undefined {
     return this._lastName;
   }
 
   public get fullName(): string {
-    return `${this._firstName} ${this._lastName}`;
+    return [this._firstName, this._lastName].filter(Boolean).join(' ');
   }
 
   public get email(): Email {
     return this._email;
   }
 
-  public get phone(): string {
+  public get phone(): string | undefined {
     return this._phone;
   }
 
-  public get dateOfBirth(): Date {
+  public get dateOfBirth(): Date | undefined {
     return this._dateOfBirth;
   }
 }
