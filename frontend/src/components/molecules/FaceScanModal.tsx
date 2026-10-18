@@ -50,6 +50,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
   const startCamera = async () => {
     stopCamera();
+    const requestId = ++cameraRequestRef.current;
     setFailureReason('');
     setStage('initializing');
 
@@ -61,7 +62,6 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
         throw new Error('Camera access is not supported by this browser.');
       }
 
-      const requestId = ++cameraRequestRef.current;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -87,11 +87,12 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
       if (requestId === cameraRequestRef.current) setStage('ready');
     } catch (error: unknown) {
+      if (requestId !== cameraRequestRef.current) return;
       stopCamera();
       setStage('failed');
-      if (error instanceof Error && error.name === 'NotAllowedError') {
+      if (error instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(error.name)) {
         setFailureReason('Camera permission was denied. Allow camera access in your browser settings, then retry.');
-      } else if (error instanceof Error && error.name === 'NotFoundError') {
+      } else if (error instanceof Error && ['NotFoundError', 'DevicesNotFoundError'].includes(error.name)) {
         setFailureReason('No camera was found on this device.');
       } else if (error instanceof Error && error.name === 'NotReadableError') {
         setFailureReason('The camera is unavailable or already in use by another application.');

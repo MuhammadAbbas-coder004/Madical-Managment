@@ -5,7 +5,7 @@ import { JwtService } from '../../src/infrastructure/auth/JwtService';
 import { AuthController } from '../../src/presentation/controllers/Auth.controller';
 
 describe('Auth Business Logic & Utilities', () => {
-  it('reports face verification as unavailable without claiming HSM is required', async () => {
+  it('reports face verification as unavailable without requiring an image or claiming HSM is required', async () => {
     const status = vi.fn().mockReturnThis();
     const json = vi.fn();
     const response = {
