@@ -87,6 +87,15 @@ const RoleAwareVitalsPage: React.FC = () => {
   const role = user?.role?.toLowerCase();
 
   if (role === 'doctor') return <VitalsRecordPage />;
+  if (role === 'patient') return <VitalsRecordPage />;
+  return <Navigate to="/dashboard" replace />;
+};
+
+const RoleAwareVitalsHistoryPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const role = user?.role?.toLowerCase();
+
+  if (role === 'doctor') return <VitalsRecordPage />;
   if (role === 'patient') return <PatientVitalsPage />;
   return <Navigate to="/dashboard" replace />;
 };
@@ -227,7 +236,7 @@ export const AppRoutes: React.FC = () => {
         path="/vitals/history"
         element={
           <ProtectedRoute>
-            <RoleAwareVitalsPage />
+            <RoleAwareVitalsHistoryPage />
           </ProtectedRoute>
         }
       />

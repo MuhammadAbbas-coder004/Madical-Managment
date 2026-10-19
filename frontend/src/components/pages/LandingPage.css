@@ -21,7 +21,7 @@
   border-radius: 1.5rem;
   background:
     radial-gradient(ellipse at 50% 42%, rgb(47 71 57 / 0.38), transparent 58%),
-    linear-gradient(145deg, #121816, #0c100f 75%);
+    linear-gradient(145deg, #111111, #0c100f 75%);
   box-shadow:
     0 24px 64px rgb(0 0 0 / 0.35),
     inset 0 0 48px rgb(199 255 190 / 0.04);
@@ -62,14 +62,14 @@
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(#c7ffbe, #c7ffbe) left top / 2px 28px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) left top / 28px 2px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) right top / 2px 28px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) right top / 28px 2px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) left bottom / 2px 28px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) left bottom / 28px 2px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) right bottom / 2px 28px no-repeat,
-    linear-gradient(#c7ffbe, #c7ffbe) right bottom / 28px 2px no-repeat;
+    linear-gradient(#D9FF5B, #D9FF5B) left top / 2px 28px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) left top / 28px 2px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) right top / 2px 28px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) right top / 28px 2px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) left bottom / 2px 28px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) left bottom / 28px 2px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) right bottom / 2px 28px no-repeat,
+    linear-gradient(#D9FF5B, #D9FF5B) right bottom / 28px 2px no-repeat;
   opacity: 0.7;
 }
 
@@ -81,7 +81,7 @@
   z-index: 3;
   height: 1px;
   pointer-events: none;
-  background: #c7ffbe;
+  background: #D9FF5B;
   box-shadow:
     0 0 8px 2px rgb(199 255 190 / 0.75),
     0 0 30px 8px rgb(199 255 190 / 0.22);
@@ -96,7 +96,7 @@
   pointer-events: none;
   border: 1px solid #e5ffe1;
   border-radius: 50%;
-  background: #c7ffbe;
+  background: #D9FF5B;
   box-shadow: 0 0 10px 2px rgb(199 255 190 / 0.48);
   opacity: 0.62;
   animation: face-scan-pulse 2.8s ease-in-out infinite;
@@ -142,7 +142,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c7ffbe;
+  background: #D9FF5B;
   box-shadow: 0 0 8px rgb(199 255 190 / 0.8);
 }
 
@@ -204,3 +204,6 @@
     animation: none;
   }
 }
+
+#top { background-color: #FFFFFF; color: #111111; font-family: 'Manrope', system-ui, sans-serif; }
+#top a:focus-visible, #top button:focus-visible { --tw-ring-color: #D9FF5B; }

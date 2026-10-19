@@ -10,55 +10,46 @@ export default {
     extend: {
       /* ── Typography ─────────────────────────────────── */
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
       },
 
       /* ── Color palette ──────────────────────────────── */
       colors: {
-        // Primary — blue scale
+        // Primary — lime accent
         primary: {
-          50:  '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB',   // ← main brand
-          DEFAULT: '#2563EB',
-          700: '#1D4ED8',
-          hover: '#1D4ED8', // alias kept for existing components
-          800: '#1E40AF',
-          900: '#1E3A8A',
-          950: '#172554',
+          50: '#F7FFD9', 100: '#F1FFC2', 200: '#E8FF9E',
+          300: '#DFFF7A', 400: '#D9FF5B', 500: '#D9FF5B',
+          600: '#D9FF5B', DEFAULT: '#D9FF5B', 700: '#C5EA43',
+          hover: '#C5EA43', 800: '#A7C932', 900: '#829E25', 950: '#536519',
         },
 
         // Backgrounds
-        background: '#F1F5F9',   // slate-100 — light gray
+        background: '#DEDEDE',
         surface:    '#FFFFFF',   // white cards
 
         // Borders
-        border: 'rgb(30 41 59 / 0.10)',
+        border: '#E6E6E6',
 
         // Text — navy family
-        textPrimary:   '#0F172A', // slate-900 — near-navy
-        textSecondary: 'rgb(30 41 59 / 0.60)',
-        textMuted:     'rgb(30 41 59 / 0.40)',
+        textPrimary:   '#111111',
+        textSecondary: '#6B6B6B',
+        textMuted:     '#6B6B6B',
 
         // Semantic states
-        success: '#16A34A',   // green-600
-        warning: '#D97706',   // amber-600
-        danger:  '#DC2626',   // red-600
-        info:    '#0284C7',   // sky-600
+        success: '#15803D',
+        warning: '#B45309',
+        danger:  '#B91C1C',
+        info:    '#6B6B6B',
       },
 
       /* ── Border-radius — large / soft ───────────────── */
       borderRadius: {
-        sm:   '0.5rem',    //  8px
-        DEFAULT: '0.75rem', // 12px
-        md:   '0.75rem',   // 12px
-        lg:   '1rem',      // 16px
-        xl:   '1.25rem',   // 20px
-        '2xl': '1.5rem',   // 24px
+        sm: '0.5rem',
+        DEFAULT: '0.75rem',
+        md: '0.75rem',
+        lg: '1rem',
+        xl: '1.25rem',
+        '2xl': '1.5rem',
       },
 
       /* ── Box-shadow — soft, layered ─────────────────── */

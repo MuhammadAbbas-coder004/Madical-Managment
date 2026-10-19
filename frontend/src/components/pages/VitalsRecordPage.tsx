@@ -7,6 +7,7 @@ import api from '../../shared/services/api';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
+import { useAuthStore } from '../../store/authStore';
 import './FaceVitals.css';
 
 type QualityLabel = 'Good' | 'Low' | 'Poor' | 'Unavailable';
@@ -262,6 +263,7 @@ const waitForCameraFrame = (video: HTMLVideoElement): Promise<number> => new Pro
 });
 
 export const VitalsRecordPage: React.FC = () => {
+  const isPatient = useAuthStore((state) => state.user?.role?.toLowerCase() === 'patient');
   const [history, setHistory] = useState<ScanHistoryRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -667,6 +669,7 @@ export const VitalsRecordPage: React.FC = () => {
                 { key: 'stressLevel', title: 'Stress · Experimental', value: result.stressLevel === undefined ? 'Could not measure' : `${result.stressLevel}/100` },
               ].filter(({ key }) => (key !== 'hrv' && key !== 'stressLevel') || result.qualityLabel === 'Good').map(({ key, title, value }) => <div key={key} className="rounded-lg border border-border p-4"><p className="text-sm text-textSecondary">{title}</p><p className="mt-1 text-xl font-semibold text-textPrimary">{value}</p>{result.reasons[key as keyof ScanResult['reasons']] && <p className="mt-2 text-xs text-textSecondary">{result.reasons[key as keyof ScanResult['reasons']]}</p>}</div>)}
             </div>
+            {isPatient && <p className="mt-3 text-xs text-textSecondary">Wellness estimate, not medical advice.</p>}
             <p className="mt-3 text-sm text-textSecondary">Quality: <strong>{result.qualityLabel}</strong>{result.quality === null ? '' : ` (${Math.round(result.quality * 100)}%)`}{result.qualityLabel === 'Low' && <span className="ml-2 font-semibold text-warning">Low confidence</span>}</p>
             {result.qualityReason && <p className="mt-1 text-sm text-textSecondary">{result.qualityReason}</p>}
             <p className="mt-4 text-sm text-textSecondary">Estimated values for general wellness. Not a medical diagnosis.</p>
@@ -686,7 +689,7 @@ export const VitalsRecordPage: React.FC = () => {
             </div>
             {historyLoading && <div className="face-vitals-history-state" role="status">Loading your scan history…</div>}
             {!historyLoading && historyError && <div className="face-vitals-alert error" role="alert">{historyError}</div>}
-            {!historyLoading && !historyError && history.length === 0 && <Card className="face-vitals-empty"><p>No saved scans yet.</p></Card>}
+            {!historyLoading && !historyError && history.length === 0 && <Card className="face-vitals-empty"><p>{isPatient ? 'No vitals recorded yet.' : 'No saved scans yet.'}</p></Card>}
             {!historyLoading && !historyError && history.length > 0 && <div className="face-vitals-history-list">{history.map((record) => (
               <Card key={record.vitalsId} className="face-vitals-history-card">
                 <div className="face-vitals-record-heading"><span><Clock3 aria-hidden="true" /> {new Date(record.recordedAt).toLocaleString()}</span><span className="face-vitals-record-status">{record.quality !== undefined ? `${Math.round(record.quality * 100)}% quality` : 'Scan'}</span></div>

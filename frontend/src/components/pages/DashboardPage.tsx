@@ -46,8 +46,9 @@ const AnimatedNumber: React.FC<{ value: number }> = ({ value }) => {
 };
 
 const ArrowLink: React.FC<{ to: string; label: string }> = ({ to, label }) => (
-  <Link to={to} className="card-arrow mt-auto self-end" aria-label={label}>
-    <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
+  <Link to={to} className="dashboard-card-action" aria-label={label}>
+    <span>{label}</span>
+    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
   </Link>
 );
 
@@ -105,8 +106,8 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {!loading && stats && (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Card className="flex min-h-[390px] flex-col rounded-xl border-textPrimary/10 p-6 sm:p-7 md:row-span-2">
+          <div className="dashboard-card-grid grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Card className="dashboard-card md:row-span-2">
               <div>
                 <div className="mb-2 flex items-center gap-2 text-primary">
                   <Calendar className="h-5 w-5" aria-hidden="true" />
@@ -160,7 +161,7 @@ export const DashboardPage: React.FC = () => {
               <ArrowLink to="/patients" label="Open patients" />
             </Card>
 
-            <Card className="flex min-h-[185px] flex-col rounded-xl border-textPrimary/10 p-6 sm:p-7">
+            <Card className="dashboard-card">
               <div className="mb-4 flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
                   <CircleAlert className="h-6 w-6" aria-hidden="true" />
@@ -178,7 +179,7 @@ export const DashboardPage: React.FC = () => {
               <ArrowLink to="/vitals" label="Review critical vitals" />
             </Card>
 
-            <Card className="flex min-h-[185px] flex-col rounded-xl border-textPrimary/10 p-6 sm:p-7">
+            <Card className="dashboard-card">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">

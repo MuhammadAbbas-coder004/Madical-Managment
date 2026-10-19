@@ -1,22 +1,19 @@
-import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ShieldCheck, Stethoscope, User, UserRoundPlus } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Stethoscope, User } from 'lucide-react';
 import api from '../../shared/services/api';
 import { AivoraLogo } from '../atoms/AivoraLogo';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
+import { AuthFacePanel } from './AuthFacePanel';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { beginOAuth } from '../../shared/services/oauth';
 import './RegisterPage.css';
-
-const FaceScanModel = lazy(() =>
-  import('./FaceScanModel').then(({ FaceScanModel: model }) => ({ default: model }))
-);
 
 const COUNTRY_CALLING_CODES = [
   { code: '+1', country: 'US/CA' },
@@ -116,7 +113,7 @@ const GoogleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shr
 
 const ProviderSpinner: React.FC = () => (
   <svg
-    className="h-4 w-4 shrink-0 animate-spin text-[#C7FFBE]"
+    className="h-4 w-4 shrink-0 animate-spin text-[#D9FF5B]"
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
@@ -292,31 +289,24 @@ export const RegisterPage: React.FC = () => {
         <section className="gsap-card medivanta-register-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-5 lg:p-6">
           <Link
             to="/"
-            className="mb-2.5 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
+            className="mb-4 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
           >
             <AivoraLogo className="h-8 w-8" />
             <span className="text-base font-semibold tracking-tight text-white">Medivanta</span>
           </Link>
 
-          <div className="mb-3">
+          <div className="mb-4">
             <h1 className="register-heading text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl">
               Your Journey to Better Health Starts Here
             </h1>
-            <p className="mt-1 text-xs text-white/70">
-              Create your Medivanta account for a more connected healthcare experience.
-            </p>
           </div>
 
           <Card className="medivanta-register-card rounded-2xl border-white/10 p-3.5 shadow-xl sm:p-4">
-            <p className="mb-2.5 text-xs text-white/60">
-              Join Medivanta and keep your healthcare journey organized in one place.
-            </p>
-
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-2.5" noValidate>
               {/* Role Selection Cards */}
               <div>
                 <label className="mb-1 block text-[0.7rem] font-semibold uppercase tracking-wider text-white/80">
-                  Select Role <span className="text-[#C7FFBE]">*</span>
+                  Select Role <span className="text-[#D9FF5B]">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Registration Role">
                   <button
@@ -326,20 +316,20 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => handleRoleSelect('patient')}
                     className={`group relative flex flex-col items-start rounded-xl border p-2.5 text-left transition-all duration-200 ${
                       selectedRole === 'patient'
-                        ? 'border-[#C7FFBE] bg-[#C7FFBE]/10 shadow-[0_0_14px_rgba(199,255,190,0.15)] ring-1 ring-[#C7FFBE]'
+                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 shadow-[0_0_14px_rgba(217,255,91,0.15)] ring-1 ring-[#D9FF5B]'
                         : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div className="flex w-full items-center justify-between mb-0.5">
-                      <User className={`h-3.5 w-3.5 ${selectedRole === 'patient' ? 'text-[#C7FFBE]' : 'text-white/60'}`} />
+                      <User className={`h-3.5 w-3.5 ${selectedRole === 'patient' ? 'text-[#D9FF5B]' : 'text-white/60'}`} />
                       {selectedRole === 'patient' && (
-                        <span className="rounded-full bg-[#C7FFBE] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
+                        <span className="rounded-full bg-[#D9FF5B] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
                           Selected
                         </span>
                       )}
                     </div>
                     <span className="text-xs font-semibold text-white">Patient</span>
-                    <span className="text-[0.62rem] leading-3 text-white/55">Health records & appointments</span>
+                    <span className="hidden text-[0.62rem] leading-3 text-white/55">Health records & appointments</span>
                   </button>
 
                   <button
@@ -349,20 +339,20 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => handleRoleSelect('doctor')}
                     className={`group relative flex flex-col items-start rounded-xl border p-2.5 text-left transition-all duration-200 ${
                       selectedRole === 'doctor'
-                        ? 'border-[#C7FFBE] bg-[#C7FFBE]/10 shadow-[0_0_14px_rgba(199,255,190,0.15)] ring-1 ring-[#C7FFBE]'
+                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 shadow-[0_0_14px_rgba(217,255,91,0.15)] ring-1 ring-[#D9FF5B]'
                         : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div className="flex w-full items-center justify-between mb-0.5">
-                      <Stethoscope className={`h-3.5 w-3.5 ${selectedRole === 'doctor' ? 'text-[#C7FFBE]' : 'text-white/60'}`} />
+                      <Stethoscope className={`h-3.5 w-3.5 ${selectedRole === 'doctor' ? 'text-[#D9FF5B]' : 'text-white/60'}`} />
                       {selectedRole === 'doctor' && (
-                        <span className="rounded-full bg-[#C7FFBE] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
+                        <span className="rounded-full bg-[#D9FF5B] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
                           Selected
                         </span>
                       )}
                     </div>
                     <span className="text-xs font-semibold text-white">Doctor</span>
-                    <span className="text-[0.62rem] leading-3 text-white/55">Clinical practice & portal</span>
+                    <span className="hidden text-[0.62rem] leading-3 text-white/55">Clinical practice & portal</span>
                   </button>
                 </div>
               </div>
@@ -370,7 +360,7 @@ export const RegisterPage: React.FC = () => {
               {/* Doctor Specific Fields */}
               {selectedRole === 'doctor' && (
                 <div className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-2.5 animate-fade-in">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#C7FFBE]">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#D9FF5B]">
                     <Stethoscope className="h-3.5 w-3.5" />
                     <span>Doctor Credentials</span>
                   </div>
@@ -390,10 +380,6 @@ export const RegisterPage: React.FC = () => {
                     error={errors.licenseNumber?.message}
                     {...register('licenseNumber')}
                   />
-                  <div className="flex items-start gap-1.5 rounded-lg bg-white/5 p-2 text-[0.65rem] leading-4 text-white/60">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#C7FFBE] mt-0.5" />
-                    <span>Doctor accounts can access clinical tools immediately after signing in.</span>
-                  </div>
                 </div>
               )}
 
@@ -515,13 +501,13 @@ export const RegisterPage: React.FC = () => {
 
               {authNotice && (
                 <div className="medivanta-register-notice" role="alert" aria-live="polite">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C7FFBE]" aria-hidden="true" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#D9FF5B]" aria-hidden="true" />
                   <p>
                     {authNotice}
                     {authNotice === 'This user is already registered. Please log in.' && (
                       <>
                         {' '}
-                        <Link className="font-semibold text-[#C7FFBE] underline" to="/login">
+                        <Link className="font-semibold text-[#D9FF5B] underline" to="/login">
                           Log in
                         </Link>
                       </>
@@ -542,9 +528,6 @@ export const RegisterPage: React.FC = () => {
                     ? 'Creating account…'
                     : `Create ${selectedRole === 'doctor' ? 'Doctor' : 'Patient'} Account`}
                 </Button>
-                <p className="mt-1.5 text-center text-[0.72rem] text-white/50">
-                  Your account. Your health journey. One connected experience.
-                </p>
               </div>
             </form>
 
@@ -582,30 +565,17 @@ export const RegisterPage: React.FC = () => {
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-semibold text-[#C7FFBE] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
+                className="font-semibold text-[#D9FF5B] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
               >
-                Sign in
+                Login
               </Link>
             </p>
           </Card>
         </section>
 
-        <aside className="gsap-card medivanta-register-face relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[1.5rem] border border-white/10 shadow-2xl sm:min-h-[380px] lg:min-h-full">
-          <div className="medivanta-register-face-model" aria-hidden="true">
-            <Suspense fallback={<div className="medivanta-register-face-loading" aria-hidden="true" />}>
-              <FaceScanModel followPointer normalizeSize />
-            </Suspense>
-          </div>
-          <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-4 sm:p-6">
-            <div className="flex justify-end">
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[0.68rem] text-white/70 backdrop-blur">
-                <UserRoundPlus className="h-3.5 w-3.5 text-[#C7FFBE]" aria-hidden="true" />
-                Integrated Care Network
-              </div>
-            </div>
-            <div />
-          </div>
-        </aside>
+        <AuthFacePanel
+          badge="Join Medivanta"
+        />
       </div>
 
       {isGoogleRoleDialogOpen && (
@@ -627,7 +597,7 @@ export const RegisterPage: React.FC = () => {
             <h2 id="google-signup-role-title" className="text-lg font-semibold text-white">
               Choose your account type
             </h2>
-            <p className="mt-1 text-xs text-white/65">
+            <p className="hidden mt-1 text-xs text-white/65">
               Select Patient or Doctor to continue with Google registration.
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Google sign-up role">
@@ -643,20 +613,20 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => setGoogleSignupRole(role)}
                     className={`group relative flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border p-3.5 text-center transition-all duration-200 ${
                       selected
-                        ? 'border-[#C7FFBE] bg-[#C7FFBE]/10 text-[#C7FFBE] shadow-[0_0_18px_rgba(199,255,190,0.18)] ring-1 ring-[#C7FFBE]'
+                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 text-[#D9FF5B] shadow-[0_0_18px_rgba(217,255,91,0.18)] ring-1 ring-[#D9FF5B]'
                         : 'border-white/10 bg-white/[0.03] text-white hover:border-white/25 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
-                        selected ? 'bg-[#C7FFBE]/20 text-[#C7FFBE]' : 'bg-white/5 text-white/70 group-hover:text-white'
+                        selected ? 'bg-[#D9FF5B]/20 text-[#D9FF5B]' : 'bg-white/5 text-white/70 group-hover:text-white'
                       }`}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </div>
                     <div>
                       <span className="block text-xs font-semibold capitalize">{role}</span>
-                      <span className="block text-[0.62rem] text-white/50">
+                      <span className="hidden text-[0.62rem] text-white/50">
                         {role === 'patient' ? 'Health records & care' : 'Clinical dashboard'}
                       </span>
                     </div>

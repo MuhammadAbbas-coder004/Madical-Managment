@@ -125,9 +125,9 @@ export const PatientVitalsPage: React.FC = () => {
                         {record.heartRate !== undefined && <span>Heart rate: {record.heartRate} bpm</span>}
                         {record.pulseRate !== undefined && <span>Pulse rate: {record.pulseRate} bpm</span>}
                         {record.sugarLevel !== undefined && <span>Blood sugar: {record.sugarLevel} mg/dL</span>}
-                        <span>Temperature: {record.temperature ?? '�'} °F</span>
-                        <span>RBC count: {record.rbcCount ?? '�'} million/µL</span>
-                        <span>WBC count: {record.wbcCount ?? '�'} cells/µL</span>
+                        <span>Temperature: {record.temperature ?? '—'} °F</span>
+                        <span>RBC count: {record.rbcCount ?? '—'} million/µL</span>
+                        <span>WBC count: {record.wbcCount ?? '—'} cells/µL</span>
                       </div>
                       )}
                       {record.analysis?.message && (

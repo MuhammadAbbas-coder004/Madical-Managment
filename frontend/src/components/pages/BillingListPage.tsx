@@ -178,26 +178,26 @@ export const BillingListPage: React.FC = () => {
           const total = Number(inv.totalAmount || 0);
 
           return (
-            <Card key={inv.invoiceId} className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
+            <Card key={inv.invoiceId} className="invoice-card space-y-4">
+              <div className="invoice-head flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
                 <div className="flex items-center gap-3">
-                  <Receipt className="w-5 h-5 text-primary" />
+                  <Receipt className="invoice-icon w-5 h-5 text-primary" />
                   <div>
-                    <span className="font-mono text-sm font-bold text-textPrimary">
-                      {inv.invoiceId}
+                    <span className="invoice-id font-mono text-sm font-bold text-textPrimary" title={inv.invoiceId}>
+                      {inv.invoiceId.length > 8 ? `${inv.invoiceId.slice(0, 8)}...` : inv.invoiceId}
                     </span>
-                    <p className="text-xs text-textSecondary">
-                      Ref Appointment: {inv.appointmentId}
+                    <p className="invoice-ref text-xs text-textSecondary">
+                      Ref appointment: {inv.appointmentId}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-textSecondary flex items-center gap-1">
+                <div className="invoice-date-status flex items-center gap-3">
+                  <span className="invoice-date text-xs text-textSecondary flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
                     {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}
                   </span>
-                  <Badge variant={isPaid ? 'success' : 'warning'}>
+                  <Badge variant={isPaid ? 'success' : 'warning'} className={isPaid ? 'invoice-status-paid' : 'invoice-status-pending'}>
                     {isPaid ? 'PAID' : 'PENDING'}
                   </Badge>
                 </div>
@@ -207,7 +207,7 @@ export const BillingListPage: React.FC = () => {
                 {items.map((item, i) => (
                   <div
                     key={i}
-                    className="flex justify-between text-xs text-textSecondary py-1 border-b border-dashed border-border"
+                    className="invoice-item flex justify-between text-xs text-textSecondary py-1 border-b border-dashed border-border"
                   >
                     <span>{item?.description || 'Item'}</span>
                     <span className="font-mono font-medium text-textPrimary">
@@ -217,12 +217,12 @@ export const BillingListPage: React.FC = () => {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="invoice-total flex items-center justify-between pt-2">
                 <div>
-                  <span className="text-xs text-textSecondary uppercase font-semibold">
+                  <span className="invoice-total-label text-xs text-textSecondary font-semibold">
                     Total Amount Due:
                   </span>
-                  <p className="text-xl font-bold text-textPrimary font-mono">
+                  <p className="invoice-total-value text-xl font-bold text-textPrimary">
                     ${total.toFixed(2)}
                   </p>
                 </div>

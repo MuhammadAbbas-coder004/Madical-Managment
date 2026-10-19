@@ -216,3 +216,80 @@ body:has(.medivanta-login) {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Authentication pages keep their existing composition and receive color/font updates only. */
+.medivanta-login { background: #DEDEDE; color: #111111; font-family: 'Manrope', system-ui, sans-serif; }
+.medivanta-login-glow-left,
+.medivanta-login-glow-right { background: #D9FF5B; }
+.medivanta-login .medivanta-login-panel { border-color: #E6E6E6; background: #F4F4F4; }
+.medivanta-login .medivanta-login-card { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
+.medivanta-login-card label,
+.medivanta-login-card h1,
+.medivanta-login-card h2,
+.medivanta-login-card p { color: #111111; }
+.medivanta-login-card input { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
+.medivanta-login-card input::placeholder { color: #6B6B6B; }
+.medivanta-login-card input:focus { border-color: #D9FF5B; --tw-ring-color: #D9FF5B; }
+.medivanta-login .medivanta-login-submit { background: #111111; color: #FFFFFF; }
+.medivanta-login .medivanta-login-submit:hover { background: #111111; color: #FFFFFF; }
+.medivanta-login .medivanta-provider-button { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
+.medivanta-login .medivanta-provider-button:hover { border-color: #D9FF5B; background: #F4F4F4; }
+.medivanta-login .medivanta-password-toggle { color: #6B6B6B; }
+.medivanta-login .medivanta-auth-notice { border-color: #E6E6E6; background: #F4F4F4; color: #6B6B6B; }
+.medivanta-login .medivanta-face-panel { background: #111111; }
+.medivanta-login .medivanta-face-loading { background: #111111; }
+.medivanta-login .medivanta-login-panel:hover,
+.medivanta-login .medivanta-login-panel:focus-within,
+.medivanta-login .medivanta-login-card:hover,
+.medivanta-login .medivanta-login-card:focus-within { border-color: #E6E6E6; }
+
+/* Light login form color contrast. The adjacent face panel stays dark. */
+.medivanta-login-panel > a > span { color: #111111 !important; }
+.medivanta-login-panel .login-heading { color: #111111 !important; }
+.medivanta-login-panel .login-heading + p { color: #6B6B6B !important; }
+.medivanta-login-card { color: #111111 !important; }
+.medivanta-login-card label,
+.medivanta-login-card h1,
+.medivanta-login-card h2 { color: #111111 !important; }
+.medivanta-login-card label .text-danger { color: #B42318 !important; }
+.medivanta-login-card > p,
+.medivanta-login-card .medivanta-login-submit + p,
+.medivanta-login-card p[role="status"] { color: #6B6B6B !important; }
+.medivanta-login-card input {
+  border-color: #E6E6E6 !important;
+  background-color: #FFFFFF !important;
+  color: #111111 !important;
+}
+.medivanta-login-card input::placeholder { color: #9A9A9A !important; }
+.medivanta-login-card input:focus { border-color: #111111 !important; --tw-ring-color: #111111 !important; }
+.medivanta-login-card input.border-danger { border-color: #B42318 !important; }
+.medivanta-login-card input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+.medivanta-login-card .medivanta-password-toggle,
+.medivanta-login-card .medivanta-password-toggle:hover { color: #6B6B6B !important; }
+.medivanta-login-card .medivanta-password-toggle:hover { background-color: #F4F4F4 !important; }
+.medivanta-login-card a[href*="forgot-password"] { color: #0F3D36 !important; }
+.medivanta-login-card a[href*="forgot-password"]:hover { color: #111111 !important; }
+.medivanta-login-card a[href*="register"] { color: #0F3D36 !important; }
+.medivanta-login-card a[href*="register"]:hover { color: #111111 !important; }
+.medivanta-login-card .relative.flex.justify-center > span {
+  background-color: transparent !important;
+  color: #6B6B6B !important;
+}
+.medivanta-login-card .border-t { border-color: #E6E6E6 !important; }
+.medivanta-login-card .medivanta-provider-button {
+  border-color: #E6E6E6 !important;
+  background-color: #FFFFFF !important;
+  color: #111111 !important;
+}
+.medivanta-login-card .medivanta-provider-button:hover { border-color: #E6E6E6 !important; background-color: #F4F4F4 !important; }
+.medivanta-login-card .medivanta-auth-notice {
+  border-color: #F2B8B5 !important;
+  background-color: #FDE8E7 !important;
+  color: #B42318 !important;
+}
+.medivanta-login-card .medivanta-auth-notice p { color: #B42318 !important; }
+.medivanta-login-card .medivanta-auth-notice svg { color: #B42318 !important; }
+.medivanta-login-card .medivanta-provider-button svg.lucide-scan-face { color: #0F3D36 !important; }

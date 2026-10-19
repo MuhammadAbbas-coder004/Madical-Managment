@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { format, isValid } from 'date-fns';
-import { FileText, PlusCircle } from 'lucide-react';
+import { Download, FileText, PlusCircle } from 'lucide-react';
 import api from '../../shared/services/api';
 import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { useAuthStore } from '../../store/authStore';
@@ -12,6 +12,7 @@ import type { PatientOption } from '../molecules/PatientSelect';
 import { SearchBar } from '../molecules/SearchBar';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
+import { downloadPrescriptionPdf } from '../../shared/services/prescriptionPdf';
 
 interface Medicine {
   name: string;
@@ -35,6 +36,7 @@ interface Prescription {
     email?: string;
   } | null;
   doctorId: string;
+  doctorName?: string;
   diagnosis: string;
   medicines: Medicine[];
   createdAt?: string;
@@ -85,7 +87,7 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role.toLowerCase() === 'doctor';
   const isPatient = user?.role.toLowerCase() === 'patient';
-  const canWritePrescription = !isDoctor || user?.doctorVerificationStatus === 'verified';
+  const canWritePrescription = !isPatient && (!isDoctor || user?.doctorVerificationStatus === 'verified');
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [doctorNames, setDoctorNames] = useState<Map<string, string>>(new Map());
@@ -356,7 +358,7 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
                       </time>
                     </div>
                     <p className="mt-1 text-xs text-textPrimary/70">
-                      Doctor: {doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable'}
+                      Doctor: {prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable'}
                     </p>
                     {isDoctor && (
                       <p className="mt-1 text-xs text-textPrimary/70">
@@ -380,6 +382,23 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
                         </li>
                       ))}
                     </ul>
+                    {isPatient && (
+                      <button
+                        type="button"
+                        onClick={() => downloadPrescriptionPdf({
+                          patientName: selectedPatient?.fullName
+                            || [selectedPatient?.firstName, selectedPatient?.lastName].filter(Boolean).join(' '),
+                          doctorName: prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable',
+                          diagnosis: prescription.diagnosis,
+                          createdAt: prescription.createdAt || '',
+                          medicines: prescription.medicines,
+                        })}
+                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-textPrimary hover:bg-background"
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        Download PDF
+                      </button>
+                    )}
                   </div>
                 </div>
               </Card>

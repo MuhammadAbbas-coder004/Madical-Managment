@@ -41,6 +41,8 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout } = useAuthStore();
   const isDoctorWorkspace = user?.role?.toLowerCase() === 'doctor';
+  const isPatientWorkspace = user?.role?.toLowerCase() === 'patient';
+  const isDashboardWorkspace = isDoctorWorkspace || isPatientWorkspace;
   const navigate = useNavigate();
   const location = useLocation();
   const contentRef = useRef<HTMLElement>(null);
@@ -55,6 +57,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const autoAlerts = useVoiceStore((state) => state.autoAlerts);
   const setAutoAlerts = useVoiceStore((state) => state.setAutoAlerts);
   const { speak, isSupported, message: speechMessage } = useSpeech();
+  const normalizedPath = location.pathname.replace(/\/$/, '') || '/';
+  const routeTitles: Record<string, string> = {
+    '/dashboard': 'Dashboard', '/patients': 'My Patients', '/appointments': 'My Appointments',
+    '/vitals': 'Vitals', '/prescriptions': 'Prescriptions', '/medical-records': 'Medical Records',
+    '/lab-reports': 'Lab Reports', '/billing': 'Billing', '/profile': 'Profile',
+    '/portal': 'My Profile', '/doctors': 'Doctors', '/pharmacy': 'Pharmacy',
+  };
+  const currentRoute = Object.keys(routeTitles)
+    .filter((path) => normalizedPath === path || normalizedPath.startsWith(`${path}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  const pageTitle = currentRoute ? routeTitles[currentRoute] : 'Dashboard';
 
   useEffect(() => {
     if (isDoctorWorkspace) {
@@ -237,7 +250,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       return [
         { label: 'My Profile',       path: '/portal',         icon: UserIcon         },
         { label: 'My Appointments',  path: '/appointments',   icon: Calendar         },
-        { label: 'My Vitals',        path: '/vitals',         icon: Activity         },
+        { label: 'Vitals',           path: '/vitals',         icon: Activity         },
         { label: 'My Prescriptions', path: '/prescriptions',  icon: FileText         },
         { label: 'My Medical Records', path: '/medical-records', icon: ClipboardList },
         { label: 'My Lab Reports',   path: '/lab-reports',    icon: FlaskConical     },
@@ -268,7 +281,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   return (
-    <div className={`${isDoctorWorkspace ? 'doctor-workspace h-dvh overflow-hidden' : 'min-h-screen'} flex bg-background`}>
+    <div className="app-workspace doctor-workspace h-dvh overflow-hidden flex bg-background">
       {/* Mobile sidebar overlay */}
       <div
         ref={overlayRef}
@@ -280,13 +293,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       {/* Mobile sidebar */}
       <aside
         id="mobile-sidebar"
-        className={`${isDoctorWorkspace ? 'doctor-sidebar ' : ''}fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-textPrimary/10 bg-surface transition-transform duration-300 ease-out md:hidden`}
+        className={`${isDashboardWorkspace ? 'app-sidebar doctor-sidebar ' : ''}fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-textPrimary/10 bg-surface transition-transform duration-300 ease-out md:hidden`}
         style={{ transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)' }}
         aria-hidden={!mobileOpen}
         inert={!mobileOpen}
       >
-        <div className="flex h-16 items-center justify-between border-b border-textPrimary/10 px-6">
-          {isDoctorWorkspace ? (
+        <div className="app-sidebar-top flex h-16 items-center justify-between border-b border-textPrimary/10 px-6">
+          {isDashboardWorkspace ? (
             <div className="doctor-brand"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
           ) : (
             <div className="flex items-center space-x-2">
@@ -302,7 +315,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+        <nav className="app-sidebar-nav relative flex-1 space-y-1 overflow-y-auto px-4 py-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -324,16 +337,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             );
           })}
         </nav>
-        {isDoctorWorkspace ? (
-          <div className="space-y-2 border-t border-textPrimary/10 px-4 py-4">
+        {isDashboardWorkspace ? (
+          <div className="app-sidebar-bottom space-y-2 border-t border-textPrimary/10 px-4 py-4">
             <NavLink
-              to="/profile"
+              to={isPatientWorkspace ? '/portal' : '/profile'}
               onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center rounded-md px-4 py-3 text-sm font-medium ${
-                  isActive ? 'active bg-primary/10 text-primary font-semibold' : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
-                }`
-              }
+              className="app-sidebar-footer-item"
             >
               <UserRound className="mr-3 h-4 w-4 shrink-0" aria-hidden="true" />
               Profile
@@ -341,7 +350,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-textPrimary/10 px-4 py-3 text-sm font-medium text-textPrimary hover:bg-background"
+              className="app-sidebar-footer-item"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               Log out
@@ -360,15 +369,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className={`hidden shrink-0 flex-col border-r border-textPrimary/10 bg-surface transition-[width] duration-200 md:flex ${
-        isDoctorWorkspace ? 'fixed inset-y-0 left-0 z-30 h-dvh' : ''
-      } ${
-        isDoctorWorkspace ? `doctor-sidebar ${desktopCollapsed ? 'w-20' : 'w-64'}` : 'w-64'
-      }`}>
-        <div className={`flex h-16 items-center border-b border-textPrimary/10 ${
-          isDoctorWorkspace && desktopCollapsed ? 'justify-center px-2' : 'px-6'
-        }`}>
-          {isDoctorWorkspace ? (
+      <aside className={`app-sidebar doctor-sidebar hidden shrink-0 flex-col border-r border-textPrimary/10 bg-surface transition-[width] duration-200 md:flex ${desktopCollapsed ? 'is-collapsed' : ''}`}>
+        <div className={`app-sidebar-top flex h-16 items-center justify-between border-b border-textPrimary/10 ${desktopCollapsed ? 'px-2' : 'px-4'}`}>
+          {isDashboardWorkspace ? (
             <div className="doctor-brand min-w-0"><AivoraLogo className="h-8 w-8 shrink-0" /><span className={desktopCollapsed ? 'sr-only' : ''}>Medivanta</span></div>
           ) : (
             <div className="flex items-center space-x-2">
@@ -376,8 +379,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
             </div>
           )}
-        </div>
-        {isDoctorWorkspace && (
+          {isDashboardWorkspace && (
           <button
             type="button"
             onClick={() => setDesktopCollapsed((collapsed) => !collapsed)}
@@ -390,10 +392,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
               : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
           </button>
-        )}
+          )}
+        </div>
         <nav
           ref={navRef}
-          className={`relative flex-1 space-y-2 overflow-y-auto py-6 ${
+          className={`app-sidebar-nav relative flex-1 space-y-1 overflow-y-auto py-3 ${
             isDoctorWorkspace && desktopCollapsed ? 'px-2' : 'px-4'
           }`}
         >
@@ -409,11 +412,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               <NavLink
                 key={item.path}
                 to={item.path}
-                title={isDoctorWorkspace && desktopCollapsed ? item.label : undefined}
-                aria-label={isDoctorWorkspace && desktopCollapsed ? item.label : undefined}
+                title={isDashboardWorkspace && desktopCollapsed ? item.label : undefined}
+                aria-label={isDashboardWorkspace && desktopCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `flex items-center rounded-md py-3 text-sm font-medium transition-colors ${
-                    isDoctorWorkspace && desktopCollapsed ? 'justify-center px-0' : 'px-4'
+                    isDashboardWorkspace && desktopCollapsed ? 'justify-center px-0' : 'px-4'
                   } ${
                     isActive
                       ? 'active bg-primary/10 text-primary font-semibold'
@@ -422,28 +425,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 }
               >
                 <Icon className={`h-4 w-4 shrink-0 ${
-                  isDoctorWorkspace && desktopCollapsed ? '' : 'mr-3'
+                  isDashboardWorkspace && desktopCollapsed ? '' : 'mr-3'
                 }`} />
-                <span className={isDoctorWorkspace && desktopCollapsed ? 'sr-only' : ''}>{item.label}</span>
+                <span className={isDashboardWorkspace && desktopCollapsed ? 'sr-only' : ''}>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
-        {isDoctorWorkspace && (
-          <div className={`doctor-sidebar-bottom space-y-2 border-t border-textPrimary/10 py-4 ${
+        {isDashboardWorkspace && (
+          <div className={`app-sidebar-bottom doctor-sidebar-bottom space-y-2 border-t border-textPrimary/10 py-4 ${
             desktopCollapsed ? 'px-2' : 'px-4'
           }`}>
             <NavLink
-              to="/profile"
+              to={isPatientWorkspace ? '/portal' : '/profile'}
               title={desktopCollapsed ? 'Profile' : undefined}
               aria-label={desktopCollapsed ? 'Profile' : undefined}
-              className={({ isActive }) =>
-                `flex items-center rounded-md py-3 text-sm font-medium transition-colors ${
-                  desktopCollapsed ? 'justify-center px-0' : 'px-4'
-                } ${
-                  isActive ? 'active bg-primary/10 text-primary font-semibold' : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
-                }`
-              }
+              className="app-sidebar-footer-item"
             >
               <UserRound className={`h-4 w-4 shrink-0 ${desktopCollapsed ? '' : 'mr-3'}`} aria-hidden="true" />
               <span className={desktopCollapsed ? 'sr-only' : ''}>Profile</span>
@@ -453,9 +450,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               onClick={handleLogout}
               title={desktopCollapsed ? 'Log out' : undefined}
               aria-label="Log out"
-              className={`flex w-full items-center rounded-md border border-textPrimary/10 py-3 text-sm font-medium text-textSecondary hover:bg-background hover:text-textPrimary ${
-                desktopCollapsed ? 'justify-center px-0' : 'justify-start px-4'
-              }`}
+              className="app-sidebar-footer-item"
             >
               <LogOut className={`h-4 w-4 shrink-0 ${desktopCollapsed ? '' : 'mr-3'}`} aria-hidden="true" />
               <span className={desktopCollapsed ? 'sr-only' : ''}>Log out</span>
@@ -465,12 +460,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       </aside>
 
       {/* Main Content Area */}
-      <div className={`flex min-w-0 flex-1 flex-col ${
-        isDoctorWorkspace ? `h-dvh min-h-0 overflow-hidden ${desktopCollapsed ? 'md:ml-20' : 'md:ml-64'}` : ''
-      }`}>
-        <header className={`${isDoctorWorkspace ? 'doctor-header ' : ''}flex min-h-[72px] shrink-0 items-center justify-between border-b border-textPrimary/10 bg-surface px-4 sm:px-8 ${
-          isDoctorWorkspace ? 'shadow-sm' : ''
-        }`}>
+      <div className="app-main flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
+        <header className={`app-header doctor-header flex h-24 shrink-0 items-center justify-between border-b border-textPrimary/10 bg-surface px-8 ${isPatientWorkspace ? 'patient-header' : ''}`}>
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -486,14 +477,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 ? <X className="h-4 w-4" aria-hidden="true" />
                 : <Menu className="h-4 w-4" aria-hidden="true" />}
             </button>
-            {isDoctorWorkspace ? (
-              <div className="doctor-brand doctor-brand-header"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
-            ) : (
-              <>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-lg font-bold text-surface">+</div>
-                <span className="truncate font-semibold text-textPrimary">MedSystem</span>
-              </>
-            )}
+            <div className="app-page-heading min-w-0">
+              <h1 className="truncate text-[28px] font-bold leading-tight text-textPrimary">{pageTitle}</h1>
+              <p className="mt-1 text-xs font-medium text-textSecondary">{isPatientWorkspace ? 'PATIENT WORKSPACE' : 'CLINICAL WORKSPACE'}</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-4">
             {!isDoctorWorkspace && (
@@ -519,16 +506,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 </span>
               </div>
             )}
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <div className="max-w-32 text-right text-xs sm:max-w-48">
                 <p className="font-semibold text-textPrimary">
                   {user?.name || user?.username || 'Staff Member'}
                 </p>
                 <span
-                  className="mt-0.5 inline-block rounded bg-voicePrimary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-voicePrimary"
+                  className="mt-0.5 inline-block rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-textSecondary"
                 >
                   {user?.role || 'clinical'}
                 </span>
+              </div>
+              <div className="app-user-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-white text-textPrimary" aria-hidden="true">
+                <UserIcon className="h-5 w-5" />
               </div>
             </div>
             {user && ['patient', 'doctor'].includes(user.role.toLowerCase()) && !isDoctorWorkspace && (
@@ -565,13 +555,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         </header>
         <main
           ref={contentRef}
-          className={`${isDoctorWorkspace ? 'doctor-workspace-content ' : ''}min-w-0 flex-1 overflow-x-hidden p-4 sm:p-8 ${
-            isDoctorWorkspace
-              ? 'min-h-0 overflow-y-auto overscroll-y-contain'
-              : 'overflow-y-auto'
-          }`}
+          className="app-content doctor-workspace-content min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-8"
         >
-          <div className={`mx-auto w-full max-w-[1100px] ${isDoctorWorkspace ? 'doctor-content-shell' : ''}`}>
+          <div className="app-content-shell mx-auto w-full max-w-[1200px] doctor-content-shell">
             {children}
           </div>
         </main>

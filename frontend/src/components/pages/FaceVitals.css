@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
+
 .face-vitals-page {
   min-width: 0;
   padding-bottom: 1.5rem;
@@ -829,4 +831,157 @@
   .face-vitals-primary-action:hover {
     transform: none;
   }
+}
+/* Scoped vitals scan styling. No global dashboard or page theme changes. */
+.face-vitals-page {
+  border-radius: 28px;
+  background: #F4F4F4;
+  color: #111111 !important;
+  font-family: 'Manrope', system-ui, sans-serif !important;
+  padding: clamp(16px, 2.5vw, 32px);
+}
+.face-vitals-page .face-vitals-header h1,
+.face-vitals-page .face-vitals-history h2,
+.face-vitals-page h2,
+.face-vitals-page h3 { color: #111111 !important; font-family: 'Manrope', system-ui, sans-serif !important; }
+.face-vitals-page .face-vitals-header p,
+.face-vitals-page .face-vitals-history-header p,
+.face-vitals-page .text-textSecondary { color: #6B6B6B !important; }
+.face-vitals-page .face-vitals-eyebrow { color: #0F3D36 !important; }
+.face-vitals-page .face-vitals-status { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
+.face-vitals-page .gsap-card {
+  border: 1px solid #E6E6E6 !important;
+  border-radius: 28px !important;
+  background: #FFFFFF !important;
+  color: #111111 !important;
+  box-shadow: none !important;
+}
+.face-vitals-page .gsap-card > div:first-child { border-color: #E6E6E6 !important; }
+.face-vitals-page .face-vitals-primary-action,
+.face-vitals-page .face-vitals-stop-action {
+  border: 1px solid #111111 !important;
+  border-radius: 999px !important;
+  background: #111111 !important;
+  color: #FFFFFF !important;
+}
+.face-vitals-page .face-vitals-secondary-action,
+.face-vitals-page .face-vitals-cancel-action {
+  border: 1px solid #E6E6E6 !important;
+  border-radius: 999px !important;
+  background: #FFFFFF !important;
+  color: #111111 !important;
+}
+.face-vitals-page .face-vitals-primary-action:hover,
+.face-vitals-page .face-vitals-stop-action:hover { background: #222222 !important; }
+.face-vitals-page .face-vitals-secondary-action:hover,
+.face-vitals-page .face-vitals-cancel-action:hover { border-color: #111111 !important; background: #F4F4F4 !important; }
+.face-vitals-page .gsap-card:has(input[type="checkbox"]) .border-t { border-color: #E6E6E6 !important; }
+.face-vitals-page .gsap-card:has(input[type="checkbox"]) progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: #E6E6E6;
+}
+.face-vitals-page .gsap-card:has(input[type="checkbox"]) progress::-webkit-progress-bar { border-radius: 999px; background: #E6E6E6; }
+.face-vitals-page .gsap-card:has(input[type="checkbox"]) progress::-webkit-progress-value { border-radius: 999px; background: #D9FF5B; }
+.face-vitals-page .gsap-card:has(input[type="checkbox"]) progress::-moz-progress-bar { border-radius: 999px; background: #D9FF5B; }
+.face-vitals-page p[role="status"].text-warning {
+  border: 1px solid #E8D4A7;
+  border-radius: 14px;
+  background: #FBEFD5;
+  padding: 10px 12px;
+  color: #8A5A00 !important;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) {
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 32px !important;
+  background: #F4F4F4 !important;
+  box-shadow: 8px 8px 20px #d6d6d6, -8px -8px 20px #ffffff !important;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .border-b { border-color: #E6E6E6 !important; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div {
+  position: relative;
+  min-height: 132px;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 26px !important;
+  background: #F4F4F4 !important;
+  padding: 20px !important;
+  box-shadow: inset 5px 5px 12px #d9d9d9, inset -5px -5px 12px #ffffff;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div:first-child {
+  display: flex;
+  min-height: 250px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div:first-child::before {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 194px;
+  height: 194px;
+  border: 9px solid #E6E6E6;
+  border-top-color: #D9FF5B;
+  border-right-color: #D9FF5B;
+  border-radius: 50%;
+  content: '';
+  transform: translate(-50%, -50%) rotate(22deg);
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div:first-child p { position: relative; z-index: 1; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div:first-child p:last-of-type {
+  color: #111111 !important;
+  font-size: clamp(1.3rem, 3vw, 2rem) !important;
+  font-weight: 800 !important;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div p { color: #6B6B6B !important; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div p.text-textPrimary,
+.face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div p.text-xl { color: #111111 !important; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) p:has(> strong) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #E6E6E6;
+  border-radius: 999px;
+  background: #FFFFFF;
+  padding: 8px 12px;
+  color: #111111 !important;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) > p:nth-of-type(3) {
+  border: 1px solid #E6E6E6;
+  border-radius: 18px;
+  background: #FFFFFF;
+  padding: 14px 16px;
+  color: #6B6B6B !important;
+}
+.face-vitals-page .gsap-card:has(h3):has(.grid) .mt-4.flex.flex-wrap.items-center.gap-2 { display: flex; flex-wrap: wrap; gap: 10px; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) .mt-4.flex.flex-wrap.items-center.gap-2 > button:first-of-type { order: 2; }
+.face-vitals-page .gsap-card:has(h3):has(.grid) .mt-4.flex.flex-wrap.items-center.gap-2 > button:nth-last-of-type(2) { order: 1; }
+.face-vitals-page .face-vitals-history .gsap-card,
+.face-vitals-page .face-vitals-history-state {
+  border-color: #E6E6E6 !important;
+  border-radius: 24px !important;
+  background: #F4F4F4 !important;
+  color: #6B6B6B !important;
+  box-shadow: none !important;
+}
+.face-vitals-page .face-vitals-history .gsap-card .text-textPrimary { color: #111111 !important; }
+.face-vitals-page .face-vitals-history .gsap-card .text-textSecondary { color: #6B6B6B !important; }
+.face-vitals-page .face-vitals-history .bg-background { border-color: #E6E6E6; background: #FFFFFF; }
+.face-vitals-page .face-vitals-history-note { color: #6B6B6B !important; }
+
+@media (max-width: 520px) {
+  .face-vitals-page { padding: 12px; }
+  .face-vitals-page .gsap-card:has(h3):has(.grid) .grid { grid-template-columns: minmax(0, 1fr); }
+  .face-vitals-page .gsap-card:has(h3):has(.grid) .grid > div:first-child { min-height: 230px; }
 }

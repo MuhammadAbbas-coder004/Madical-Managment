@@ -9,29 +9,29 @@
 
 :root {
   /* Primary */
-  --color-primary-50:  #EFF6FF;
-  --color-primary-100: #DBEAFE;
-  --color-primary-200: #BFDBFE;
-  --color-primary-300: #93C5FD;
-  --color-primary-400: #60A5FA;
-  --color-primary-500: #3B82F6;
-  --color-primary-600: #2563EB;
-  --color-primary-700: #1D4ED8;
-  --color-primary-800: #1E40AF;
-  --color-primary-900: #1E3A8A;
-  --color-primary:     #2563EB;
+  --color-primary-50: #F7FFD9;
+  --color-primary-100: #F1FFC2;
+  --color-primary-200: #E8FF9E;
+  --color-primary-300: #DFFF7A;
+  --color-primary-400: #D9FF5B;
+  --color-primary-500: #D9FF5B;
+  --color-primary-600: #D9FF5B;
+  --color-primary-700: #C5EA43;
+  --color-primary-800: #A7C932;
+  --color-primary-900: #829E25;
+  --color-primary: #D9FF5B;
 
   /* Backgrounds */
-  --color-bg:      #F1F5F9;
+  --color-bg:      #DEDEDE;
   --color-surface: #FFFFFF;
 
   /* Borders */
-  --color-border: rgb(30 41 59 / 0.10);
+  --color-border: #E6E6E6;
 
   /* Text — navy family */
-  --color-text:           #0F172A;
-  --color-text-secondary: rgb(30 41 59 / 0.60);
-  --color-text-muted:     rgb(30 41 59 / 0.40);
+  --color-text:           #111111;
+  --color-text-secondary: #6B6B6B;
+  --color-text-muted:     #6B6B6B;
 
   /* Semantic */
   --color-success: #16A34A;
@@ -45,6 +45,8 @@
   --radius-lg:  1rem;
   --radius-xl:  1.25rem;
   --radius-2xl: 1.5rem;
+  --radius-card: 28px;
+  --radius-panel: 36px;
 
   /* Shadows */
   --shadow-card:       0 1px 3px 0 rgb(15 23 42 / 0.04), 0 1px 2px -1px rgb(15 23 42 / 0.03);
@@ -54,20 +56,20 @@
 /* ── Base resets ──────────────────────────────────────────────────── */
 
 html {
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #171b1a;
+  font-family: 'Manrope', system-ui, sans-serif;
+  background-color: #DEDEDE;
   color: theme('colors.textPrimary');
   margin: 0;
   padding: 0;
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #171b1a;
+  font-family: 'Manrope', system-ui, sans-serif;
+  background-color: #DEDEDE;
   color: theme('colors.textPrimary');
   margin: 0;
   padding: 0;
@@ -79,7 +81,7 @@ body {
 #root {
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: #171b1a;
+  background-color: #DEDEDE;
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -108,6 +110,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   scale: 1.01;
   box-shadow: var(--shadow-card-hover);
 }
+
 
 /* ── Directional arrow icon ──────────────────────────────────────── */
 
