@@ -24,22 +24,18 @@ appointmentRouter.get('/', requireRole('admin', 'doctor', 'nurse'), appointmentC
 // Patients (for self) and staff can book appointments
 appointmentRouter.post('/', requireRole('admin', 'doctor', 'nurse', 'patient'), validate(bookAppointmentSchema), appointmentController.bookAppointment);
 
-// Single appointment lookup
-appointmentRouter.get('/:appointmentId', requireRole('admin', 'doctor', 'nurse', 'patient'), appointmentController.getAppointment);
-
-// Cancellation allowed for patient (own), doctor (own), and admin
-// No body validation needed — appointmentId comes from URL param
-appointmentRouter.put('/:appointmentId/cancel', requireRole('admin', 'doctor', 'patient'), appointmentController.cancelAppointment);
-
-// Appointments by patient: Patients can only view their own; staff have access
+// Appointments by patient/doctor must be registered before /:appointmentId
 appointmentRouter.get(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   appointmentController.getAppointmentsByPatient
 );
 
-// Appointments by doctor: Doctor, Nurse, Admin
 appointmentRouter.get('/doctor/:doctorId', requireRole('admin', 'doctor', 'nurse'), appointmentController.getAppointmentsByDoctor);
+
+appointmentRouter.put('/:appointmentId/cancel', requireRole('admin', 'doctor', 'patient'), appointmentController.cancelAppointment);
+
+appointmentRouter.get('/:appointmentId', requireRole('admin', 'doctor', 'nurse', 'patient'), appointmentController.getAppointment);
 
 export default appointmentRouter;

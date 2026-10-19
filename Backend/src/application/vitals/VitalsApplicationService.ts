@@ -16,6 +16,7 @@ export class VitalsApplicationService {
     const vitals = Vitals.create({
       vitalsId: randomUUID(),
       patientId: dto.patientId,
+      doctorId: dto.doctorId,
       bloodPressureSystolic: dto.bloodPressureSystolic,
       bloodPressureDiastolic: dto.bloodPressureDiastolic,
       sugarLevel: dto.sugarLevel,

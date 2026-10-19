@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { PatientSelect, type PatientOption } from '../molecules/PatientSelect';
+import { fetchAuthorizedPatients } from '../../shared/services/patients';
 import { Button } from '../atoms/Button';
 import { Label } from '../atoms/Label';
 import { Input } from '../atoms/Input';
@@ -16,6 +17,7 @@ import { useFadeUp } from '../../shared/hooks/useFadeUp';
 interface Medicine {
   name: string;
   dosage: string;
+  frequency: string;
   duration: string;
   instructions: string;
 }
@@ -70,6 +72,9 @@ export const PrescriptionCreatePage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role?.toLowerCase() === 'doctor';
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [assignedPatients, setAssignedPatients] = useState<PatientOption[]>([]);
+  const [assignedPatientsLoading, setAssignedPatientsLoading] = useState(isDoctor);
+  const [assignedPatientsError, setAssignedPatientsError] = useState<string | null>(null);
   const [matchedDoctor, setMatchedDoctor] = useState<Doctor | null>(null);
   const [doctorLookupComplete, setDoctorLookupComplete] = useState(!isDoctor);
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
@@ -86,7 +91,7 @@ export const PrescriptionCreatePage: React.FC = () => {
       patientId: searchParams.get('patientId') || '',
       doctorId: '',
       diagnosis: '',
-      medicines: [{ name: '', dosage: '', duration: '', instructions: '' }],
+      medicines: [{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }],
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'medicines' });
@@ -98,6 +103,10 @@ export const PrescriptionCreatePage: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const fetchDoctors = async () => {
+      if (isDoctor) {
+        setAssignedPatientsLoading(true);
+        setAssignedPatientsError(null);
+      }
       try {
         const response = await api.get(isDoctor ? '/doctors/me' : '/doctors');
         const doctorList = isDoctor
@@ -110,27 +119,46 @@ export const PrescriptionCreatePage: React.FC = () => {
 
         if (isDoctor) {
           const ownDoctor = doctorList[0];
-          if (ownDoctor) {
-            setMatchedDoctor(ownDoctor);
-            setValue('doctorId', ownDoctor.doctorId);
+          if (!ownDoctor?.doctorId) throw new Error('No doctor profile is linked to your account.');
+          setMatchedDoctor(ownDoctor);
+          setValue('doctorId', ownDoctor.doctorId);
+
+          // The prescription creation endpoint permits verified doctors to prescribe
+          // for any existing patient. Load the real patient roster instead of
+          // restricting the picker to patients with appointments.
+          const doctorPatients = await fetchAuthorizedPatients();
+          if (!cancelled) {
+            setAssignedPatients(doctorPatients);
+            const requestedPatientId = searchParams.get('patientId');
+            if (requestedPatientId && !doctorPatients.some((patient) => patient.patientId === requestedPatientId)) {
+              setValue('patientId', '');
+            }
           }
         }
       } catch (error: unknown) {
         if (!cancelled) {
+          if (isDoctor) {
+            const message = error instanceof Error ? error.message : 'Could not load patients assigned to your appointments.';
+            setAssignedPatients([]);
+            setAssignedPatientsError(message);
+          }
           toast.error(error instanceof Error ? error.message : 'Could not load doctor profiles.');
         }
       } finally {
-        if (!cancelled) setDoctorLookupComplete(true);
+        if (!cancelled) {
+          setDoctorLookupComplete(true);
+          if (isDoctor) setAssignedPatientsLoading(false);
+        }
       }
     };
     void fetchDoctors();
     return () => {
       cancelled = true;
     };
-  }, [isDoctor, setValue, user?.email]);
+  }, [isDoctor, searchParams, setValue, user?.email]);
 
   const submitPrescription = async (form: PrescriptionForm) => {
-    if (!selectedPatient) {
+    if (!selectedPatient || !form.patientId || selectedPatient.patientId !== form.patientId) {
       toast.error('Please choose a patient.');
       return;
     }
@@ -143,7 +171,7 @@ export const PrescriptionCreatePage: React.FC = () => {
     try {
       await api.post('/prescriptions', {
         patientId: form.patientId,
-        doctorId: form.doctorId,
+        doctorId: isDoctor ? matchedDoctor?.doctorId || form.doctorId : form.doctorId,
         diagnosis: form.diagnosis,
         medicines: form.medicines,
       });
@@ -182,6 +210,11 @@ export const PrescriptionCreatePage: React.FC = () => {
                     control={control}
                     name="patientId"
                     onPatientSelected={handlePatientSelected}
+                    {...(isDoctor ? {
+                      patients: assignedPatients,
+                      patientsLoading: assignedPatientsLoading,
+                      patientsError: assignedPatientsError,
+                    } : {})}
                   />
 
                   {selectedPatient && (
@@ -248,7 +281,7 @@ export const PrescriptionCreatePage: React.FC = () => {
                   type="button"
                   variant="primary"
                   className="!bg-prescriptionPrimary hover:!bg-prescriptionPrimaryDark"
-                  onClick={() => append({ name: '', dosage: '', duration: '', instructions: '' })}
+                  onClick={() => append({ name: '', dosage: '', frequency: '', duration: '', instructions: '' })}
                 >
                   <Plus className="mr-1 h-4 w-4" />
                   Add Medicine
@@ -281,10 +314,19 @@ export const PrescriptionCreatePage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`medicine-dosage-${index}`}>Dosage</Label>
+                        <Label htmlFor={`medicine-dosage-${index}`} required>Dosage</Label>
                         <Input
                           id={`medicine-dosage-${index}`}
-                          {...register(`medicines.${index}.dosage`)}
+                          {...register(`medicines.${index}.dosage`, { required: 'Dosage is required.' })}
+                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`medicine-frequency-${index}`} required>Frequency</Label>
+                        <Input
+                          id={`medicine-frequency-${index}`}
+                          {...register(`medicines.${index}.frequency`, { required: 'Frequency is required.' })}
+                          placeholder="e.g. Once daily, Twice daily, Every 8 hours"
                           className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
                         />
                       </div>
@@ -308,6 +350,16 @@ export const PrescriptionCreatePage: React.FC = () => {
                     {errors.medicines?.[index]?.name && (
                       <p role="alert" className="text-xs text-danger">
                         {errors.medicines[index]?.name?.message}
+                      </p>
+                    )}
+                    {errors.medicines?.[index]?.dosage && (
+                      <p role="alert" className="text-xs text-danger">
+                        {errors.medicines[index]?.dosage?.message}
+                      </p>
+                    )}
+                    {errors.medicines?.[index]?.frequency && (
+                      <p role="alert" className="text-xs text-danger">
+                        {errors.medicines[index]?.frequency?.message}
                       </p>
                     )}
                   </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../shared/services/api';
+import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -67,16 +68,14 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
           throw new Error(`No ${role} profile is linked to your account. Please contact an administrator.`);
         }
 
-        const response = await api.get(`/appointments/${role}/${encodeURIComponent(profileId)}`, { skipToast: true }) as {
-          data?: Appointment[];
-        };
+        const response = await api.get(`/appointments/${role}/${encodeURIComponent(profileId)}`, { skipToast: true });
         if (!cancelled) {
-          setAppointments(Array.isArray(response.data) ? response.data : []);
+          setAppointments(parsePatientPortalList<Appointment>(response, 'appointments'));
           if (role === 'doctor') {
             try {
-              const patientsResponse = await api.get('/patients', { skipToast: true }) as { data?: Patient[] };
+              const patientsResponse = await api.get('/patients', { skipToast: true });
               if (cancelled) return;
-              const patients = Array.isArray(patientsResponse.data) ? patientsResponse.data : [];
+              const patients = parsePatientPortalList<Patient>(patientsResponse, 'patients');
               setPatientNames(new Map(patients.map((patient) => [
                 patient.patientId,
                 patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.patientId,

@@ -10,6 +10,7 @@ interface FaceScanModalProps {
   onFaceVerification?: (image: Blob) => Promise<void>;
   onVerificationComplete?: () => void;
   captureOnly?: boolean;
+  captureDisabled?: boolean;
 }
 
 type ScanStage = 'idle' | 'initializing' | 'ready' | 'capturing' | 'failed' | 'captured' | 'enrolled' | 'verified';
@@ -163,6 +164,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   onFaceVerification,
   onVerificationComplete,
   captureOnly = false,
+  captureDisabled = false,
 }) => {
   const [stage, setStage] = useState<ScanStage>('idle');
   const [failureReason, setFailureReason] = useState('');
@@ -175,6 +177,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   const activeCameraRequestRef = useRef<number | null>(null);
   const cameraStartPromiseRef = useRef<Promise<MediaStream> | null>(null);
   const previewAbortRef = useRef<AbortController | null>(null);
+  const cameraTrackEndedHandlerRef = useRef<(() => void) | null>(null);
   const unavailableMessage = mode === 'login'
     ? 'Face sign-in is unavailable. Please sign in with your email and password.'
     : 'This enrollment session is not connected to an account. Please sign in or create an account, then retry.';
@@ -182,12 +185,19 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   const stopCamera = useCallback(() => {
     cameraRequestRef.current += 1;
     activeCameraRequestRef.current = null;
+    cameraStartPromiseRef.current = null;
     previewAbortRef.current?.abort();
     previewAbortRef.current = null;
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        if (cameraTrackEndedHandlerRef.current) {
+          track.removeEventListener('ended', cameraTrackEndedHandlerRef.current);
+        }
+        track.stop();
+      });
       streamRef.current = null;
     }
+    cameraTrackEndedHandlerRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
@@ -276,17 +286,40 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       }
 
       if (activeCameraRequestRef.current !== requestId) {
-        if (activeCameraRequestRef.current === null) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
 
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length === 0 || videoTracks.every((track) => track.readyState !== 'live')) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error('The camera returned no live video track. Check that a camera is connected and enabled, then retry.');
+      }
+
       streamRef.current = stream;
+      const onCameraTrackEnded = () => {
+        if (streamRef.current !== stream) return;
+        activeCameraRequestRef.current = null;
+        stream.getTracks().forEach((track) => {
+          track.removeEventListener('ended', onCameraTrackEnded);
+          track.stop();
+        });
+        streamRef.current = null;
+        cameraTrackEndedHandlerRef.current = null;
+        if (videoRef.current) videoRef.current.srcObject = null;
+        setStage('failed');
+        setFailureReason('The camera preview stopped unexpectedly. Close other apps using the camera and retry.');
+      };
+      cameraTrackEndedHandlerRef.current = onCameraTrackEnded;
+      stream.getTracks().forEach((track) => track.addEventListener('ended', onCameraTrackEnded, { once: true }));
       const video = videoRef.current;
       if (!video) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((track) => {
+          track.removeEventListener('ended', onCameraTrackEnded);
+          track.stop();
+        });
         streamRef.current = null;
+        cameraTrackEndedHandlerRef.current = null;
         throw new Error('The camera preview is not available. Close and reopen the preview, then retry.');
       }
 
@@ -298,6 +331,9 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       await waitForVideoReady(video, abortController.signal);
 
       if (activeCameraRequestRef.current === requestId) {
+        if (stream.getVideoTracks().every((track) => track.readyState !== 'live')) {
+          throw new Error('The camera stopped before a live preview became available. Check the camera and retry.');
+        }
         activeCameraRequestRef.current = null;
         previewAbortRef.current = null;
         setStage('ready');
@@ -308,9 +344,15 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       previewAbortRef.current?.abort();
       previewAbortRef.current = null;
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((track) => {
+          if (cameraTrackEndedHandlerRef.current) {
+            track.removeEventListener('ended', cameraTrackEndedHandlerRef.current);
+          }
+          track.stop();
+        });
         streamRef.current = null;
       }
+      cameraTrackEndedHandlerRef.current = null;
       if (videoRef.current) videoRef.current.srcObject = null;
       setStage('failed');
       setFailureReason(getCameraErrorMessage(error, phase));
@@ -319,6 +361,11 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
   const handleVerify = async () => {
     if (captureInProgressRef.current || retryDelaySeconds > 0) return;
+    if (mode === 'enrollment' && captureDisabled) {
+      setStage('failed');
+      setFailureReason('Face enrollment is unavailable on this server. The camera preview works, but no frame will be submitted.');
+      return;
+    }
     if (!consentGiven) {
       setStage('failed');
       setFailureReason('Consent is required before sending a camera frame for biometric processing.');
@@ -446,6 +493,12 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                   : 'I consent to sending this camera frame to Medivanta’s local face service to create an encrypted face template for my account. The camera image is processed in memory and is not stored. This does not detect presentation attacks.'}
             </span>
           </label>
+        )}
+
+        {mode === 'enrollment' && captureDisabled && (
+          <p role="status" className="mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100">
+            Camera preview is available, but face enrollment is disabled by the server. No frame will be submitted.
+          </p>
         )}
 
         {/* Viewport Container */}
@@ -640,11 +693,14 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
               <button
                 type="button"
                 onClick={handleVerify}
+                disabled={mode === 'enrollment' && captureDisabled}
                 className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2] bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2] shadow-[0_0_24px_rgba(86,232,242,0.24)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_32px_rgba(86,232,242,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#56E8F2] active:scale-[0.99]"
               >
                 <Scan className="h-4 w-4 shrink-0 text-[#56E8F2] transition-transform group-hover:scale-110" />
                 <span>
-                  {mode === 'enrollment'
+                  {mode === 'enrollment' && captureDisabled
+                    ? 'Enrollment unavailable'
+                    : mode === 'enrollment'
                     ? captureOnly ? 'Capture Frame' : 'Enroll Face'
                     : 'Verify Face'}
                 </span>

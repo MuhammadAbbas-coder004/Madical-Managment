@@ -10,11 +10,14 @@ export const errorMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Always log the full error so it appears in the terminal
-  console.error('\n--- Unhandled Error ---');
-  console.error('Message :', err?.message);
-  console.error('Stack   :', err?.stack);
-  console.error('-----------------------\n');
+  const statusCode =
+    typeof err?.statusCode === 'number'
+      ? err.statusCode
+      : typeof err?.status === 'number'
+      ? err.status
+      : 500;
+  const errorName = err instanceof Error ? err.name : 'UnknownError';
+  console.error('[HTTP] Request failed', { statusCode, errorName });
 
   // Multer errors (wrong file type, size exceeded, unexpected field, etc.)
   // arrive here via next(err) from multer middleware – return 400 with the
@@ -36,8 +39,6 @@ export const errorMiddleware = (
     return;
   }
 
-  const isDev = env.isDevelopment;
-
   // Handle custom AppError (business and operational errors: not found, unauthorized, validation, conflict)
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
@@ -51,17 +52,10 @@ export const errorMiddleware = (
   }
 
   // Handle errors that have a numeric statusCode or status property
-  const statusCode: number =
-    typeof err?.statusCode === 'number'
-      ? err.statusCode
-      : typeof err?.status === 'number'
-      ? err.status
-      : 500;
-
-  // For 4xx client errors or in development, return the real message; in production for 500s return generic message
+  // Preserve actionable client errors without exposing internal 5xx exception details.
   const is4xx = statusCode >= 400 && statusCode < 500;
   const message: string =
-    is4xx || isDev
+    is4xx
       ? err?.message || 'Something went wrong'
       : 'Internal Server Error';
 

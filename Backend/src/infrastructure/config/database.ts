@@ -12,11 +12,10 @@ export const sanitizeMongoUri = (uri: string): string => {
     const url = new URL(uri.replace(/^mongodb\+srv:\/\//, 'http://').replace(/^mongodb:\/\//, 'http://'));
     const isSrv = uri.startsWith('mongodb+srv://');
     const scheme = isSrv ? 'mongodb+srv://' : 'mongodb://';
-    const authPart = url.username ? `${url.username}:***@` : '';
     const pathname = url.pathname || '';
-    return `${scheme}${authPart}${url.host}${pathname}`;
+    return `${scheme}${url.host}${pathname}`;
   } catch {
-    return uri.replace(/:([^@/]+)@/, ':***@');
+    return '[invalid MongoDB URI]';
   }
 };
 
@@ -40,7 +39,7 @@ const attachConnectionListeners = () => {
   });
 
   mongoose.connection.on('error', (err: Error) => {
-    console.error('❌ MongoDB runtime error:', err.message || err.name);
+    console.error('[MongoDB] Runtime error', { errorName: err.name });
   });
 };
 
@@ -120,37 +119,35 @@ export const connectDatabase = async (): Promise<void> => {
       }
     } catch (indexError: unknown) {
       // Do not abort startup if index inspection on a fresh or restricted collection fails
-      const msg = indexError instanceof Error ? indexError.message : String(indexError);
-      console.warn('⚠️ MongoDB index initialization note:', msg);
+      const errorName = indexError instanceof Error ? indexError.name : 'UnknownError';
+      console.warn('[MongoDB] Index initialization note', { errorName });
     }
 
     console.log(`MongoDB connected successfully to ${sanitizedTarget}`);
   } catch (error: unknown) {
     const errorName = error instanceof Error ? error.name : 'UnknownError';
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const sanitizedError = errorMessage.replace(/:([^@/]+)@/, ':***@');
+    const errorCode =
+      error && typeof error === 'object' && 'code' in error
+        ? String(error.code)
+        : 'unknown';
 
     console.error(
-      `❌ Failed to connect to MongoDB at ${sanitizedTarget} (${errorName}): ${sanitizedError}`
+      `❌ Failed to connect to MongoDB at ${sanitizedTarget} (${errorName}, code=${errorCode}).`
     );
 
-    if (/querySrv|ECONNREFUSED|ENOTFOUND/.test(sanitizedError)) {
+    if (['querySrv', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(errorCode)) {
       console.error(
         `👉 DIAGNOSTIC: DNS SRV resolution failed. Your network or router blocks SRV DNS lookups. ` +
           `To bypass SRV DNS entirely, obtain the standard (non-SRV) replica set connection string from MongoDB Atlas ` +
           `(Atlas > Database > Connect > Drivers > select driver version 3.4 or earlier to view the full host list).`
       );
-    } else if (/bad auth|authentication failed/i.test(sanitizedError)) {
-      console.error(
-        `👉 DIAGNOSTIC: MongoDB authentication failed. Verify the database user username and password in MongoDB Atlas > Database Access.`
-      );
-    } else if (/ServerSelectionError|timed out|whitelist/i.test(sanitizedError)) {
+    } else if (errorName === 'MongoServerSelectionError') {
       console.error(
         `👉 DIAGNOSTIC: Atlas cluster unreachable or IP not allowed. In MongoDB Atlas, go to Network Access > IP Access List, and ensure your current IP address (or 0.0.0.0/0) is active.`
       );
     }
 
-    throw new Error(`Database connection failed: ${sanitizedError}`);
+    throw new Error(`Database connection failed (${errorName}, code=${errorCode}).`);
   }
 };
 

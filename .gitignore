@@ -11,10 +11,13 @@ build/
 .env
 .env.*
 !.env.example
+!.env.development.example
 *.env
 Backend/.env
 Backend/.env.*
 !Backend/.env.example
+!Backend/.env.development.example
+!frontend/.env.development.example
 
 # Uploads & temporary media
 uploads/*

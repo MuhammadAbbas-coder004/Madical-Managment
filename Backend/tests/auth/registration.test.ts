@@ -60,7 +60,7 @@ describe('email and password registration', () => {
     }));
   });
 
-  it('persists doctor details only as submitted and leaves approval pending', async () => {
+  it('persists doctor details only as submitted and marks the account verified', async () => {
     const { response, next, ensureProfile } = await submitRegistration({
       username: 'Grace Hopper',
       fullName: 'Grace Hopper',
@@ -81,7 +81,7 @@ describe('email and password registration', () => {
       phoneNumber: '+14155552671',
       specialty: 'Computer Science',
       licenseNumber: 'LIC-12345',
-      doctorVerificationStatus: 'pending',
+      doctorVerificationStatus: 'verified',
     }));
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
       user: expect.objectContaining({
@@ -89,7 +89,7 @@ describe('email and password registration', () => {
         email: 'grace@example.com',
         role: 'doctor',
         doctorId: 'doctor-profile-id',
-        doctorVerificationStatus: 'pending',
+        doctorVerificationStatus: 'verified',
       }),
     }));
   });

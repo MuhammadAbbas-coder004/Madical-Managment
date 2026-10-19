@@ -23,10 +23,6 @@ export const DoctorProfilePage: React.FC = () => {
               <h2 className="text-xl font-semibold text-textPrimary">{user?.name || user?.username || 'Doctor'}</h2>
               <p className="mt-1 text-sm text-textSecondary">{user?.specialty || 'Medical professional'}</p>
             </div>
-            <span className={`doctor-profile-status ${user?.doctorVerificationStatus || 'unknown'}`}>
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              {(user?.doctorVerificationStatus || 'status unavailable').replace('_', ' ')}
-            </span>
           </div>
           <dl className="grid gap-5 pt-6 sm:grid-cols-2">
             <div className="flex items-start gap-3">

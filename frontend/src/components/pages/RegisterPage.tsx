@@ -392,7 +392,7 @@ export const RegisterPage: React.FC = () => {
                   />
                   <div className="flex items-start gap-1.5 rounded-lg bg-white/5 p-2 text-[0.65rem] leading-4 text-white/60">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#C7FFBE] mt-0.5" />
-                    <span>Doctor accounts remain pending administrative verification before clinical access is granted.</span>
+                    <span>Doctor accounts can access clinical tools immediately after signing in.</span>
                   </div>
                 </div>
               )}

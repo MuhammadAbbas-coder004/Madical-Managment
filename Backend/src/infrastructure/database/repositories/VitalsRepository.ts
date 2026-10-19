@@ -8,6 +8,7 @@ export class VitalsRepository implements IVitalsRepository {
     await VitalsModel.create({
       vitalsId: vitals.vitalsId,
       patientId: vitals.patientId,
+      doctorId: vitals.doctorId,
       bloodPressureSystolic: vitals.bloodPressureSystolic,
       bloodPressureDiastolic: vitals.bloodPressureDiastolic,
       sugarLevel: vitals.sugarLevel,

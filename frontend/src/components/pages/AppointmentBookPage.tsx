@@ -6,18 +6,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 import api from '../../shared/services/api';
+import { fetchAuthorizedPatients, type AuthorizedPatient } from '../../shared/services/patients';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
-
-interface Patient {
-  patientId: string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-}
 
 interface Doctor {
   doctorId: string;
@@ -38,9 +33,12 @@ type FormData = z.infer<typeof schema>;
 
 export const AppointmentBookPage: React.FC = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const user = useAuthStore((state) => state.user);
+  const isPatient = user?.role.toLowerCase() === 'patient';
+  const [patients, setPatients] = useState<AuthorizedPatient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -51,39 +49,56 @@ export const AppointmentBookPage: React.FC = () => {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
+    let active = true;
     const fetchData = async () => {
-      try {
-        setLoadingData(true);
-        const [patientsRes, doctorsRes]: [any, any] = await Promise.all([
-          api.get('/patients'),
-          api.get('/doctors'),
-        ]);
+      setLoadingData(true);
+      setDirectoryError(null);
+      const patientRequest = isPatient
+        ? api.get('/patients/me', { skipToast: true }).then((response) => {
+            const patient = response && typeof response === 'object' && 'data' in response
+              ? response.data as AuthorizedPatient
+              : null;
+            if (!patient || typeof patient.patientId !== 'string') {
+              throw new Error('No patient profile is linked to this account.');
+            }
+            return [patient];
+          })
+        : fetchAuthorizedPatients();
+      const [patientsResult, doctorsResult] = await Promise.allSettled([
+        patientRequest,
+        api.get('/doctors', { skipToast: true }) as Promise<Doctor[] | { data?: Doctor[] }>,
+      ]);
 
-        const patientList: Patient[] = Array.isArray(patientsRes)
-          ? patientsRes
-          : patientsRes?.data || [];
-        const doctorList: Doctor[] = Array.isArray(doctorsRes)
-          ? doctorsRes
-          : doctorsRes?.data || [];
+      if (!active) return;
 
-        setPatients(patientList);
-        setDoctors(doctorList);
-
-        if (patientList.length > 0) {
-          setValue('patientId', patientList[0].patientId);
-        }
-        if (doctorList.length > 0) {
-          setValue('doctorId', doctorList[0].doctorId);
-        }
-      } catch (err: unknown) {
-        toast.error('Failed to load clinic directory');
-      } finally {
-        setLoadingData(false);
+      if (patientsResult.status === 'fulfilled') {
+        setPatients(patientsResult.value);
+        setValue('patientId', patientsResult.value[0]?.patientId || '');
+      } else {
+        setDirectoryError(patientsResult.reason instanceof Error
+          ? patientsResult.reason.message
+          : 'Failed to load authorized patients.');
       }
+
+      if (doctorsResult.status === 'fulfilled') {
+        const response = doctorsResult.value;
+        const doctorList = Array.isArray(response) ? response : response.data || [];
+        setDoctors(doctorList);
+        setValue('doctorId', doctorList[0]?.doctorId || '');
+      } else {
+        const message = doctorsResult.reason instanceof Error
+          ? doctorsResult.reason.message
+          : 'Failed to load doctors.';
+        setDirectoryError((current) => current ? `${current} ${message}` : message);
+      }
+      setLoadingData(false);
     };
 
-    fetchData();
-  }, [setValue]);
+    void fetchData();
+    return () => {
+      active = false;
+    };
+  }, [isPatient, setValue]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -124,6 +139,11 @@ export const AppointmentBookPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-textPrimary mb-6">Book New Appointment</h1>
           <Card>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {directoryError && (
+                <p role="alert" className="rounded-md border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
+                  {directoryError}
+                </p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label

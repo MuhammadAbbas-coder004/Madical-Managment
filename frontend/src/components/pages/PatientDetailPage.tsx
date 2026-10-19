@@ -10,6 +10,7 @@ import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { VoiceButton } from '../molecules/VoiceButton';
 import { useVoiceStore } from '../../store/voiceStore';
 import { buildVitalsSummary } from '../../shared/utils/buildVitalsSummary';
+import { fetchPatientVitals } from '../../shared/services/vitals';
 
 interface PatientDetails {
   patientId: string;
@@ -23,17 +24,17 @@ interface PatientDetails {
 
 interface PatientVitals {
   vitalsId: string;
-  bloodPressureSystolic: number;
-  bloodPressureDiastolic: number;
-  sugarLevel: number;
-  temperature: number;
-  heartRate: number;
-  pulseRate: number;
-  rbcCount: number;
-  wbcCount: number;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  sugarLevel?: number;
+  temperature?: number;
+  heartRate?: number;
+  pulseRate?: number;
+  rbcCount?: number;
+  wbcCount?: number;
   recordedAt: string;
   analysis?: {
-    status?: 'normal' | 'warning' | 'critical';
+    status?: 'normal' | 'warning' | 'critical' | 'inconclusive';
     flaggedParams?: string[];
     message?: string;
     details?: unknown;
@@ -53,18 +54,34 @@ export const PatientDetailPage: React.FC = () => {
   const language = useVoiceStore((state) => state.language);
 
   useEffect(() => {
-    if (!patientId) return;
+    if (!patientId) {
+      setPatient(null);
+      setError('A patient ID is required to open this record.');
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     const fetch = async () => {
+      setLoading(true);
+      setError(null);
+      setPatient(null);
       try {
-        const res = await api.get(`/patients/${patientId}`) as { data?: PatientDetails } | PatientDetails;
-        setPatient((res as { data?: PatientDetails }).data || res as PatientDetails);
+        const response = await api.get(`/patients/${encodeURIComponent(patientId)}`, { skipToast: true }) as {
+          success?: boolean;
+          data?: PatientDetails;
+        };
+        if (response.success !== true || !response.data || response.data.patientId !== patientId) {
+          throw new Error('The patient service returned an invalid patient profile.');
+        }
+        if (!cancelled) setPatient(response.data);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load patient details');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load patient details');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    fetch();
+    void fetch();
+    return () => { cancelled = true; };
   }, [patientId]);
 
   // Load this patient's latest vitals without changing the existing patient API.
@@ -75,16 +92,13 @@ export const PatientDetailPage: React.FC = () => {
       setVitalsLoading(true);
       setVitalsError(null);
       try {
-        const response = await api.get(
-          `/vitals/patient/${encodeURIComponent(patient.patientId)}`
-        ) as { data?: PatientVitals[] };
-        const records = Array.isArray(response.data) ? response.data : [];
+        const records = await fetchPatientVitals(patient.patientId);
         records.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
         if (!cancelled) setLatestVitals(records[0] || null);
-      } catch {
+      } catch (err: unknown) {
         if (!cancelled) {
           setLatestVitals(null);
-          setVitalsError('Could not load the latest vitals report.');
+          setVitalsError(err instanceof Error ? err.message : 'Could not load the latest vitals report.');
         }
       } finally {
         if (!cancelled) setVitalsLoading(false);

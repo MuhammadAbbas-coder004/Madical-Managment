@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { DoctorApplicationService } from '../../application/doctor/DoctorApplicationService';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { IUserDocument, UserModel } from '../../infrastructure/database/schemas/User.schema';
+import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { DoctorModel } from '../../infrastructure/database/schemas/Doctor.schema';
 import { AppError } from '../../domain/errors/AppError';
 import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
@@ -97,25 +97,33 @@ export class DoctorController {
       const isAdmin = (req as AuthenticatedRequest).user?.role?.toLowerCase() === 'admin';
       const doctorIds = doctors.map((doctor) => doctor.doctorId.getValue());
       const doctorEmails = doctors.map((doctor) => doctor.email.getValue().toLowerCase());
+      const doctorProfiles = isAdmin && doctors.length > 0
+        ? await DoctorModel.find({ doctorId: { $in: doctorIds } }).select('doctorId userId')
+        : [];
+      const userIds = doctorProfiles.flatMap((profile) => profile.userId ? [profile.userId] : []);
+      const userIdByDoctorId = new Map(
+        doctorProfiles
+          .filter((profile) => Boolean(profile.userId))
+          .map((profile) => [profile.doctorId, profile.userId!.toString()])
+      );
       const users = isAdmin && doctors.length > 0
         ? await UserModel.find({
             role: 'doctor',
             $or: [
+              { _id: { $in: userIds } },
               { linkedId: { $in: doctorIds } },
               { email: { $in: doctorEmails } },
             ],
-          }).select('linkedId email doctorVerificationStatus licenseNumber')
+        }).select('_id linkedId email licenseNumber')
         : [];
-      const verificationByDoctorId = new Map<string, IUserDocument['doctorVerificationStatus']>();
-      const verificationByEmail = new Map<string, IUserDocument['doctorVerificationStatus']>();
+      const licenseByUserId = new Map<string, string | undefined>();
       const licenseByDoctorId = new Map<string, string | undefined>();
       const licenseByEmail = new Map<string, string | undefined>();
       for (const user of users) {
+        licenseByUserId.set(user._id.toString(), user.licenseNumber);
         if (user.linkedId) {
-          verificationByDoctorId.set(user.linkedId, user.doctorVerificationStatus);
           licenseByDoctorId.set(user.linkedId, user.licenseNumber);
         }
-        verificationByEmail.set(user.email.toLowerCase(), user.doctorVerificationStatus);
         licenseByEmail.set(user.email.toLowerCase(), user.licenseNumber);
       }
 
@@ -129,12 +137,9 @@ export class DoctorController {
         specialization: doctor.specialization,
         ...(isAdmin
           ? {
-              doctorVerificationStatus:
-                verificationByEmail.get(doctor.email.getValue().toLowerCase())
-                ?? verificationByDoctorId.get(doctor.doctorId.getValue())
-                ?? 'not_applicable',
               licenseNumber:
-                licenseByEmail.get(doctor.email.getValue().toLowerCase())
+                licenseByUserId.get(userIdByDoctorId.get(doctor.doctorId.getValue()) || '')
+                ?? licenseByEmail.get(doctor.email.getValue().toLowerCase())
                 ?? licenseByDoctorId.get(doctor.doctorId.getValue()),
             }
           : {}),
@@ -149,40 +154,4 @@ export class DoctorController {
     }
   };
 
-  public updateVerificationStatus = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const doctorId = String(req.params.doctorId);
-      const { status } = req.body as { status: IUserDocument['doctorVerificationStatus'] };
-      const doctor = await DoctorModel.findOne({ doctorId }).select('email userId');
-      if (!doctor) throw new AppError(404, 'Doctor profile not found.');
-
-      const updateStatus = (filter: Record<string, unknown>) =>
-        UserModel.findOneAndUpdate(
-          { ...filter, role: 'doctor' },
-          { $set: { doctorVerificationStatus: status } },
-          { new: true, runValidators: true }
-        );
-      const user = (
-        (doctor.userId ? await updateStatus({ _id: doctor.userId }) : null)
-        ?? await updateStatus({ linkedId: doctorId })
-        ?? await updateStatus({ email: doctor.email.trim().toLowerCase() })
-      );
-      if (!user) throw new AppError(404, 'No doctor account is linked to this profile.');
-
-      res.status(200).json({
-        success: true,
-        data: {
-          doctorId,
-          doctorVerificationStatus: user.doctorVerificationStatus,
-          updatedAt: user.updatedAt,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
 }

@@ -9,6 +9,8 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import api from '../../shared/services/api';
+import { fetchAuthorizedPatients } from '../../shared/services/patients';
+import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -27,18 +29,17 @@ interface Appointment {
   status: string;
 }
 
-interface Patient {
-  patientId: string;
-  fullName?: string;
-  firstName?: string;
-  lastName?: string;
-}
-
 interface VitalRecord {
   patientId: string;
   status?: string;
   heartRate?: number;
   bloodPressure?: string;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  analysis?: {
+    status?: string;
+    message?: string;
+  };
 }
 
 interface CriticalAlert {
@@ -82,6 +83,7 @@ const statusVariant = (status: string): 'success' | 'warning' | 'danger' => {
   if (['cancelled', 'missed'].includes(status.toLowerCase())) return 'danger';
   return 'warning';
 };
+
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -134,7 +136,6 @@ export const DoctorDashboardPage: React.FC = () => {
     const fetchAppointments = async () => {
       setLoading(true);
       setAppointmentsError(null);
-      setPatientsError(null);
       try {
         const profileResponse = await api.get('/doctors/me', { skipToast: true }) as {
           data?: { doctorId?: string };
@@ -144,26 +145,9 @@ export const DoctorDashboardPage: React.FC = () => {
           throw new Error('No doctor profile is linked to your account. Please contact an administrator.');
         }
 
-        const [response, patientsResponse] = await Promise.all([
-          api.get(`/appointments/doctor/${encodeURIComponent(doctorId)}`, { skipToast: true }) as Promise<{
-          data?: Appointment[];
-          }>,
-          api.get('/patients', { skipToast: true }).catch((error: unknown) => {
-            if (!cancelled) {
-              setPatientsError(error instanceof Error ? error.message : 'Failed to load patient details.');
-            }
-            return null;
-          }) as Promise<{ data?: Patient[] } | null>,
-        ]);
+        const response = await api.get(`/appointments/doctor/${encodeURIComponent(doctorId)}`, { skipToast: true });
         if (!cancelled) {
-          setAllAppointments(Array.isArray(response.data) ? response.data : []);
-          const patients = patientsResponse && Array.isArray(patientsResponse.data)
-            ? patientsResponse.data
-            : [];
-          setPatientNames(new Map(patients.map((patient) => [
-            patient.patientId,
-            patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.patientId,
-          ])));
+          setAllAppointments(parsePatientPortalList<Appointment>(response, 'appointments'));
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -179,6 +163,27 @@ export const DoctorDashboardPage: React.FC = () => {
       cancelled = true;
     };
   }, [user?.role]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadDashboardPatients = async () => {
+      setPatientsError(null);
+      try {
+        const patients = await fetchAuthorizedPatients();
+        if (cancelled) return;
+        setPatientNames(new Map(patients.map((patient) => [
+          patient.patientId,
+          patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.patientId,
+        ])));
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setPatientsError(error instanceof Error ? error.message : 'Failed to load patient details.');
+        }
+      }
+    };
+    void loadDashboardPatients();
+    return () => { cancelled = true; };
+  }, []);
 
   // Step 2 — once appointments load, scan vitals for critical readings
   useEffect(() => {
@@ -202,18 +207,23 @@ export const DoctorDashboardPage: React.FC = () => {
           const res: any = await api.get(`/vitals/patient/${encodeURIComponent(pid)}`, { skipToast: true });
           const vitals: VitalRecord[] = Array.isArray(res) ? res : res.data ?? [];
           const latest = vitals[0];
-          if (!latest || latest.status !== 'critical') return null;
+          const latestStatus = latest?.analysis?.status || latest?.status;
+          if (!latest || latestStatus !== 'critical') return null;
 
           const matchingAppt = allAppointments.find(
             (appointment) => getPatientRawId(appointment.patientId) === pid
           );
           const name = patientNames.get(pid)
             || (matchingAppt ? getPatientName(matchingAppt.patientId, pid) : pid);
-          const detail = latest.bloodPressure
-            ? `BP: ${latest.bloodPressure}${latest.heartRate ? `, HR: ${latest.heartRate} bpm` : ''}`
+          const bloodPressure = latest.bloodPressure
+            || (latest.bloodPressureSystolic != null && latest.bloodPressureDiastolic != null
+              ? `${latest.bloodPressureSystolic}/${latest.bloodPressureDiastolic}`
+              : '');
+          const detail = bloodPressure
+            ? `BP: ${bloodPressure}${latest.heartRate ? `, HR: ${latest.heartRate} bpm` : ''}`
             : latest.heartRate
               ? `HR: ${latest.heartRate} bpm`
-              : 'Critical readings recorded';
+              : latest.analysis?.message || 'Critical readings recorded';
           return { patientId: pid, patientName: name, detail };
         })
       );
@@ -259,9 +269,6 @@ export const DoctorDashboardPage: React.FC = () => {
         : 0,
     }))
     .sort((first, second) => second.count - first.count);
-  const isVerificationBlocked = user?.doctorVerificationStatus === 'pending'
-    || user?.doctorVerificationStatus === 'rejected'
-    || appointmentsError?.toLowerCase().includes('verification') === true;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -292,7 +299,7 @@ export const DoctorDashboardPage: React.FC = () => {
 
         {!loading && (
           <>
-            {appointmentsError && !isVerificationBlocked && (
+            {appointmentsError && (
               <div className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
                 {appointmentsError}
               </div>
@@ -302,13 +309,7 @@ export const DoctorDashboardPage: React.FC = () => {
                 Patient names could not be loaded: {patientsError}
               </div>
             )}
-            {isVerificationBlocked ? (
-              <Card className="border-warning/20 shadow-md" title="Clinical workspace unavailable">
-                <p className="text-sm leading-relaxed text-textSecondary">
-                  {appointmentsError || 'Your doctor credentials are awaiting administrator review. Patient data and clinical tools stay restricted until approval.'}
-                </p>
-              </Card>
-            ) : appointmentsError ? null : (
+            {appointmentsError ? null : (
             <>
             {/* Stat Cards */}
             <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-3">

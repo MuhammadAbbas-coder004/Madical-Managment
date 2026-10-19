@@ -8,6 +8,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.development.example
 *.env
 
 # Uploads & temporary media

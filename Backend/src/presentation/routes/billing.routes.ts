@@ -25,7 +25,7 @@ router.put('/:invoiceId/pay', requireRole('admin', 'patient'), controller.markIn
 router.get(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   controller.getInvoicesByPatient.bind(controller)
 );
 

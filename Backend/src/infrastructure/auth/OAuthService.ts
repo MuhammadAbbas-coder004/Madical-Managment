@@ -496,6 +496,7 @@ export const findOrCreateOAuthUser = async (
       existingUser.providerSubject = identity.subject;
     }
     existingUser.lastLoginAt = new Date();
+    if (existingUser.role === 'doctor') existingUser.doctorVerificationStatus = 'verified';
     await existingUser.save();
     return { user: existingUser, created: false };
   }
@@ -517,7 +518,7 @@ export const findOrCreateOAuthUser = async (
     isPhoneVerified: false,
     faceEnrollmentStatus: 'not_enrolled',
     role,
-    doctorVerificationStatus: role === 'doctor' ? 'pending' : 'not_applicable',
+    doctorVerificationStatus: role === 'doctor' ? 'verified' : 'not_applicable',
     lastLoginAt: new Date(),
   });
 
@@ -559,6 +560,7 @@ export const findOrCreateOAuthUser = async (
           racedUser.providerSubject = identity.subject;
         }
         racedUser.lastLoginAt = new Date();
+        if (racedUser.role === 'doctor') racedUser.doctorVerificationStatus = 'verified';
         await racedUser.save();
         return { user: racedUser, created: false };
       }

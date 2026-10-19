@@ -154,10 +154,6 @@ export const createDoctorSchema = z.object({
   specialization: nonEmptyString('Specialization').max(100, 'Specialization cannot exceed 100 characters'),
 });
 
-export const updateDoctorVerificationSchema = z.object({
-  status: z.enum(['pending', 'verified', 'rejected']),
-});
-
 // ---------------------------------------------------------------------------
 // Appointment schemas
 // ---------------------------------------------------------------------------
@@ -186,7 +182,7 @@ const positiveNumber = (label: string) =>
       .finite(`${label} must be a finite number`)
   );
 
-export const recordVitalsSchema = z.object({
+const legacyVitalsSchema = z.object({
   patientId: resourceId('patientId'),
   bloodPressureSystolic: positiveNumber('bloodPressureSystolic'),
   bloodPressureDiastolic: positiveNumber('bloodPressureDiastolic'),
@@ -198,15 +194,40 @@ export const recordVitalsSchema = z.object({
   wbcCount: positiveNumber('wbcCount'),
 });
 
+const scanMetricSchema = z.enum(['heartRate', 'breathingRate', 'hrv', 'stressLevel', 'bloodPressure', 'spo2']);
+const scanVitalsSchema = z.object({
+  patientId: resourceId('patientId'),
+  selectedMetrics: z.array(scanMetricSchema).min(1, 'Select at least one metric').max(6),
+  heartRate: z.number().min(35).max(220).optional(),
+  breathingRate: z.number().min(4).max(60).optional(),
+  hrv: z.number().min(1).max(300).optional(),
+  stressLevel: z.number().min(0).max(100).optional(),
+  bloodPressure: z.object({
+    systolic: z.number().min(50).max(260),
+    diastolic: z.number().min(30).max(160),
+  }).optional(),
+  spo2: z.number().min(50).max(100).optional(),
+  scanDuration: z.number().int().min(10).max(30),
+  confidence: z.number().min(0).max(1).optional(),
+  quality: z.number().min(0).max(1).optional(),
+  qualityReason: z.string().trim().max(300).optional(),
+});
+export const recordDoctorOwnedScanSchema = scanVitalsSchema.omit({ patientId: true });
+
+export const recordVitalsSchema = z.union([scanVitalsSchema, legacyVitalsSchema]);
+
 // ---------------------------------------------------------------------------
 // Prescription schemas
 // ---------------------------------------------------------------------------
 
 const medicineItemSchema = z.object({
   name: nonEmptyString('Medicine name'),
-  dosage: nonEmptyString('Dosage'),
-  frequency: nonEmptyString('Frequency'),
+  dosage: z.string().trim().optional(),
+  // Accept older/newer clients that submit frequency as well as clients that
+  // still send the original name/dosage/duration/instructions shape.
+  frequency: z.string().trim().optional(),
   duration: z.string().trim().optional(),
+  instructions: z.string().trim().optional(),
 });
 
 export const createPrescriptionSchema = z.object({
@@ -224,7 +245,7 @@ export const createPrescriptionSchema = z.object({
 
 export const createMedicalRecordSchema = z.object({
   patientId: resourceId('patientId'),
-  doctorId: resourceId('doctorId'),
+  doctorId: resourceId('doctorId').optional(),
   diagnosis: nonEmptyString('Diagnosis').max(500, 'Diagnosis cannot exceed 500 characters'),
   notes: z.string().trim().max(2000, 'Notes cannot exceed 2000 characters').optional(),
   allergies: z.array(z.string().trim().min(1)).optional().default([]),
@@ -289,6 +310,7 @@ export const reduceStockSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const createLabReportSchema = z.object({
+  doctorId: resourceId('doctorId').optional(),
   testName: nonEmptyString('Test name').max(200, 'Test name cannot exceed 200 characters'),
   result: nonEmptyString('Result').max(2000, 'Result cannot exceed 2000 characters'),
 });

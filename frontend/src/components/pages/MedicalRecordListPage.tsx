@@ -1,8 +1,10 @@
 import React, { useRef,  useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FilePlus, Calendar, AlertOctagon, User } from 'lucide-react';
 
 import api from '../../shared/services/api';
+import { fetchAuthorizedPatients } from '../../shared/services/patients';
+import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -13,6 +15,7 @@ interface MedicalRecord {
   recordId: string;
   patientId: string;
   doctorId: string;
+  doctorName?: string;
   diagnosis: string;
   notes: string;
   allergies: string[];
@@ -29,68 +32,107 @@ interface Patient {
 interface Doctor { doctorId: string; firstName?: string; lastName?: string; fullName?: string; specialization?: string; }
 
 export const MedicalRecordListPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const requestedPatientId = searchParams.get('patientId') || '';
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role.toLowerCase() === 'doctor';
-  const canCreateRecord = !isDoctor || user?.doctorVerificationStatus === 'verified';
+  const isPatient = user?.role.toLowerCase() === 'patient';
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [doctorNamesError, setDoctorNamesError] = useState<string | null>(null);
   const [doctorMap, setDoctorMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
+    let active = true;
     const fetchInitialData = async () => {
-      try {
-        const [patRes, docRes] = await Promise.all([
-          api.get('/patients', { skipToast: true }),
-          api.get('/doctors', { skipToast: true }),
-        ]) as [
-          Patient[] | { data?: Patient[] },
-          Doctor[] | { data?: Doctor[] },
-        ];
-        const patList = Array.isArray(patRes) ? patRes : patRes.data || [];
-        setPatients(patList);
-        if (patList.length > 0) setSelectedPatientId(patList[0].patientId);
+      const patientsRequest = isPatient
+        ? api.get('/patients/me', { skipToast: true }).then((response) => {
+            const patient = response && typeof response === 'object' && 'data' in response
+              ? response.data as Patient
+              : null;
+            if (!patient || typeof patient.patientId !== 'string') {
+              throw new Error('No patient profile is linked to this account.');
+            }
+            return [patient];
+          })
+        : fetchAuthorizedPatients();
+      const [patientsResult, doctorsResult] = await Promise.allSettled([
+        patientsRequest,
+            api.get('/doctors', { skipToast: true }),
+      ]);
 
-        const docList = Array.isArray(docRes) ? docRes : docRes.data || [];
-        const map = new Map<string, string>();
-        docList.forEach((d) => {
-          const name = d.fullName || `Dr. ${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Unknown Doctor';
-          const label = d.specialization ? `${name} (${d.specialization})` : name;
-          map.set(d.doctorId, label);
-        });
-        setDoctorMap(map);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load patient data.');
-      } finally {
-        setLoadingPatients(false);
+      if (!active) return;
+
+      if (patientsResult.status === 'fulfilled') {
+        setPatients(patientsResult.value);
+        const selectedPatient = patientsResult.value.find((patient) => patient.patientId === requestedPatientId);
+        setSelectedPatientId(selectedPatient?.patientId || patientsResult.value[0]?.patientId || '');
+      } else {
+        setError(patientsResult.reason instanceof Error
+          ? patientsResult.reason.message
+          : 'Failed to load authorized patients.');
       }
+
+      if (doctorsResult.status === 'fulfilled') {
+        try {
+          const docList = parsePatientPortalList<Doctor>(doctorsResult.value, 'doctors');
+          const map = new Map<string, string>();
+          docList.forEach((doctor) => {
+            const name = doctor.fullName || `Dr. ${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || 'Unknown Doctor';
+            const label = doctor.specialization ? `${name} (${doctor.specialization})` : name;
+            map.set(doctor.doctorId, label);
+          });
+          setDoctorMap(map);
+        } catch (err: unknown) {
+          setDoctorNamesError(err instanceof Error ? err.message : 'The doctors service returned an invalid list response.');
+        }
+      } else {
+        setDoctorNamesError(doctorsResult.reason instanceof Error
+          ? doctorsResult.reason.message
+          : 'Failed to load doctors.');
+      }
+      setLoadingPatients(false);
     };
-    fetchInitialData();
-  }, []);
+
+    void fetchInitialData();
+    return () => {
+      active = false;
+    };
+  }, [isPatient, requestedPatientId]);
 
   useEffect(() => {
     if (!selectedPatientId) return;
+    let active = true;
 
     const fetchRecords = async () => {
       try {
         setLoading(true);
         setError(null);
         setRecords([]);
-        const res: any = await api.get(`/medical-records/patient/${selectedPatientId}`, { skipToast: true });
-        const data = Array.isArray(res) ? res : res.data || [];
-        setRecords(data);
+        const res: any = await api.get(
+          `/medical-records/patient/${encodeURIComponent(selectedPatientId)}`,
+          { skipToast: true }
+        );
+        const data = parsePatientPortalList<MedicalRecord>(res, 'medical records');
+        if (active) setRecords(data);
       } catch (err: unknown) {
-        setRecords([]);
-        setError(err instanceof Error ? err.message : 'Failed to load medical records.');
+        if (active) {
+          setRecords([]);
+          setError(err instanceof Error ? err.message : 'Failed to load medical records.');
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchRecords();
+    void fetchRecords();
+    return () => {
+      active = false;
+    };
   }, [selectedPatientId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,7 +149,7 @@ export const MedicalRecordListPage: React.FC = () => {
           </p>
         </div>
 
-        {canCreateRecord && (
+        {isDoctor && (
           <Link
             to="/medical-records/new"
             className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-all shadow-sm hover:-translate-y-0.5 hover:shadow-md"
@@ -128,11 +170,15 @@ export const MedicalRecordListPage: React.FC = () => {
           disabled={loadingPatients || patients.length === 0}
           className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
         >
-          {patients.map((p) => (
-            <option key={p.patientId} value={p.patientId}>
-              {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
+          {patients.length === 0 ? (
+            <option value="">
+              {loadingPatients ? 'Loading authorized patients...' : error ? 'Patients unavailable' : 'No assigned patients'}
             </option>
-          ))}
+          ) : patients.map((p) => (
+              <option key={p.patientId} value={p.patientId}>
+                {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
+              </option>
+            ))}
         </select>
       </div>
 
@@ -145,6 +191,11 @@ export const MedicalRecordListPage: React.FC = () => {
       {!loadingPatients && error && (
         <div role="alert" className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
           {error}
+        </div>
+      )}
+      {!loadingPatients && !error && doctorNamesError && (
+        <div role="status" className="mb-6 rounded-md border border-warning/20 bg-warning/10 p-4 text-sm text-textSecondary">
+          Medical records are available, but doctor names could not be loaded: {doctorNamesError}
         </div>
       )}
       {loading && (
@@ -175,7 +226,7 @@ export const MedicalRecordListPage: React.FC = () => {
                       {rec.diagnosis}
                     </h3>
                     <p className="text-xs text-textSecondary flex items-center gap-1.5 mt-0.5">
-                      <User className="w-3.5 h-3.5" /> Doctor: {doctorMap.get(rec.doctorId) || rec.doctorId}
+                      <User className="w-3.5 h-3.5" /> Doctor: {rec.doctorName || doctorMap.get(rec.doctorId) || rec.doctorId}
                     </p>
                   </div>
                   <span className="text-xs text-textSecondary flex items-center gap-1">

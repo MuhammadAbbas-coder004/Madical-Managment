@@ -39,7 +39,7 @@ interface SessionResponse {
     role: string;
     patientId?: string;
     doctorId?: string;
-    doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+    doctorVerificationStatus?: 'verified' | 'not_applicable';
     specialty?: string;
     licenseNumber?: string;
     faceEnrollmentStatus?: string;

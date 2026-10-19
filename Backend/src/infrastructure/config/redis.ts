@@ -31,7 +31,7 @@ redisClient.on('ready', () => {
 });
 
 redisClient.on('error', (err) => {
-  console.warn('⚠️ [Redis Warning]:', err.message || err);
+  console.warn('[Redis] Client error', { errorName: err.name });
 });
 
 /**
@@ -45,8 +45,8 @@ export const connectRedis = async (): Promise<void> => {
     console.log('✅ [Redis] Connection verified via PING.');
   } catch (err: any) {
     console.warn(
-      '⚠️ [Redis] Could not reach Redis at startup:',
-      err.message || err,
+      '[Redis] Could not reach Redis at startup.',
+      { errorName: err instanceof Error ? err.name : 'UnknownError' },
       '\n   Token blacklisting and caching will be degraded until Redis is available.',
     );
   }

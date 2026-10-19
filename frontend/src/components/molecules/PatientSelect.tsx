@@ -7,7 +7,7 @@ import {
   type FieldValues,
   type Path,
 } from 'react-hook-form';
-import api from '../../shared/services/api';
+import { fetchAuthorizedPatients } from '../../shared/services/patients';
 import { Label } from '../atoms/Label';
 
 export interface PatientOption {
@@ -15,6 +15,7 @@ export interface PatientOption {
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  email?: string;
   dateOfBirth?: string;
   phone?: string;
 }
@@ -23,6 +24,9 @@ interface PatientSelectProps<T extends FieldValues> {
   control: Control<T>;
   name: Path<T>;
   onPatientSelected?: (patient: PatientOption | null) => void;
+  patients?: PatientOption[];
+  patientsLoading?: boolean;
+  patientsError?: string | null;
 }
 
 interface PatientSelectInputProps<T extends FieldValues> {
@@ -37,13 +41,11 @@ interface PatientSelectInputProps<T extends FieldValues> {
 const getPatientName = (patient: PatientOption): string =>
   patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
 
-const getPatientList = (response: unknown): PatientOption[] => {
-  if (Array.isArray(response)) return response as PatientOption[];
-  if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-    return response.data as PatientOption[];
-  }
-  return [];
-};
+const getPatientLabel = (patient: PatientOption): string =>
+  patient.email ? `${getPatientName(patient)} - ${patient.email}` : getPatientName(patient);
+
+const normalizeSearchText = (value: string): string =>
+  value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 
 const getDateOfBirth = (dateOfBirth?: string): string => {
   if (!dateOfBirth) return 'Date of birth not provided';
@@ -67,14 +69,14 @@ function PatientSelectInput<T extends FieldValues>({
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const selectedPatient = patients.find((patient) => patient.patientId === field.value);
+  const normalizedQuery = normalizeSearchText(query);
   const matchingPatients = patients.filter((patient) => {
-    const search = query.trim().toLocaleLowerCase();
-    return !search
-      || (patient.firstName || '').toLocaleLowerCase().includes(search)
-      || (patient.lastName || '').toLocaleLowerCase().includes(search)
-      || getPatientName(patient).toLocaleLowerCase().includes(search);
+    if (!normalizedQuery) return true;
+    return [patient.firstName, patient.lastName, getPatientName(patient), patient.email]
+      .filter((value): value is string => Boolean(value))
+      .some((value) => normalizeSearchText(value).includes(normalizedQuery));
   });
-  const visibleText = isOpen ? query : selectedPatient ? getPatientName(selectedPatient) : query;
+  const visibleText = isOpen ? query : selectedPatient ? getPatientLabel(selectedPatient) : query;
 
   useEffect(() => {
     onPatientSelected?.(selectedPatient || null);
@@ -82,7 +84,7 @@ function PatientSelectInput<T extends FieldValues>({
 
   const selectPatient = (patient: PatientOption) => {
     field.onChange(patient.patientId);
-    setQuery(getPatientName(patient));
+    setQuery(getPatientLabel(patient));
     setIsOpen(false);
     setActiveIndex(0);
     onPatientSelected?.(patient);
@@ -105,7 +107,7 @@ function PatientSelectInput<T extends FieldValues>({
       selectPatient(matchingPatients[activeIndex]);
     } else if (event.key === 'Escape') {
       setIsOpen(false);
-      setQuery(selectedPatient ? getPatientName(selectedPatient) : '');
+      setQuery(selectedPatient ? getPatientLabel(selectedPatient) : '');
     }
   };
 
@@ -129,13 +131,13 @@ function PatientSelectInput<T extends FieldValues>({
         autoComplete="off"
         value={visibleText}
         onFocus={() => {
-          setQuery(selectedPatient ? getPatientName(selectedPatient) : '');
+          setQuery('');
           setIsOpen(true);
         }}
         onBlur={() => {
           field.onBlur();
           setIsOpen(false);
-          setQuery(selectedPatient ? getPatientName(selectedPatient) : '');
+          setQuery(selectedPatient ? getPatientLabel(selectedPatient) : '');
         }}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -145,7 +147,7 @@ function PatientSelectInput<T extends FieldValues>({
           setIsOpen(true);
         }}
         onKeyDown={handleKeyDown}
-        placeholder="Type a patient name to search"
+        placeholder="Type a patient name or email to search"
         className="w-full rounded-md border border-textPrimary/10 bg-surface px-3 py-2 text-sm text-textPrimary placeholder:text-textPrimary/50 focus:border-prescriptionPrimary focus:outline-none focus:ring-2 focus:ring-prescriptionPrimary/20"
       />
 
@@ -161,7 +163,7 @@ function PatientSelectInput<T extends FieldValues>({
             <p role="alert" className="px-3 py-2 text-sm text-danger">{error}</p>
           )}
           {!loading && !error && matchingPatients.length === 0 && (
-            <p className="px-3 py-2 text-sm text-textPrimary/70">No patient found.</p>
+            <p className="px-3 py-2 text-sm text-textPrimary/70">No patients found</p>
           )}
           {!loading && !error && matchingPatients.map((patient, index) => (
             <div
@@ -176,7 +178,7 @@ function PatientSelectInput<T extends FieldValues>({
               }`}
             >
               <span className="block text-sm font-medium text-textPrimary">
-                {getPatientName(patient)}
+                {getPatientLabel(patient)}
               </span>
               <span className="block text-xs text-textPrimary/70">
                 DOB: {getDateOfBirth(patient.dateOfBirth)} · Phone: {patient.phone || 'Not provided'}
@@ -197,17 +199,21 @@ export function PatientSelect<T extends FieldValues>({
   control,
   name,
   onPatientSelected,
+  patients: providedPatients,
+  patientsLoading,
+  patientsError,
 }: PatientSelectProps<T>) {
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (providedPatients !== undefined) return;
     let cancelled = false;
     const fetchPatients = async () => {
       try {
-        const response = await api.get('/patients');
-        if (!cancelled) setPatients(getPatientList(response));
+        const authorizedPatients = await fetchAuthorizedPatients();
+        if (!cancelled) setPatients(authorizedPatients);
       } catch (err: unknown) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Could not load patients.');
@@ -220,7 +226,11 @@ export function PatientSelect<T extends FieldValues>({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [providedPatients]);
+
+  const patientOptions = providedPatients ?? patients;
+  const isLoading = patientsLoading ?? loading;
+  const loadError = patientsError ?? error;
 
   return (
     <Controller
@@ -230,9 +240,9 @@ export function PatientSelect<T extends FieldValues>({
       render={(props) => (
         <PatientSelectInput
           {...props}
-          patients={patients}
-          loading={loading}
-          error={error}
+          patients={patientOptions}
+          loading={isLoading}
+          error={loadError}
           onPatientSelected={onPatientSelected}
         />
       )}

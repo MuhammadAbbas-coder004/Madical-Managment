@@ -1,27 +1,39 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { format, isValid } from 'date-fns';
 import { FileText, PlusCircle } from 'lucide-react';
 import api from '../../shared/services/api';
+import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
-import { PatientSelect, type PatientOption } from '../molecules/PatientSelect';
+import type { PatientOption } from '../molecules/PatientSelect';
+import { SearchBar } from '../molecules/SearchBar';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 
 interface Medicine {
   name: string;
   dosage: string;
-  duration: string;
-  instructions: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
 }
 
 interface Prescription {
   _id?: string;
   prescriptionId?: string;
   patientId: string;
+  patientName?: string;
+  patientEmail?: string;
+  patient?: {
+    patientId?: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    email?: string;
+  } | null;
   doctorId: string;
   diagnosis: string;
   medicines: Medicine[];
@@ -40,11 +52,7 @@ interface PrescriptionFilter {
 }
 
 const getList = <T,>(response: unknown): T[] => {
-  if (Array.isArray(response)) return response as T[];
-  if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
-    return response.data as T[];
-  }
-  return [];
+  return parsePatientPortalList<T>(response, 'records');
 };
 
 const getPatientName = (patient: PatientOption): string =>
@@ -63,30 +71,57 @@ const formatPrescriptionDate = (value?: string): string => {
 
 export const PrescriptionListPage: React.FC = () => {
   const { patientId: routePatientId } = useParams<{ patientId: string }>();
-  return <PrescriptionListContent key={routePatientId || 'all'} routePatientId={routePatientId} />;
+  const [searchParams] = useSearchParams();
+  const queryPatientId = searchParams.get('patientId') || undefined;
+  return <PrescriptionListContent key={routePatientId || queryPatientId || 'all'} routePatientId={routePatientId || queryPatientId} />;
 };
 
 const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routePatientId }) => {
-  const { control } = useForm<PrescriptionFilter>({
-    defaultValues: { patientId: routePatientId || '' },
+  const [searchParams] = useSearchParams();
+  const { control, setValue } = useForm<PrescriptionFilter>({
+    defaultValues: { patientId: routePatientId || searchParams.get('patientId') || '' },
   });
   const selectedPatientId = useWatch({ control, name: 'patientId' }) || '';
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role.toLowerCase() === 'doctor';
+  const isPatient = user?.role.toLowerCase() === 'patient';
   const canWritePrescription = !isDoctor || user?.doctorVerificationStatus === 'verified';
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [doctorNames, setDoctorNames] = useState<Map<string, string>>(new Map());
   const [patientNames, setPatientNames] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(Boolean(routePatientId) || isDoctor);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(Boolean(routePatientId) || isDoctor || isPatient);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePatientSelected = useCallback((patient: PatientOption | null) => {
-    setSelectedPatient(patient);
-    setLoading(Boolean(patient));
-    setError(null);
-    if (!patient) setPrescriptions([]);
-  }, []);
+  useEffect(() => {
+    if (!isPatient) return;
+    let cancelled = false;
+    const loadOwnPatient = async () => {
+      try {
+        const response = await api.get('/patients/me', { skipToast: true }) as {
+          data?: PatientOption;
+        };
+        const patient = response.data;
+        if (!patient?.patientId) {
+          throw new Error('No patient profile is linked to your account.');
+        }
+        if (!cancelled) {
+          setValue('patientId', patient.patientId);
+          setSelectedPatient(patient);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load your patient profile.');
+          setLoading(false);
+        }
+      }
+    };
+    void loadOwnPatient();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPatient, setValue]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,10 +160,8 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
         if (!doctorId) throw new Error('No doctor profile is linked to your account.');
 
         const [prescriptionResponse, patientResponse] = await Promise.all([
-          api.get(`/prescriptions/doctor/${encodeURIComponent(doctorId)}`, { skipToast: true }) as Promise<{
-            data?: Prescription[];
-          }>,
-          api.get('/patients', { skipToast: true }) as Promise<{ data?: PatientOption[] }>,
+          api.get(`/prescriptions/doctor/${encodeURIComponent(doctorId)}`, { skipToast: true }),
+          api.get('/patients', { skipToast: true }),
         ]);
         if (cancelled) return;
 
@@ -137,32 +170,34 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
           ? getDoctorName(ownDoctor)
           : 'Doctor';
         setDoctorNames(new Map([[doctorId, doctorName]]));
-        const patients = Array.isArray(patientResponse.data) ? patientResponse.data : [];
+        const patients = parsePatientPortalList<PatientOption>(patientResponse, 'patients');
         setPatientNames(new Map(patients.map((patient) => [
           patient.patientId,
           getPatientName(patient),
         ])));
-        setSelectedPatient(patients.find((patient) => patient.patientId === routePatientId) || null);
-        const doctorPrescriptions = Array.isArray(prescriptionResponse.data)
-          ? prescriptionResponse.data
-          : [];
-        setPrescriptions(routePatientId
-          ? doctorPrescriptions.filter((prescription) => prescription.patientId === routePatientId)
-          : doctorPrescriptions);
+        const requestedPatientId = routePatientId || searchParams.get('patientId') || '';
+        const requestedPatient = patients.find((patient) => patient.patientId === requestedPatientId) || null;
+        setSelectedPatient(requestedPatient);
+        if (requestedPatientId && !requestedPatient) setValue('patientId', '');
+        const doctorPrescriptions = parsePatientPortalList<Prescription>(prescriptionResponse, 'prescriptions');
+        setPrescriptions(doctorPrescriptions);
       } catch (err: unknown) {
         if (!cancelled) {
           setPrescriptions([]);
-          setError(err instanceof Error ? err.message : 'Failed to load prescriptions.');
+          const message = err instanceof Error ? err.message : 'Failed to load prescriptions.';
+          setError(message);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     void fetchDoctorPrescriptions();
     return () => {
       cancelled = true;
     };
-  }, [isDoctor, routePatientId]);
+  }, [isDoctor, routePatientId, searchParams, setValue]);
 
   useEffect(() => {
     if (isDoctor || !selectedPatientId) return;
@@ -192,6 +227,37 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
 
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef, [loading]);
+  const patientFilteredPrescriptions = isDoctor
+    ? selectedPatientId
+      ? prescriptions.filter((prescription) => prescription.patientId === selectedPatientId)
+      : routePatientId
+        ? prescriptions.filter((prescription) => prescription.patientId === routePatientId)
+        : prescriptions
+    : prescriptions;
+  const normalizedSearch = search.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+  const searchablePrescriptions = isDoctor && normalizedSearch && !selectedPatientId
+    ? prescriptions
+    : patientFilteredPrescriptions;
+  const displayedPrescriptions = normalizedSearch
+    ? searchablePrescriptions.filter((prescription) => {
+      const patientName = prescription.patientName
+        || prescription.patient?.fullName
+        || [prescription.patient?.firstName, prescription.patient?.lastName].filter(Boolean).join(' ')
+        || patientNames.get(prescription.patientId)
+        || '';
+      const patientEmail = prescription.patientEmail || prescription.patient?.email || '';
+      const searchableValues = [
+        patientName,
+        patientEmail,
+        prescription.patientId,
+        prescription.diagnosis,
+        ...prescription.medicines.map((medicine) => medicine.name),
+      ];
+      return searchableValues.some((value) =>
+        value.trim().toLocaleLowerCase().replace(/\s+/g, ' ').includes(normalizedSearch)
+      );
+    })
+    : patientFilteredPrescriptions;
 
   return (
     <DashboardLayout>
@@ -212,7 +278,7 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
                 ? selectedPatient
                   ? `Prescriptions issued for ${getPatientName(selectedPatient)}.`
                   : 'Prescriptions you have issued to your patients.'
-                : 'Choose a patient to view their prescriptions.'}
+                : 'Prescriptions recorded for your patient profile.'}
             </p>
           </div>
           {canWritePrescription && (
@@ -226,15 +292,13 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
           )}
         </div>
 
-        {!isDoctor && (
-          <div className="mb-6 max-w-lg">
-            <PatientSelect
-              control={control}
-              name="patientId"
-              onPatientSelected={handlePatientSelected}
-            />
-          </div>
-        )}
+        <div className="mb-6 max-w-lg">
+          <SearchBar
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by patient name or email"
+          />
+        </div>
 
         {loading && (
           <div className="flex items-center justify-center py-16 text-prescriptionPrimary">
@@ -249,27 +313,31 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
           </div>
         )}
 
-        {!loading && !error && !isDoctor && !selectedPatientId && (
+        {!loading && !error && !isDoctor && !isPatient && !selectedPatientId && (
           <Card className="rounded-md border-textPrimary/10 bg-surface shadow-sm">
             <p className="py-4 text-center text-sm text-textPrimary/70">Choose a patient to view prescriptions.</p>
           </Card>
         )}
 
-        {!loading && !error && (isDoctor || selectedPatientId) && prescriptions.length === 0 && (
+        {!loading && !error && (isDoctor || selectedPatientId) && displayedPrescriptions.length === 0 && (
           <Card className="rounded-md border-textPrimary/10 bg-surface shadow-sm">
             <p className="py-4 text-center text-sm text-textPrimary/70">
               {isDoctor
-                ? selectedPatient
+                ? normalizedSearch
+                  ? 'No prescriptions found for this search'
+                  : selectedPatientId
                   ? 'No prescriptions have been issued for this patient yet.'
                   : 'No prescriptions have been issued yet.'
-                : 'No prescriptions for this patient yet.'}
+                : normalizedSearch
+                  ? 'No prescriptions found for this search'
+                  : 'No prescriptions for this patient yet.'}
             </p>
           </Card>
         )}
 
-        {!loading && !error && prescriptions.length > 0 && (
+        {!loading && !error && displayedPrescriptions.length > 0 && (
           <div className="space-y-4">
-            {prescriptions.map((prescription, index) => (
+            {displayedPrescriptions.map((prescription, index) => (
               <Card
                 key={prescription.prescriptionId || prescription._id || index}
                 className={`rounded-md border-textPrimary/10 bg-surface shadow-sm ${isDoctor ? 'transition-shadow hover:shadow-md' : ''}`}
@@ -292,7 +360,8 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
                     </p>
                     {isDoctor && (
                       <p className="mt-1 text-xs text-textPrimary/70">
-                        Patient: {patientNames.get(prescription.patientId) || prescription.patientId}
+                        Patient: {prescription.patientName || prescription.patient?.fullName || patientNames.get(prescription.patientId) || prescription.patientId}
+                        {(prescription.patientEmail || prescription.patient?.email) && ` · ${prescription.patientEmail || prescription.patient?.email}`}
                       </p>
                     )}
                     <ul className="mt-3 space-y-2">
@@ -304,6 +373,7 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
                           <p className="font-semibold">{medicine.name}</p>
                           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-textPrimary/70">
                             {medicine.dosage && <span>Dosage: {medicine.dosage}</span>}
+                            {medicine.frequency && <span>Frequency: {medicine.frequency}</span>}
                             {medicine.duration && <span>Duration: {medicine.duration}</span>}
                             {medicine.instructions && <span>Instructions: {medicine.instructions}</span>}
                           </div>

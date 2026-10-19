@@ -1,34 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, RefreshCw } from 'lucide-react';
 import api from '../../shared/services/api';
+import { fetchPatientVitals, type VitalsRecord } from '../../shared/services/vitals';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Badge } from '../atoms/Badge';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 
-interface VitalsRecord {
-  vitalsId: string;
-  patientId: string;
-  bloodPressureSystolic: number;
-  bloodPressureDiastolic: number;
-  sugarLevel: number;
-  temperature: number;
-  heartRate: number;
-  pulseRate: number;
-  rbcCount: number;
-  wbcCount: number;
-  recordedAt: string;
-  analysis?: {
-    status?: 'normal' | 'warning' | 'critical';
-    flaggedParams?: string[];
-    message?: string;
-  };
-}
-
 const statusVariant = (status?: string): 'success' | 'warning' | 'danger' => {
   if (status === 'critical') return 'danger';
-  if (status === 'warning') return 'warning';
+  if (status === 'warning' || status === 'inconclusive') return 'warning';
   return 'success';
 };
 
@@ -36,12 +18,15 @@ export const PatientVitalsPage: React.FC = () => {
   const [records, setRecords] = useState<VitalsRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchMyVitals = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const profileResponse = await api.get('/patients/me') as {
           data?: { patientId?: string };
         };
@@ -50,10 +35,8 @@ export const PatientVitalsPage: React.FC = () => {
           throw new Error('No patient profile is linked to your account.');
         }
 
-        const response = await api.get(
-          `/vitals/patient/${encodeURIComponent(patientId)}`
-        ) as { data?: VitalsRecord[] };
-        if (!cancelled) setRecords(Array.isArray(response.data) ? response.data : []);
+        const vitals = await fetchPatientVitals(patientId);
+        if (!cancelled) setRecords(vitals);
       } catch (err: unknown) {
         if (!cancelled) {
           setRecords([]);
@@ -68,7 +51,7 @@ export const PatientVitalsPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef, [loading]);
@@ -81,6 +64,16 @@ export const PatientVitalsPage: React.FC = () => {
           <p className="text-sm text-textSecondary mt-1">
             Review your recorded vital signs and analysis reports.
           </p>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((key) => key + 1)}
+            disabled={loading}
+            aria-label="Refresh my vitals"
+            className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-textPrimary hover:bg-background disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            Refresh
+          </button>
         </div>
 
         {loading && (
@@ -111,21 +104,32 @@ export const PatientVitalsPage: React.FC = () => {
                     <div>
                       <div className="mb-2 flex items-center gap-2">
                         <Badge variant={statusVariant(record.analysis?.status)}>
-                          {record.analysis?.status || 'normal'}
+                          {record.analysis?.status || (record.selectedMetrics ? 'scan' : 'normal')}
                         </Badge>
                         <span className="text-xs text-textSecondary">
                           {new Date(record.recordedAt).toLocaleString()}
                         </span>
                       </div>
+                      {record.selectedMetrics?.length ? (
                       <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-textSecondary sm:grid-cols-4">
-                        <span>Blood pressure: {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg</span>
-                        <span>Heart rate: {record.heartRate} bpm</span>
-                        <span>Pulse rate: {record.pulseRate} bpm</span>
-                        <span>Blood sugar: {record.sugarLevel} mg/dL</span>
-                        <span>Temperature: {record.temperature} °F</span>
-                        <span>RBC count: {record.rbcCount} million/µL</span>
-                        <span>WBC count: {record.wbcCount} cells/µL</span>
+                        {record.selectedMetrics.includes('heartRate') && <span>Heart rate: {record.heartRate ?? 'Could not measure'}{record.heartRate ? ' bpm' : ''}</span>}
+                        {record.selectedMetrics.includes('breathingRate') && <span>Breathing rate: {record.breathingRate ?? 'Could not measure'}{record.breathingRate ? ' breaths/min' : ''}</span>}
+                        {record.selectedMetrics.includes('hrv') && <span>Stress / HRV: {record.hrv ?? 'Could not measure'}</span>}
+                        {record.spo2 !== undefined && <span>SpO2: {record.spo2}%</span>}
+                        {record.bloodPressure && <span>Blood pressure: {record.bloodPressure.systolic}/{record.bloodPressure.diastolic} mmHg</span>}
+                        <span>Estimated values for general wellness. Not a medical diagnosis.</span>
                       </div>
+                      ) : (
+                      <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-textSecondary sm:grid-cols-4">
+                        {record.bloodPressureSystolic !== undefined && <span>Blood pressure: {record.bloodPressureSystolic}/{record.bloodPressureDiastolic} mmHg</span>}
+                        {record.heartRate !== undefined && <span>Heart rate: {record.heartRate} bpm</span>}
+                        {record.pulseRate !== undefined && <span>Pulse rate: {record.pulseRate} bpm</span>}
+                        {record.sugarLevel !== undefined && <span>Blood sugar: {record.sugarLevel} mg/dL</span>}
+                        <span>Temperature: {record.temperature ?? '�'} °F</span>
+                        <span>RBC count: {record.rbcCount ?? '�'} million/µL</span>
+                        <span>WBC count: {record.wbcCount ?? '�'} cells/µL</span>
+                      </div>
+                      )}
                       {record.analysis?.message && (
                         <p className="mt-2 text-sm text-textPrimary">{record.analysis.message}</p>
                       )}

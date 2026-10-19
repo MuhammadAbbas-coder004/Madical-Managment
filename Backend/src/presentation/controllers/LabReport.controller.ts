@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { LabReportModel } from '../../infrastructure/database/schemas/LabReport.schema';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
+import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 import { AppError } from '../../domain/errors/AppError';
 
 export class LabReportController {
@@ -19,6 +21,16 @@ export class LabReportController {
         throw new AppError(400, 'patientId is required in the URL parameters');
       }
 
+      const patientExists = await PatientModel.exists({ patientId });
+      if (!patientExists) throw new AppError(404, 'Patient not found');
+
+      // Attribution comes only from the authenticated account. Never trust a
+      // doctorId supplied by the client.
+      const doctorId = user.role === 'doctor' ? await ensureUserProfile(user) : undefined;
+      if (user.role === 'doctor' && !doctorId) {
+        throw new AppError(403, 'No doctor profile is linked to this account');
+      }
+
       const testName = typeof req.body.testName === 'string' ? req.body.testName.trim() : '';
       const result = typeof req.body.result === 'string' ? req.body.result.trim() : '';
       if (!testName || !result) {
@@ -27,6 +39,7 @@ export class LabReportController {
 
       const labReport = new LabReportModel({
         patientId,
+        ...(doctorId ? { doctorId } : {}),
         testName,
         result,
         uploadedAt: new Date(),
@@ -72,7 +85,7 @@ export class LabReportController {
         throw new AppError(403, 'Forbidden');
       }
 
-      console.log(`[LabReport] Fetching lab reports for patientId: ${targetPatientId}`);
+      console.log('[LabReport] Fetching patient reports.');
       const reports = await LabReportModel.find({ patientId: targetPatientId }).sort({ uploadedAt: -1 });
 
       res.status(200).json({

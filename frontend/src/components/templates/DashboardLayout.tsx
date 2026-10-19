@@ -1,5 +1,5 @@
 // Provides shared navigation and optional spoken critical alerts.
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import {
@@ -25,13 +25,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { COOKIE_SESSION, useAuthStore, type User } from '../../store/authStore';
+import { useAuthStore } from '../../store/authStore';
 import { useAlerts } from '../../shared/hooks/useAlerts';
 import { ANIMATION } from '../../shared/utils/constants';
 import { socket } from '../../shared/services/socket';
 import { useSpeech } from '../../shared/hooks/useSpeech';
 import { useVoiceStore } from '../../store/voiceStore';
-import api from '../../shared/services/api';
 import { AivoraLogo } from '../atoms/AivoraLogo';
 import './DoctorDashboard.css';
 
@@ -40,9 +39,8 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, logout, login } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const isDoctorWorkspace = user?.role?.toLowerCase() === 'doctor';
-  const doctorVerificationStatus = user?.doctorVerificationStatus;
   const navigate = useNavigate();
   const location = useLocation();
   const contentRef = useRef<HTMLElement>(null);
@@ -53,8 +51,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const [desktopCollapsed, setDesktopCollapsed] = useState(
     () => typeof window !== 'undefined' && window.localStorage.getItem('doctor-sidebar-collapsed') === 'true'
   );
-  const [verificationRefreshing, setVerificationRefreshing] = useState(false);
-  const [verificationRefreshError, setVerificationRefreshError] = useState<string | null>(null);
   const isInitialMount = useRef(true);
   const autoAlerts = useVoiceStore((state) => state.autoAlerts);
   const setAutoAlerts = useVoiceStore((state) => state.setAutoAlerts);
@@ -67,55 +63,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   }, [desktopCollapsed, isDoctorWorkspace]);
 
   useAlerts();
-
-  const refreshDoctorStatus = useCallback(async () => {
-    if (!isDoctorWorkspace) return;
-    setVerificationRefreshing(true);
-    setVerificationRefreshError(null);
-    try {
-      const response = await api.get('/auth/session', { skipToast: true }) as { user?: User };
-      if (!response.user) {
-        throw new Error('The server did not return your current account status.');
-      }
-      const current = useAuthStore.getState();
-      if (current.user?.id === response.user.id) {
-        login(response.user, current.token ?? COOKIE_SESSION);
-      }
-    } catch (error: unknown) {
-      setVerificationRefreshError(
-        error instanceof Error ? error.message : 'Unable to refresh verification status.'
-      );
-    } finally {
-      setVerificationRefreshing(false);
-    }
-  }, [isDoctorWorkspace, login]);
-
-  useEffect(() => {
-    if (!isDoctorWorkspace) return;
-    let active = true;
-    const loadCurrentDoctorStatus = async () => {
-      try {
-        const response = await api.get('/auth/session', { skipToast: true }) as { user?: User };
-        if (!response.user) {
-          throw new Error('The server did not return your current account status.');
-        }
-        const current = useAuthStore.getState();
-        if (active && current.user?.id === response.user.id) {
-          login(response.user, current.token ?? COOKIE_SESSION);
-        }
-      } catch (error: unknown) {
-        if (active) {
-          setVerificationRefreshError(
-            error instanceof Error ? error.message : 'Unable to refresh verification status.'
-          );
-        }
-      }
-    };
-    void loadCurrentDoctorStatus();
-    return () => {
-      active = false;
-    };
-  }, [isDoctorWorkspace, login]);
 
   useEffect(() => {
     if (!autoAlerts || isDoctorWorkspace) return;
@@ -281,6 +228,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         { label: 'Prescriptions',    path: '/prescriptions',  icon: FileText         },
         { label: 'Medical Records',  path: '/medical-records',icon: ClipboardList    },
         { label: 'Lab Reports',      path: '/lab-reports',    icon: FlaskConical     },
+        { label: 'Billing',          path: '/billing',        icon: CreditCard       },
         { label: 'Manage Face Scan', path: '/face-enrollment-prompt', icon: ScanFace },
       ];
     }
@@ -291,8 +239,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         { label: 'My Appointments',  path: '/appointments',   icon: Calendar         },
         { label: 'My Vitals',        path: '/vitals',         icon: Activity         },
         { label: 'My Prescriptions', path: '/prescriptions',  icon: FileText         },
+        { label: 'My Medical Records', path: '/medical-records', icon: ClipboardList },
         { label: 'My Lab Reports',   path: '/lab-reports',    icon: FlaskConical     },
         { label: 'My Bills',         path: '/billing',        icon: Receipt          },
+        { label: 'Manage Face Scan', path: '/face-enrollment-prompt', icon: ScanFace },
       ];
     }
 
@@ -622,56 +572,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           }`}
         >
           <div className={`mx-auto w-full max-w-[1100px] ${isDoctorWorkspace ? 'doctor-content-shell' : ''}`}>
-            {isDoctorWorkspace && (doctorVerificationStatus === 'pending' || doctorVerificationStatus === 'rejected') && (
-              <div
-                role="status"
-                className={`doctor-verification-card mb-6 flex items-start gap-3 rounded-xl border p-4 shadow-card ${
-                  doctorVerificationStatus === 'rejected'
-                    ? 'border-danger/20 bg-surface/95 text-danger'
-                    : 'border-warning/30 bg-surface/95 text-textPrimary'
-                }`}
-              >
-                <ScanFace
-                  className={`mt-0.5 h-5 w-5 shrink-0 ${
-                    doctorVerificationStatus === 'rejected' ? 'text-danger' : 'text-warning'
-                  }`}
-                  aria-hidden="true"
-                />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">
-                      {doctorVerificationStatus === 'rejected'
-                        ? 'Doctor verification was not approved'
-                        : 'Clinical access is pending verification'}
-                    </p>
-                    <span className={`doctor-status-badge ${doctorVerificationStatus}`}>
-                      {doctorVerificationStatus === 'rejected' ? 'Review required' : 'Pending verification'}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-textSecondary">
-                    {doctorVerificationStatus === 'rejected'
-                      ? 'Patient records and clinical actions are restricted. Please contact an administrator about your credentials.'
-                      : 'Your credentials are awaiting administrator review. Patient records and clinical actions remain restricted until approval.'}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void refreshDoctorStatus()}
-                      disabled={verificationRefreshing}
-                      className="doctor-status-refresh"
-                    >
-                      {verificationRefreshing ? 'Refreshing status…' : 'Refresh status'}
-                    </button>
-                    {verificationRefreshError && (
-                      <span role="alert" className="doctor-status-error">{verificationRefreshError}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div key={isDoctorWorkspace ? doctorVerificationStatus : 'non-doctor-page'}>
-              {children}
-            </div>
+            {children}
           </div>
         </main>
       </div>

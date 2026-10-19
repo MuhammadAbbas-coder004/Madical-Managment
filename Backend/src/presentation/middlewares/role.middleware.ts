@@ -1,30 +1,10 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from './auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
-import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
 import { AppointmentModel } from '../../infrastructure/database/schemas/Appointment.schema';
+import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 
-const doctorVerificationMessage = 'Doctor account verification is pending';
-const doctorRejectedMessage = 'Doctor verification was not approved. Please contact an administrator.';
-const doctorStatusUnavailableMessage = 'Doctor verification is required before clinical access can be granted.';
-
-const getDoctorVerificationMessage = async (userId: string): Promise<string | null> => {
-  const user = await UserModel.findById(userId).select('role doctorVerificationStatus');
-  if (user?.role !== 'doctor') return doctorStatusUnavailableMessage;
-  if (user.doctorVerificationStatus === 'verified') return null;
-  if (user.doctorVerificationStatus === 'pending') return doctorVerificationMessage;
-  if (user.doctorVerificationStatus === 'rejected') return doctorRejectedMessage;
-  return doctorStatusUnavailableMessage;
-};
-
-/**
- * Role-based authorization middleware.
- * Runs after authMiddleware.
- * Validates req.user.role against the allowed roles.
- * Admin has full access. Doctors must be approved before accessing clinician routes.
- * Returns 403 Forbidden if the role is not allowed or doctor approval is pending.
- */
-export const requireRole = (...roles: string[]) => {
+const createRequireRole = (roles: string[]) => {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user || !req.user.role) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -47,22 +27,17 @@ export const requireRole = (...roles: string[]) => {
       return;
     }
 
-    if (userRole === 'doctor') {
-      const verificationMessage = req.user.userId
-        ? await getDoctorVerificationMessage(req.user.userId)
-        : doctorStatusUnavailableMessage;
-      if (verificationMessage) {
-        res.status(403).json({
-          success: false,
-          message: verificationMessage,
-        });
-        return;
-      }
-    }
-
     next();
   };
 };
+
+/**
+ * Role-based authorization middleware.
+ * Runs after authMiddleware.
+ * Validates req.user.role against the allowed roles.
+ * Returns 403 Forbidden if the role is not allowed.
+ */
+export const requireRole = (...roles: string[]) => createRequireRole(roles);
 
 /**
  * Ensures patients can only access their own records and doctors only access assigned patients.
@@ -74,10 +49,16 @@ export const requireRole = (...roles: string[]) => {
  *     2. Returns 403 Forbidden if patient tries to access another patient's data.
  *     3. Forces patientId parameter from the authenticated user token.
  */
+interface PatientAccessOptions {
+  allowUnassignedDoctorRead?: boolean;
+}
+
 export const requirePatientSelfOrRole = (
   paramName: string = 'patientId',
-  ...allowedStaffRoles: string[]
+  ...accessRules: Array<string | PatientAccessOptions>
 ) => {
+  const options = accessRules.find((rule): rule is PatientAccessOptions => typeof rule === 'object') || {};
+  const allowedStaffRoles = accessRules.filter((rule): rule is string => typeof rule === 'string');
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user || !req.user.role) {
@@ -96,28 +77,21 @@ export const requirePatientSelfOrRole = (
       }
 
       if (staffRoles.includes(userRole)) {
-        if (userRole === 'doctor') {
-          const verificationMessage = req.user.userId
-            ? await getDoctorVerificationMessage(req.user.userId)
-            : doctorStatusUnavailableMessage;
-          if (verificationMessage) {
-            res.status(403).json({
-              success: false,
-              message: verificationMessage,
-            });
-            return;
-          }
-        }
-        if (userRole === 'doctor') {
+        if (userRole === 'doctor' && !options.allowUnassignedDoctorRead) {
           const targetPatientId =
             req.params[paramName] ||
             req.body?.[paramName] ||
             (req.query?.[paramName] as string | undefined);
           if (targetPatientId) {
+            const persistedUser = req.user.userId ? await UserModel.findById(req.user.userId) : null;
+            const doctorId = persistedUser?.role === 'doctor'
+              ? await ensureUserProfile(persistedUser)
+              : undefined;
+            if (doctorId) req.user.linkedId = doctorId;
             if (
-              !req.user.linkedId ||
+              !doctorId ||
               !(await AppointmentModel.exists({
-                doctorId: req.user.linkedId,
+                doctorId,
                 patientId: String(targetPatientId),
               }))
             ) {
@@ -135,17 +109,20 @@ export const requirePatientSelfOrRole = (
 
       // Patients must only access their own records
       if (userRole === 'patient') {
-        const targetPatientId = req.params[paramName] || req.body?.[paramName] || (req.query?.[paramName] as string | undefined);
         let patientLinkedId = req.user.linkedId;
 
-        // Resolve linkedId if not in token
-        if (!patientLinkedId && req.user.userId) {
-          const user = await UserModel.findById(req.user.userId);
-          patientLinkedId = user?.linkedId;
-          if (!patientLinkedId && user?.email) {
-            const patient = await PatientModel.findOne({ email: user.email });
-            patientLinkedId = patient?.patientId;
+        // Resolve the canonical profile by the authenticated Mongo user ID. A stale JWT
+        // linkedId must not hide the patient's own records or point at another profile.
+        if (req.user.userId) {
+          const persistedUser = await UserModel.findById(req.user.userId);
+          if (!persistedUser || persistedUser.role !== 'patient') {
+            res.status(403).json({
+              success: false,
+              message: 'Forbidden: No patient profile linked to this account',
+            });
+            return;
           }
+          patientLinkedId = await ensureUserProfile(persistedUser);
         }
 
         if (!patientLinkedId) {
@@ -155,6 +132,8 @@ export const requirePatientSelfOrRole = (
           });
           return;
         }
+
+        const targetPatientId = req.params[paramName] || req.body?.[paramName] || (req.query?.[paramName] as string | undefined);
 
         // Return 403 Forbidden if patient attempts to access another patient's records
         if (targetPatientId && String(targetPatientId) !== String(patientLinkedId)) {

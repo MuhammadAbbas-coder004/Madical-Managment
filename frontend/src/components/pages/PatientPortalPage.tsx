@@ -6,14 +6,17 @@ import {
   Calendar,
   Pill,
   Clock,
+  Download,
 } from 'lucide-react';
 
 import api from '../../shared/services/api';
+import { parsePatientPortalList } from '../../shared/services/patientPortal';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Badge } from '../atoms/Badge';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
+import { downloadPrescriptionPdf } from '../../shared/services/prescriptionPdf';
 
 interface PatientPortalData {
   patient: {
@@ -33,45 +36,48 @@ interface PatientPortalData {
   }>;
   prescriptions?: Array<{
     prescriptionId: string;
+    doctorId: string;
+    doctorName: string;
     diagnosis: string;
     createdAt: string;
     medicines: Array<{
       name: string;
       dosage: string;
-      duration: string;
-      instructions: string;
+      frequency?: string;
+      duration?: string;
+      instructions?: string;
     }>;
+  }>;
+  medicalRecords?: Array<{
+    recordId: string;
+    patientId: string;
+    doctorId: string;
+    doctorName?: string;
+    diagnosis: string;
+    notes?: string;
+    allergies: string[];
+    createdAt: string;
   }>;
   vitals?: Array<{
     vitalsId: string;
-    bloodPressureSystolic: number;
-    bloodPressureDiastolic: number;
-    heartRate: number;
-    sugarLevel: number;
-    temperature: number;
+    bloodPressureSystolic?: number;
+    bloodPressureDiastolic?: number;
+    heartRate?: number;
+    sugarLevel?: number;
+    temperature?: number;
+    breathingRate?: number;
+    hrv?: number;
+    stressLevel?: number;
+    bloodPressure?: { systolic: number; diastolic: number };
+    spo2?: number;
+    selectedMetrics?: string[];
     recordedAt: string;
     analysis?: {
-      status?: 'normal' | 'warning' | 'critical';
+      status?: 'normal' | 'warning' | 'critical' | 'inconclusive';
     };
   }>;
+  loadErrors?: Partial<Record<'appointments' | 'prescriptions' | 'vitals' | 'medicalRecords', string>>;
 }
-
-interface ApiList<T> {
-  data?: T[];
-}
-
-const getList = <T,>(response: unknown): T[] => {
-  if (Array.isArray(response)) return response as T[];
-  if (
-    response &&
-    typeof response === 'object' &&
-    'data' in response &&
-    Array.isArray(response.data)
-  ) {
-    return response.data as T[];
-  }
-  return [];
-};
 
 export const PatientPortalPage: React.FC = () => {
   const [data, setData] = useState<PatientPortalData | null>(null);
@@ -92,18 +98,35 @@ export const PatientPortalPage: React.FC = () => {
         }
 
         const patientId = encodeURIComponent(profileResponse.data.patientId);
-        const [appointmentsResponse, prescriptionsResponse, vitalsResponse] = await Promise.all([
-          api.get(`/appointments/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['appointments']>[number]>>,
-          api.get(`/prescriptions/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['prescriptions']>[number]>>,
-          api.get(`/vitals/patient/${patientId}`) as Promise<ApiList<NonNullable<PatientPortalData['vitals']>[number]>>,
+        const results = await Promise.allSettled([
+          api.get(`/appointments/patient/${patientId}`, { skipToast: true }),
+          api.get(`/prescriptions/patient/${patientId}`, { skipToast: true }),
+          api.get(`/vitals/patient/${patientId}`, { skipToast: true }),
+          api.get(`/medical-records/patient/${patientId}`, { skipToast: true }),
         ]);
 
         if (!cancelled) {
+          const sectionErrors: NonNullable<PatientPortalData['loadErrors']> = {};
+          const readList = <T,>(index: number, name: 'appointments' | 'prescriptions' | 'vitals' | 'medicalRecords'): T[] => {
+            const result = results[index];
+            if (result.status === 'rejected') {
+              sectionErrors[name] = result.reason instanceof Error ? result.reason.message : `Failed to load ${name}.`;
+              return [];
+            }
+            try {
+              return parsePatientPortalList<T>(result.value, name);
+            } catch (error: unknown) {
+              sectionErrors[name] = error instanceof Error ? error.message : `The ${name} response was invalid.`;
+              return [];
+            }
+          };
           setData({
             patient: profileResponse.data,
-            appointments: getList(appointmentsResponse),
-            prescriptions: getList(prescriptionsResponse),
-            vitals: getList(vitalsResponse),
+            appointments: readList<NonNullable<PatientPortalData['appointments']>[number]>(0, 'appointments'),
+            prescriptions: readList<NonNullable<PatientPortalData['prescriptions']>[number]>(1, 'prescriptions'),
+            vitals: readList<NonNullable<PatientPortalData['vitals']>[number]>(2, 'vitals'),
+            medicalRecords: readList<NonNullable<PatientPortalData['medicalRecords']>[number]>(3, 'medicalRecords'),
+            loadErrors: sectionErrors,
           });
         }
       } catch (err: unknown) {
@@ -198,7 +221,9 @@ export const PatientPortalPage: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="My Scheduled Appointments">
-              {(!data.appointments || data.appointments.length === 0) ? (
+              {data.loadErrors?.appointments ? (
+                <p role="alert" className="py-4 text-center text-xs text-danger">{data.loadErrors.appointments}</p>
+              ) : !data.appointments || data.appointments.length === 0 ? (
                 <p className="text-xs text-textSecondary py-4 text-center">
                   No appointments scheduled.
                 </p>
@@ -238,7 +263,9 @@ export const PatientPortalPage: React.FC = () => {
             </Card>
 
             <Card title="My Active Prescriptions">
-              {(!data.prescriptions || data.prescriptions.length === 0) ? (
+              {data.loadErrors?.prescriptions ? (
+                <p role="alert" className="py-4 text-center text-xs text-danger">{data.loadErrors.prescriptions}</p>
+              ) : !data.prescriptions || data.prescriptions.length === 0 ? (
                 <p className="text-xs text-textSecondary py-4 text-center">
                   No active prescriptions on file.
                 </p>
@@ -253,10 +280,30 @@ export const PatientPortalPage: React.FC = () => {
                         <span className="font-semibold text-textPrimary">
                           {presc.diagnosis}
                         </span>
-                        <span className="text-textSecondary">
-                          {new Date(presc.createdAt).toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-textSecondary">
+                            {new Date(presc.createdAt).toLocaleDateString()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => downloadPrescriptionPdf({
+                              patientName: data.patient.fullName || `${data.patient.firstName || ''} ${data.patient.lastName || ''}`.trim(),
+                              doctorName: presc.doctorName,
+                              diagnosis: presc.diagnosis,
+                              createdAt: presc.createdAt,
+                              medicines: presc.medicines.map((medicine) => ({
+                                ...medicine,
+                                frequency: medicine.frequency || 'Not provided',
+                              })),
+                            })}
+                            className="inline-flex items-center gap-1 rounded border border-textPrimary/10 px-2 py-1 font-medium text-primary hover:bg-primary/5"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Download PDF
+                          </button>
+                        </div>
                       </div>
+                      <p className="mb-2 text-textSecondary">Doctor: {presc.doctorName}</p>
 
                       <div className="space-y-1">
                         {presc.medicines?.map((med, idx) => (
@@ -267,7 +314,9 @@ export const PatientPortalPage: React.FC = () => {
                             <Pill className="w-3.5 h-3.5 text-primary shrink-0" />
                             <span className="font-medium text-textPrimary">{med.name}</span>
                             <span>• {med.dosage}</span>
-                            <span>({med.duration})</span>
+                            {med.frequency && <span>Frequency: {med.frequency}</span>}
+                            {med.duration && <span>Duration: {med.duration}</span>}
+                            {med.instructions && <span>Instructions: {med.instructions}</span>}
                           </div>
                         ))}
                       </div>
@@ -278,8 +327,34 @@ export const PatientPortalPage: React.FC = () => {
             </Card>
           </div>
 
+          <Card title="My Medical Records">
+            {data.loadErrors?.medicalRecords ? (
+              <p role="alert" className="py-4 text-center text-xs text-danger">{data.loadErrors.medicalRecords}</p>
+            ) : !data.medicalRecords || data.medicalRecords.length === 0 ? (
+              <p className="py-4 text-center text-xs text-textSecondary">No medical records on file.</p>
+            ) : (
+              <div className="space-y-3">
+                {data.medicalRecords.map((record) => (
+                  <div key={record.recordId} className="rounded-md border border-textPrimary/10 bg-background p-3 text-xs">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-semibold text-textPrimary">{record.diagnosis}</span>
+                      <span className="text-textSecondary">{new Date(record.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <p className="whitespace-pre-line text-textSecondary">{record.notes || 'No additional notes provided.'}</p>
+                    <p className="mt-2 text-textSecondary">Doctor: {record.doctorName || record.doctorId}</p>
+                    {record.allergies?.length > 0 && (
+                      <p className="mt-2 text-textSecondary">Allergies: {record.allergies.join(', ')}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           <Card title="Recent Biometric Vitals">
-            {(!data.vitals || data.vitals.length === 0) ? (
+            {data.loadErrors?.vitals ? (
+              <p role="alert" className="py-4 text-center text-xs text-danger">{data.loadErrors.vitals}</p>
+            ) : !data.vitals || data.vitals.length === 0 ? (
               <p className="text-xs text-textSecondary py-4 text-center">
                 No recent vitals recorded.
               </p>
@@ -303,17 +378,22 @@ export const PatientPortalPage: React.FC = () => {
                           {new Date(v.recordedAt).toLocaleDateString()}
                         </td>
                         <td className="py-2.5 px-3">
-                          {v.bloodPressureSystolic}/{v.bloodPressureDiastolic} mmHg
+                          {v.bloodPressure ? `${v.bloodPressure.systolic}/${v.bloodPressure.diastolic} mmHg` : v.bloodPressureSystolic !== undefined ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic} mmHg` : '—'}
                         </td>
-                        <td className="py-2.5 px-3">{v.heartRate} bpm</td>
-                        <td className="py-2.5 px-3">{v.sugarLevel} mg/dL</td>
+                        <td className="py-2.5 px-3">
+                          {v.heartRate !== undefined ? `${v.heartRate} bpm` : v.selectedMetrics?.includes('heartRate') ? 'Could not measure' : '—'}
+                          {v.selectedMetrics?.includes('breathingRate') && <div>Breathing: Could not measure</div>}
+                          {v.selectedMetrics?.includes('hrv') && <div>Stress / HRV: Could not measure</div>}
+                          {v.selectedMetrics && <div className="text-[10px] text-textSecondary">Estimated wellness values, not a diagnosis.</div>}
+                        </td>
+                        <td className="py-2.5 px-3">{v.sugarLevel !== undefined ? `${v.sugarLevel} mg/dL` : '—'}</td>
                         <td className="py-2.5 px-3">{v.temperature}°F</td>
                         <td className="py-2.5 px-3 text-right">
                           <Badge
                             variant={
                               v.analysis?.status === 'critical'
                                 ? 'danger'
-                                : v.analysis?.status === 'warning'
+                                : v.analysis?.status === 'warning' || v.analysis?.status === 'inconclusive'
                                 ? 'warning'
                                 : 'success'
                             }

@@ -229,7 +229,7 @@ describe('face verification account authentication', () => {
       email: `${role}@example.invalid`,
       role,
       status: 'active',
-      doctorVerificationStatus: role === 'doctor' ? 'pending' : undefined,
+      doctorVerificationStatus: role === 'doctor' ? 'verified' : undefined,
       faceEnrollmentStatus: 'enrolled',
       faceConsentAt: new Date(),
       save: vi.fn().mockResolvedValue(undefined),

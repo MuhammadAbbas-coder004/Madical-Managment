@@ -99,10 +99,8 @@ const startServer = async (): Promise<void> => {
 
 void startServer().catch((error: unknown) => {
   const errorName = error instanceof Error ? error.name : 'UnknownError';
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const sanitizedMessage = errorMessage.replace(/:([^@/]+)@/, ':***@');
   console.error(
-    `❌ Backend startup failed (${errorName}): ${sanitizedMessage}\n` +
+    `❌ Backend startup failed (${errorName}).\n` +
       'The API was not started because required services are unavailable.'
   );
   process.exit(1);

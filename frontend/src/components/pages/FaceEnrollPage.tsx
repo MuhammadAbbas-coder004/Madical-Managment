@@ -229,11 +229,11 @@ export const FaceEnrollPage: React.FC = () => {
                 setError('');
                 setIsEnrollmentOpen(true);
               }}
-              disabled={isLoading || !enrollmentAvailable}
+              disabled={isLoading}
               className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#C7FFBE] px-4 text-sm font-semibold text-[#171B1A] hover:bg-[#d8ffd1] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ScanFace className="h-4 w-4" aria-hidden="true" />
-              Enroll my face
+              {enrollmentAvailable ? 'Enroll my face' : 'Preview camera'}
             </button>
           )}
           {isEnrolled && (
@@ -264,6 +264,7 @@ export const FaceEnrollPage: React.FC = () => {
         onClose={() => setIsEnrollmentOpen(false)}
         mode="enrollment"
         onEnrollmentCapture={enrollFaceWithSession}
+        captureDisabled={!enrollmentAvailable}
       />
     </main>
   );

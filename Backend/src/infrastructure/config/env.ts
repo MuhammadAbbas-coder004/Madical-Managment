@@ -7,16 +7,24 @@ const inheritedGoogleEnvironment = {
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
 };
 const backendEnvPath = resolve(__dirname, '../../../.env');
-const dotenvResult = dotenv.config({ path: backendEnvPath, override: true });
+const developmentEnvPath = resolve(__dirname, '../../../.env.development');
+const requestedNodeEnv = process.env.NODE_ENV?.trim();
+const environmentFiles = requestedNodeEnv === 'development' || requestedNodeEnv === 'test'
+  ? [developmentEnvPath, backendEnvPath]
+  : [backendEnvPath];
+const dotenvResult = dotenv.config({ path: environmentFiles });
 const backendEnvValues = dotenvResult.parsed || {};
 
 const googleConfigSource = (key: keyof typeof inheritedGoogleEnvironment): string => {
-  if (backendEnvValues[key]) {
-    return inheritedGoogleEnvironment[key] && inheritedGoogleEnvironment[key] !== backendEnvValues[key]
-      ? 'Backend/.env (overrode stale process environment)'
-      : 'Backend/.env';
+  if (inheritedGoogleEnvironment[key]) {
+    return inheritedGoogleEnvironment[key] === backendEnvValues[key]
+      ? 'process_environment'
+      : 'process_environment (overrode dotenv)';
   }
-  return process.env[key] ? 'process_environment' : 'missing';
+  if (backendEnvValues[key]) {
+    return 'dotenv';
+  }
+  return 'missing';
 };
 
 export interface EnvConfig {

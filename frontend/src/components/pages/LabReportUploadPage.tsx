@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, ClipboardPlus } from 'lucide-react';
 import api from '../../shared/services/api';
+import { fetchAuthorizedPatients } from '../../shared/services/patients';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Label } from '../atoms/Label';
@@ -29,10 +30,7 @@ export const LabReportUploadPage: React.FC = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await api.get('/patients') as
-          | PatientOption[]
-          | { data?: PatientOption[] };
-        const list = Array.isArray(response) ? response : response.data || [];
+        const list = await fetchAuthorizedPatients();
         setPatients(list);
         if (list.length > 0) setSelectedPatientId(list[0].patientId);
       } catch (error: unknown) {
@@ -59,7 +57,7 @@ export const LabReportUploadPage: React.FC = () => {
         result,
       });
       toast.success('Lab report created successfully.');
-      navigate('/lab-reports');
+      navigate(`/lab-reports?patientId=${encodeURIComponent(selectedPatientId)}`);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to create lab report.');
     } finally {

@@ -1,5 +1,6 @@
 export interface RecordVitalsDTO {
   patientId: string;
+  doctorId?: string;
   bloodPressureSystolic: number;
   bloodPressureDiastolic: number;
   sugarLevel: number;

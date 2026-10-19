@@ -87,7 +87,7 @@ describe('authenticated face enrollment association', () => {
       role,
       status: 'active',
       faceEnrollmentStatus: 'not_enrolled',
-      doctorVerificationStatus: role === 'doctor' ? 'pending' : undefined,
+      doctorVerificationStatus: role === 'doctor' ? 'verified' : undefined,
     };
     vi.spyOn(UserModel, 'findById').mockReturnValue({
       select: vi.fn().mockResolvedValue(user),

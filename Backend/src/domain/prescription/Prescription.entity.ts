@@ -2,9 +2,10 @@ import { AppError } from '../errors/AppError';
 
 export interface Medicine {
   name: string;
-  dosage: string;
-  duration: string;
-  instructions: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
 }
 
 export interface PrescriptionProps {
@@ -45,6 +46,9 @@ export class Prescription {
     }
     if (!props.medicines || props.medicines.length === 0) {
       throw new AppError(400, 'At least one medicine must be prescribed');
+    }
+    if (props.medicines.some((medicine) => !medicine.name?.trim())) {
+      throw new AppError(400, 'Each medicine must include a name');
     }
     if (!props.diagnosis || props.diagnosis.trim().length === 0) {
       throw new AppError(400, 'Diagnosis is required');

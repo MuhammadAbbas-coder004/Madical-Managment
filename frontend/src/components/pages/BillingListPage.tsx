@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { Plus, Receipt, CheckCircle, Calendar } from 'lucide-react';
 
 import api from '../../shared/services/api';
+import { parseAuthorizedPatients } from '../../shared/services/patients';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Button } from '../atoms/Button';
@@ -34,42 +36,56 @@ interface Patient {
 }
 
 export const BillingListPage: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+  const isPatient = user?.role.toLowerCase() === 'patient';
+  const canManageInvoices = ['admin', 'doctor', 'nurse'].includes(user?.role.toLowerCase() || '');
+  const canPayInvoices = user?.role.toLowerCase() === 'admin' || isPatient;
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
 
-  // Load patients list on mount
   useEffect(() => {
     let isMounted = true;
 
     const fetchPatients = async () => {
+      if (isPatient) {
+        try {
+          const profileResponse = await api.get('/patients/me', { skipToast: true }) as {
+            data?: { patientId?: string };
+          };
+          if (!profileResponse.data?.patientId) {
+            throw new Error('No patient profile is linked to your account.');
+          }
+          if (isMounted) setSelectedPatientId(profileResponse.data.patientId);
+        } catch (err) {
+          if (isMounted) setLoadError(err instanceof Error ? err.message : 'Failed to load your billing profile.');
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+        return;
+      }
+
       try {
-        const res: any = await api.get('/patients');
-        const list = Array.isArray(res) ? res : res?.data || [];
+        const list = parseAuthorizedPatients(await api.get('/patients', { skipToast: true }));
         if (isMounted) {
           setPatients(list);
-          if (list.length > 0) {
-            setSelectedPatientId(list[0].patientId);
-          } else {
-            setLoading(false);
-          }
+          setSelectedPatientId(list[0]?.patientId || '');
         }
       } catch (err) {
-        if (isMounted) {
-          toast.error('Failed to load patients');
-          setLoading(false);
-        }
+        if (isMounted) setLoadError(err instanceof Error ? err.message : 'Failed to load authorized patients.');
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchPatients();
-
+    void fetchPatients();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isPatient]);
 
   // Fetch invoices whenever selected patient changes
   useEffect(() => {
@@ -84,38 +100,14 @@ export const BillingListPage: React.FC = () => {
     const fetchInvoices = async () => {
       try {
         setLoading(true);
-        const res: any = await api.get(`/billing/patient/${selectedPatientId}`);
-
-        // Safely extract list from various response formats (array, { data: [...] }, or undefined/null)
-        const rawList = Array.isArray(res)
-          ? res
-          : Array.isArray(res?.data)
-          ? res.data
-          : [];
-
-        // Defensively normalize fields so differences in backend representation never crash the UI
-        const normalized: Invoice[] = rawList.map((inv: any) => ({
-          invoiceId: inv?.invoiceId || inv?._invoiceId || 'N/A',
-          patientId: inv?.patientId || inv?._patientId || selectedPatientId,
-          appointmentId: inv?.appointmentId || inv?._appointmentId || 'N/A',
-          items: Array.isArray(inv?.items)
-            ? inv.items
-            : Array.isArray(inv?._items)
-            ? inv._items
-            : [],
-          totalAmount: Number(inv?.totalAmount ?? inv?._totalAmount ?? 0),
-          status: (inv?.status || inv?._status || 'pending').toLowerCase() === 'paid' ? 'paid' : 'pending',
-          createdAt: inv?.createdAt || inv?._createdAt || new Date().toISOString(),
-        }));
-
+        setLoadError(null);
+        const response = await api.get(`/billing/patient/${encodeURIComponent(selectedPatientId)}`, { skipToast: true }) as Invoice[];
+        if (!Array.isArray(response)) throw new Error('The billing service returned an invalid invoice list.');
+        if (isMounted) setInvoices(response);
+      } catch (err: unknown) {
         if (isMounted) {
-          setInvoices(normalized);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          // Safely set invoices to empty array on error so UI shows "No invoices found" instead of crashing
           setInvoices([]);
-          toast.error(err?.message || 'Failed to fetch patient invoices');
+          setLoadError(err instanceof Error ? err.message : 'Failed to fetch patient invoices.');
         }
       } finally {
         if (isMounted) {
@@ -135,12 +127,9 @@ export const BillingListPage: React.FC = () => {
     try {
       setPayingId(invoiceId);
       await api.put(`/billing/${invoiceId}/pay`);
-      toast.success('Invoice marked as paid!');
-
+      toast.success('Payment status updated.');
       setInvoices((prev) =>
-        (prev || []).map((inv) =>
-          inv.invoiceId === invoiceId ? { ...inv, status: 'paid' } : inv
-        )
+        prev.map((inv) => inv.invoiceId === invoiceId ? { ...inv, status: 'paid' } : inv)
       );
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update payment status');
@@ -163,7 +152,15 @@ export const BillingListPage: React.FC = () => {
       );
     }
 
-    if (!invoices || invoices.length === 0) {
+    if (loadError) {
+      return (
+        <div role="alert" className="rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+          {loadError}
+        </div>
+      );
+    }
+
+    if (invoices.length === 0) {
       return (
         <Card>
           <p className="text-center text-textSecondary text-sm py-6">
@@ -230,7 +227,7 @@ export const BillingListPage: React.FC = () => {
                   </p>
                 </div>
 
-                {!isPaid && (
+                {!isPaid && canPayInvoices && (
                   <Button
                     variant="primary"
                     className="text-xs py-1.5 px-3"
@@ -260,36 +257,40 @@ export const BillingListPage: React.FC = () => {
             </p>
           </div>
 
-          <Link
-            to="/billing/new"
-            className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Invoice
-          </Link>
+          {canManageInvoices && (
+            <Link
+              to="/billing/new"
+              className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Invoice
+            </Link>
+          )}
         </div>
 
-        <div className="mb-6 max-w-sm">
-          <label className="block text-xs font-semibold uppercase text-textSecondary mb-1.5">
-            Select Patient
-          </label>
-          <select
-            value={selectedPatientId}
-            onChange={(e) => setSelectedPatientId(e.target.value)}
-            disabled={patients.length === 0}
-            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary disabled:opacity-50"
-          >
-            {patients.length === 0 ? (
-              <option value="">No patients available</option>
-            ) : (
-              patients.map((p) => (
-                <option key={p.patientId} value={p.patientId}>
-                  {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
+        {!isPatient && (
+          <div className="mb-6 max-w-sm">
+            <label className="block text-xs font-semibold uppercase text-textSecondary mb-1.5">
+              Select Patient
+            </label>
+            <select
+              value={selectedPatientId}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+              disabled={patients.length === 0}
+              className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary disabled:opacity-50"
+            >
+              {patients.length === 0 ? (
+                <option value="">No patients available</option>
+              ) : (
+                patients.map((p) => (
+                  <option key={p.patientId} value={p.patientId}>
+                    {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        )}
 
         {renderInvoiceContent()}
       </div>

@@ -15,7 +15,7 @@ export interface User {
   status?: string;
   patientId?: string;
   doctorId?: string;
-  doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+  doctorVerificationStatus?: 'verified' | 'not_applicable';
   specialty?: string;
   licenseNumber?: string;
   authProvider?: string;

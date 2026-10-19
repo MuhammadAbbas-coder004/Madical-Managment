@@ -26,10 +26,14 @@ export const PatientLabReportsPage: React.FC = () => {
         if (!patientId) throw new Error('No patient profile is linked to your account.');
 
         const response = await api.get(
-          `/lab-reports/patient/${encodeURIComponent(patientId)}`
-        ) as { reports?: LabReport[] };
+          `/lab-reports/patient/${encodeURIComponent(patientId)}`,
+          { skipToast: true }
+        ) as { success?: boolean; reports?: LabReport[] };
+        if (response.success !== true || !Array.isArray(response.reports)) {
+          throw new Error('The lab reports service returned an invalid list response.');
+        }
         if (!cancelled) {
-          setReports(Array.isArray(response.reports) ? response.reports : []);
+          setReports(response.reports);
         }
       } catch (err: unknown) {
         if (!cancelled) {

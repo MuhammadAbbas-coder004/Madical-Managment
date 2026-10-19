@@ -1,7 +1,7 @@
-import React, { useRef,  useState, useEffect } from 'react';
+import React, { useRef,  useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { UserPlus, ArrowRight } from 'lucide-react';
-import api from '../../shared/services/api';
+import { UserPlus, ArrowRight, RefreshCw } from 'lucide-react';
+import { fetchAuthorizedPatients, type AuthorizedPatient } from '../../shared/services/patients';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -9,45 +9,37 @@ import { SearchBar } from '../molecules/SearchBar';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 
-interface Patient {
-  patientId: string;
-  firstName: string;
-  lastName: string;
-  fullName?: string;
-  email: string;
-  phone: string;
-}
-
 export const PatientListPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role.toLowerCase() === 'doctor';
-  const canRegisterPatients = !isDoctor || user?.doctorVerificationStatus === 'verified';
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<AuthorizedPatient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const res = await api.get('/patients', { skipToast: true }) as Patient[] | { data: Patient[] };
-        setPatients(Array.isArray(res) ? res : (res as { data: Patient[] }).data || []);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load patients');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPatients();
+  const fetchPatients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPatients(await fetchAuthorizedPatients());
+    } catch (err: unknown) {
+      setPatients([]);
+      setError(err instanceof Error ? err.message : 'Failed to load patients');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void fetchPatients();
+  }, [fetchPatients]);
 
   const filtered = patients.filter((p) => {
     const q = searchQuery.toLowerCase();
-    return `${p.firstName} ${p.lastName}`.toLowerCase().includes(q)
-      || p.email.toLowerCase().includes(q)
+    return `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase().includes(q)
+      || p.email?.toLowerCase().includes(q)
       || p.phone?.toLowerCase().includes(q);
   });
-  const isVerificationError = error?.toLowerCase().includes('verification') ?? false;
 
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef, [loading]);
@@ -62,11 +54,21 @@ export const PatientListPage: React.FC = () => {
             {isDoctor ? 'Search and access records for your patients.' : 'View, search, and manage registered clinic patients.'}
           </p>
         </div>
-        {canRegisterPatients && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void fetchPatients()}
+            disabled={loading}
+            aria-label="Refresh patient list"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-textPrimary transition-colors hover:bg-background disabled:cursor-wait disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            Refresh
+          </button>
           <Link to="/patients/new" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm">
             <UserPlus className="w-4 h-4 mr-2" />Register Patient
           </Link>
-        )}
+        </div>
       </div>
       <div className={`mb-6 max-w-md ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
         <SearchBar value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by patient name or email..." />
@@ -74,20 +76,10 @@ export const PatientListPage: React.FC = () => {
       {loading && <div className="flex items-center justify-center py-16 text-primary"><Spinner size="lg" /><span className="ml-3 text-sm text-textSecondary">Loading patients...</span></div>}
       {!loading && error && (
         <div
-          role={isVerificationError ? 'status' : 'alert'}
-          className={`mb-6 rounded-xl border p-4 text-sm ${
-            isVerificationError
-              ? 'border-warning/20 bg-warning/10 text-textPrimary'
-              : 'border-danger/20 bg-danger/10 text-danger'
-          }`}
+          role="alert"
+          className="mb-6 rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm text-danger"
         >
-          {isVerificationError && <p className="mb-1 font-semibold">Clinical access is not yet available</p>}
           <p>{error}</p>
-          {isVerificationError && (
-            <p className="mt-2 text-xs text-textSecondary">
-              Patient records remain restricted while your credentials are under administrator review.
-            </p>
-          )}
         </div>
       )}
       {!loading && !error && (

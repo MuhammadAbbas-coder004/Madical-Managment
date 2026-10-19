@@ -167,7 +167,7 @@ describe.skipIf(!mongoTestUri)('MongoDB registration persistence integration', (
       const user = await UserModel.findOne({ email }).orFail();
       expect(user.fullName).toBe(name);
       expect(user.role).toBe('doctor');
-      expect(user.doctorVerificationStatus).toBe('pending');
+      expect(user.doctorVerificationStatus).toBe('verified');
       const profile = await DoctorModel.findOne({ userId: user._id }).orFail();
       expect(profile.doctorId).toBe(user.linkedId);
       expect(profile.email).toBe(user.email);

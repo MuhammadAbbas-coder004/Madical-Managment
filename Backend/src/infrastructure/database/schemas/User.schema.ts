@@ -21,7 +21,7 @@ export interface IUserDocument extends Document {
   faceEnrollmentStartedAt?: Date;
   faceEnrolledAt?: Date;
   faceConsentAt?: Date;
-  doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
+  doctorVerificationStatus?: 'verified' | 'not_applicable';
   specialty?: string;
   licenseNumber?: string;
   lastLoginAt?: Date;
@@ -132,7 +132,7 @@ const userSchema = new mongoose.Schema(
     },
     doctorVerificationStatus: {
       type: String,
-      enum: ['pending', 'verified', 'rejected', 'not_applicable'],
+      enum: ['verified', 'not_applicable'],
       default: 'not_applicable',
     },
     specialty: {

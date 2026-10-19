@@ -13,14 +13,12 @@ const labReportController = new LabReportController();
 labReportRouter.post(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
   validate(createLabReportSchema),
   labReportController.createReport
 );
 labReportRouter.post(
   '/:patientId',
   requireRole('admin', 'doctor', 'nurse'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
   validate(createLabReportSchema),
   labReportController.createReport
 );
@@ -29,13 +27,13 @@ labReportRouter.post(
 labReportRouter.get(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   labReportController.getReportsByPatient
 );
 labReportRouter.get(
   '/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   labReportController.getReportsByPatient
 );
 

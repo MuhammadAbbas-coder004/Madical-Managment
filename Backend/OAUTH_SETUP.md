@@ -4,18 +4,17 @@ The Express API owns OAuth state, code exchange, identity-token verification, Mo
 
 ## Local development
 
-Set these values in the server-only `Backend/.env` file. Never put provider secrets, Apple keys, the MongoDB URI, or the JWT secret in `frontend/.env` or a `VITE_*` variable.
+Keep provider secrets, Apple keys, the MongoDB URI, and the JWT secret in the server-only `Backend/.env` file. For local development, copy `Backend/.env.development.example` to the ignored `Backend/.env.development`; this file contains only localhost URLs and runtime mode. The backend loads it before `.env`, so local URLs override production defaults while missing secret values still come from `.env`. Explicit process environment variables take precedence over both files.
+
+Set these values in `Backend/.env`:
 
 ```dotenv
-CLIENT_URL=http://localhost:5173
-API_BASE_URL=http://localhost:5000/api
 MONGODB_URI=mongodb+srv://<db-user>:<encoded-password>@<cluster-host>/<database>?retryWrites=true&w=majority
 REDIS_URL=redis://:<password>@<redis-host>:<port>
 JWT_SECRET=<random-secret-at-least-32-characters>
 
 GOOGLE_CLIENT_ID=<web-oauth-client-id>
 GOOGLE_CLIENT_SECRET=<web-oauth-client-secret>
-GOOGLE_REDIRECT_URI=http://localhost:5000/api/auth/google/callback
 
 APPLE_CLIENT_ID=<apple-services-id>
 APPLE_TEAM_ID=<apple-team-id>
@@ -24,13 +23,13 @@ APPLE_PRIVATE_KEY=<pkcs8-p8-key-with-newlines-escaped-as-\n>
 APPLE_REDIRECT_URI=https://<public-development-api-host>/api/auth/apple/callback
 ```
 
-`GOOGLE_REDIRECT_URI` and `APPLE_REDIRECT_URI` default to `<API_BASE_URL>/auth/<provider>/callback`. Set explicit values when the externally registered redirect differs from the API URL. Apple web return URLs require a publicly reachable HTTPS domain; use a configured HTTPS development host/tunnel instead of the default localhost URL.
+`GOOGLE_REDIRECT_URI` defaults to `<API_BASE_URL>/auth/google/callback`. Local development uses `http://localhost:5000/api/auth/google/callback`; register that exact URI in Google Cloud Console. Production requires HTTPS. Apple web return URLs require a publicly reachable HTTPS domain; use a configured HTTPS development host/tunnel instead of localhost.
 
 ## Google Cloud Console
 
 1. Create a **Web application** OAuth client and configure the consent screen.
 2. Add `http://localhost:5173` to Authorized JavaScript origins for local development.
-3. Add the exact `GOOGLE_REDIRECT_URI` above to Authorized redirect URIs. The API uses this configured URI unchanged for both authorization and code exchange. Production must use the deployed HTTPS API callback URL.
+3. Add the exact local `GOOGLE_REDIRECT_URI` above to Authorized redirect URIs. The API uses this configured URI unchanged for both authorization and code exchange. Production must use the deployed HTTPS API callback URL.
 4. Copy the client ID and secret to the server environment. Never expose the secret to the browser.
 5. The API requests `openid email profile`, validates Google’s signed ID token, issuer, audience, expiry, issued-at age, verified email, subject, and nonce, then stores/reuses the MongoDB identity.
 

@@ -3,36 +3,39 @@ import { AppError } from '../errors/AppError';
 
 export interface VitalsProps {
   vitalsId: string;
-  patientId: string;
-  bloodPressureSystolic: number;
-  bloodPressureDiastolic: number;
-  sugarLevel: number;
-  temperature: number;
-  heartRate: number;
-  pulseRate: number;
-  rbcCount: number;
-  wbcCount: number;
+  patientId?: string;
+  doctorId?: string;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  sugarLevel?: number;
+  temperature?: number;
+  heartRate?: number;
+  pulseRate?: number;
+  rbcCount?: number;
+  wbcCount?: number;
   recordedAt?: Date;
   analysisResult?: VitalsAnalysisResult;
 }
 
 export class Vitals {
   private readonly _vitalsId: string;
-  private readonly _patientId: string;
-  private readonly _bloodPressureSystolic: number;
-  private readonly _bloodPressureDiastolic: number;
-  private readonly _sugarLevel: number;
-  private readonly _temperature: number;
-  private readonly _heartRate: number;
-  private readonly _pulseRate: number;
-  private readonly _rbcCount: number;
-  private readonly _wbcCount: number;
+  private readonly _patientId?: string;
+  private readonly _doctorId?: string;
+  private readonly _bloodPressureSystolic?: number;
+  private readonly _bloodPressureDiastolic?: number;
+  private readonly _sugarLevel?: number;
+  private readonly _temperature?: number;
+  private readonly _heartRate?: number;
+  private readonly _pulseRate?: number;
+  private readonly _rbcCount?: number;
+  private readonly _wbcCount?: number;
   private readonly _recordedAt: Date;
   private _analysisResult?: VitalsAnalysisResult;
 
   constructor(props: VitalsProps) {
     this._vitalsId = props.vitalsId;
     this._patientId = props.patientId;
+    this._doctorId = props.doctorId;
     this._bloodPressureSystolic = props.bloodPressureSystolic;
     this._bloodPressureDiastolic = props.bloodPressureDiastolic;
     this._sugarLevel = props.sugarLevel;
@@ -60,39 +63,41 @@ export class Vitals {
     return this._vitalsId;
   }
 
-  public get patientId(): string {
+  public get patientId(): string | undefined {
     return this._patientId;
   }
 
-  public get bloodPressureSystolic(): number {
+  public get doctorId(): string | undefined { return this._doctorId; }
+
+  public get bloodPressureSystolic(): number | undefined {
     return this._bloodPressureSystolic;
   }
 
-  public get bloodPressureDiastolic(): number {
+  public get bloodPressureDiastolic(): number | undefined {
     return this._bloodPressureDiastolic;
   }
 
-  public get sugarLevel(): number {
+  public get sugarLevel(): number | undefined {
     return this._sugarLevel;
   }
 
-  public get temperature(): number {
+  public get temperature(): number | undefined {
     return this._temperature;
   }
 
-  public get heartRate(): number {
+  public get heartRate(): number | undefined {
     return this._heartRate;
   }
 
-  public get pulseRate(): number {
+  public get pulseRate(): number | undefined {
     return this._pulseRate;
   }
 
-  public get rbcCount(): number {
+  public get rbcCount(): number | undefined {
     return this._rbcCount;
   }
 
-  public get wbcCount(): number {
+  public get wbcCount(): number | undefined {
     return this._wbcCount;
   }
 

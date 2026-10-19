@@ -782,7 +782,7 @@ describe('OAuth transaction and identity-token verification', () => {
       }
     });
 
-    it('creates a new doctor user with normalized email and pending doctor status', async () => {
+    it('creates a new doctor user with normalized email and immediate clinical access', async () => {
       const findOne = vi.spyOn(UserModel, 'findOne').mockResolvedValue(null);
       const exists = vi.spyOn(UserModel, 'exists').mockResolvedValue(null as never);
       const saveSpy = vi.spyOn(UserModel.prototype, 'save').mockResolvedValue(undefined as never);
@@ -800,7 +800,7 @@ describe('OAuth transaction and identity-token verification', () => {
 
         expect(created).toBe(true);
         expect(user.role).toBe('doctor');
-        expect(user.doctorVerificationStatus).toBe('pending');
+        expect(user.doctorVerificationStatus).toBe('verified');
         expect(user.email).toBe('dr.smith@hospital.org');
         expect(user.fullName).toBe('Dr Alice Smith');
         expect(user.isEmailVerified).toBe(true);

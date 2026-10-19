@@ -42,8 +42,9 @@ export interface Appointment {
 export interface Medicine {
   name: string;
   dosage: string;
-  duration: string;
-  instructions: string;
+  frequency: string;
+  duration?: string;
+  instructions?: string;
 }
 
 export interface Prescription {

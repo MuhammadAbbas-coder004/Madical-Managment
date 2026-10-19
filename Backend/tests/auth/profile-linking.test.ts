@@ -47,7 +47,7 @@ describe('authenticated profile linking', () => {
       phoneNumber: '+14155552671',
       specialty: 'Computer Science',
       licenseNumber: 'LIC-12345',
-      doctorVerificationStatus: 'pending',
+      doctorVerificationStatus: 'verified',
     });
     const create = vi.spyOn(DoctorModel, 'create').mockResolvedValue({
       doctorId: 'doctor-profile-id',
@@ -67,6 +67,6 @@ describe('authenticated profile linking', () => {
       licenseNumber: 'LIC-12345',
     }));
     expect(user.linkedId).toBe('doctor-profile-id');
-    expect(user.doctorVerificationStatus).toBe('pending');
+    expect(user.doctorVerificationStatus).toBe('verified');
   });
 });

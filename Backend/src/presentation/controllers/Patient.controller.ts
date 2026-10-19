@@ -112,37 +112,49 @@ export class PatientController {
 
   public getAllPatients = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as AuthenticatedRequest).user;
       const patients = await this.patientService.getAllPatients();
-      let assignedPatientIds: Set<string> | null = null;
-      if (user?.role?.toLowerCase() === 'doctor') {
-        const persistedUser = user.userId ? await UserModel.findById(user.userId) : null;
-        const doctorId = persistedUser?.role === 'doctor'
-          ? await ensureUserProfile(persistedUser)
-          : user.linkedId;
-        const linkedPatientIds = doctorId
-          ? await AppointmentModel.distinct('patientId', { doctorId })
-          : [];
-        assignedPatientIds = new Set(linkedPatientIds.map(String));
-      }
-
-      const data = patients
-        .filter((patient) =>
-          assignedPatientIds === null || assignedPatientIds.has(patient.patientId.getValue())
-        )
-        .map((patient) => ({
-          patientId: patient.patientId.getValue(),
-          firstName: patient.firstName,
-          lastName: patient.lastName,
-          fullName: patient.fullName,
-          email: patient.email.getValue(),
-          phone: patient.phone,
-          dateOfBirth: patient.dateOfBirth,
-        }));
+      // Development roster: doctors can see existing patient profiles even before
+      // appointments have been created. Patient self-access stays on /me and
+      // patient-specific routes retain their existing authorization middleware.
+      const data = patients.map((patient) => ({
+        patientId: patient.patientId.getValue(),
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        fullName: patient.fullName,
+        email: patient.email.getValue(),
+        phone: patient.phone,
+        dateOfBirth: patient.dateOfBirth,
+      }));
 
       res.status(200).json({
         success: true,
         data,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getAssignedPatients = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as AuthenticatedRequest).user?.userId;
+      const user = userId ? await UserModel.findById(userId) : null;
+      if (!user || user.role !== 'doctor') throw new AppError(403, 'Only doctors can view their assigned patient list');
+      const doctorId = await ensureUserProfile(user);
+      if (!doctorId) throw new AppError(403, 'No doctor profile is linked to this account');
+      const patientIds = await AppointmentModel.distinct('patientId', { doctorId });
+      const patients = await PatientModel.find({ patientId: { $in: patientIds } }).sort({ firstName: 1, lastName: 1 }).lean();
+      res.status(200).json({
+        success: true,
+        data: patients.map((patient) => ({
+          patientId: patient.patientId,
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          fullName: [patient.firstName, patient.lastName].filter(Boolean).join(' '),
+          email: patient.email,
+          phone: patient.phone,
+          dateOfBirth: patient.dateOfBirth,
+        })),
       });
     } catch (error) {
       next(error);

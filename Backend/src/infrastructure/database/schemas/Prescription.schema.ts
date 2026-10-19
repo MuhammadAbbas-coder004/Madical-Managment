@@ -13,9 +13,10 @@ export interface IPrescriptionDocument extends Document {
 const MedicineSchema = new Schema<Medicine>(
   {
     name: { type: String, required: true },
-    dosage: { type: String, required: true },
-    duration: { type: String, required: true },
-    instructions: { type: String, required: true },
+    dosage: { type: String, required: false },
+    frequency: { type: String, required: false },
+    duration: { type: String, required: false },
+    instructions: { type: String, required: false },
   },
   { _id: false }
 );

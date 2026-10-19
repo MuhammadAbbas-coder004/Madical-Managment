@@ -22,7 +22,6 @@ const medicalRecordController = new MedicalRecordController(medicalRecordService
 medicalRecordRouter.post(
   '/',
   requireRole('admin', 'doctor'),
-  requirePatientSelfOrRole('patientId', 'doctor'),
   validate(createMedicalRecordSchema),
   medicalRecordController.createRecord
 );
@@ -31,7 +30,7 @@ medicalRecordRouter.post(
 medicalRecordRouter.get(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   medicalRecordController.getRecordsByPatient
 );
 

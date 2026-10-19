@@ -66,7 +66,7 @@ export class AuthController {
         status: 'active',
         isEmailVerified: false,
         isPhoneVerified: false,
-        doctorVerificationStatus: role === 'doctor' ? 'pending' : 'not_applicable',
+        doctorVerificationStatus: role === 'doctor' ? 'verified' : 'not_applicable',
         specialty: role === 'doctor' ? specialty?.trim() || undefined : undefined,
         licenseNumber: role === 'doctor' ? licenseNumber?.trim() || undefined : undefined,
       });
@@ -89,9 +89,7 @@ export class AuthController {
 
       res.status(201).json({
         success: true,
-        message: role === 'doctor'
-          ? 'Doctor account registered successfully. Verification is pending credential review.'
-          : 'User registered successfully',
+        message: role === 'doctor' ? 'Doctor account registered successfully.' : 'User registered successfully',
         user: {
           id: newUser._id.toString(),
           username: newUser.username,
@@ -175,6 +173,7 @@ export class AuthController {
       // Resolve linked profile ID
       const linkedId = await ensureUserProfile(user);
 
+      if (user.role === 'doctor') user.doctorVerificationStatus = 'verified';
       user.lastLoginAt = new Date();
       await user.save();
 
@@ -231,6 +230,10 @@ export class AuthController {
       const user = await UserModel.findById(req.user.userId);
       if (!user) {
         throw new AppError(401, 'Unauthorized');
+      }
+      if (user.role === 'doctor' && user.doctorVerificationStatus !== 'verified') {
+        user.doctorVerificationStatus = 'verified';
+        await user.save();
       }
       res.status(200).json({
         success: true,
@@ -574,7 +577,7 @@ export class AuthController {
       if (!isFaceEnrollmentConfigured()) {
         throw new AppError(
           503,
-          'Local face verification is disabled or its encryption key is missing. Use email and password sign-in.'
+          'Face verification is not configured or its encryption key is missing. Use email and password sign-in.'
         );
       }
       if (!req.file?.buffer?.length) {
@@ -636,6 +639,7 @@ export class AuthController {
       }
 
       const linkedId = await ensureUserProfile(user);
+      if (user.role === 'doctor') user.doctorVerificationStatus = 'verified';
       user.lastLoginAt = new Date();
       await user.save();
       const token = JwtService.generateToken(user._id.toString(), user.role, linkedId);

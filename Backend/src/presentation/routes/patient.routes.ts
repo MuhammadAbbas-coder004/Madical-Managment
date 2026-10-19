@@ -24,11 +24,14 @@ patientRouter.post('/', requireRole('admin', 'doctor', 'nurse'), validate(create
 // Patients can view their own profile via /me
 patientRouter.get('/me', requireRole('patient'), patientController.getMyPatient);
 
+// Doctors can use the narrow assigned-only directory in clinical workflows.
+patientRouter.get('/assigned', requireRole('doctor'), patientController.getAssignedPatients);
+
 // Patient details: Staff can view; Patients can only view their own record
 patientRouter.get(
   '/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
-  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse', { allowUnassignedDoctorRead: true }),
   patientController.getPatient
 );
 

@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppointmentApplicationService } from '../../application/appointment/AppointmentApplicationService';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { UserModel } from '../../infrastructure/database/schemas/User.schema';
-import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
-import { DoctorModel } from '../../infrastructure/database/schemas/Doctor.schema';
+import { IUserDocument, UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { AppError } from '../../domain/errors/AppError';
+import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 
 export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentApplicationService) {}
@@ -14,14 +13,8 @@ export class AppointmentController {
     return userId ? UserModel.findById(userId) : null;
   };
 
-  private getPatientProfileId = async (email: string) => {
-    const patient = await PatientModel.findOne({ email });
-    return patient?.patientId;
-  };
-
-  private getDoctorProfileId = async (email: string) => {
-    const doctor = await DoctorModel.findOne({ email });
-    return doctor?.doctorId;
+  private getLinkedProfileId = async (user: IUserDocument) => {
+    return ensureUserProfile(user);
   };
 
   public bookAppointment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -32,7 +25,7 @@ export class AppointmentController {
         throw new AppError(401, 'Unauthorized');
       }
       if (user.role === 'patient') {
-        const ownPatientId = await this.getPatientProfileId(user.email);
+        const ownPatientId = await this.getLinkedProfileId(user);
         if (!ownPatientId || (patientId && ownPatientId !== patientId)) {
           throw new AppError(403, 'Forbidden: Patients can only access their own data');
         }
@@ -72,12 +65,12 @@ export class AppointmentController {
         throw new AppError(404, 'Appointment not found');
       }
       if (user.role === 'patient') {
-        const ownPatientId = await this.getPatientProfileId(user.email);
+        const ownPatientId = await this.getLinkedProfileId(user);
         if (!ownPatientId || appointment.patientId !== ownPatientId) {
           throw new AppError(403, 'Forbidden: Patients can only access their own data');
         }
       } else if (user.role === 'doctor') {
-        const ownDoctorId = await this.getDoctorProfileId(user.email);
+        const ownDoctorId = await this.getLinkedProfileId(user);
         if (!ownDoctorId || appointment.doctorId !== ownDoctorId) {
           throw new AppError(403, 'You can only cancel your own appointments');
         }
@@ -104,7 +97,7 @@ export class AppointmentController {
         throw new AppError(401, 'Unauthorized');
       }
       if (user.role === 'patient') {
-        const ownPatientId = await this.getPatientProfileId(user.email);
+        const ownPatientId = await this.getLinkedProfileId(user);
         if (!ownPatientId || (patientId && ownPatientId !== patientId)) {
           throw new AppError(403, 'Forbidden: Patients can only access their own data');
         }
@@ -142,7 +135,7 @@ export class AppointmentController {
         throw new AppError(401, 'Unauthorized');
       }
       if (user.role === 'doctor') {
-        const ownDoctorId = await this.getDoctorProfileId(user.email);
+        const ownDoctorId = await this.getLinkedProfileId(user);
         if (!ownDoctorId || ownDoctorId !== doctorId) {
           throw new AppError(403, 'You can only view your own appointments');
         }
@@ -175,6 +168,25 @@ export class AppointmentController {
       const user = await this.getAuthenticatedUser(req);
       if (!user) {
         throw new AppError(401, 'Unauthorized');
+      }
+      if (user.role === 'doctor') {
+        const ownDoctorId = await this.getLinkedProfileId(user);
+        if (!ownDoctorId) {
+          throw new AppError(403, 'No doctor profile is linked to your account.');
+        }
+        const ownAppointments = await this.appointmentService.getAppointmentsByDoctor(ownDoctorId);
+        res.status(200).json({
+          success: true,
+          data: ownAppointments.map((app) => ({
+            appointmentId: app.appointmentId,
+            patientId: app.patientId,
+            doctorId: app.doctorId,
+            appointmentDate: app.appointmentDate,
+            status: app.status,
+            notes: app.notes,
+          })),
+        });
+        return;
       }
       if (user.role !== 'admin') {
         throw new AppError(403, 'Forbidden');
@@ -214,12 +226,12 @@ export class AppointmentController {
       }
 
       if (user.role === 'patient') {
-        const ownPatientId = await this.getPatientProfileId(user.email);
+        const ownPatientId = await this.getLinkedProfileId(user);
         if (!ownPatientId || appointment.patientId !== ownPatientId) {
           throw new AppError(403, 'Forbidden: Patients can only access their own data');
         }
       } else if (user.role === 'doctor') {
-        const ownDoctorId = await this.getDoctorProfileId(user.email);
+        const ownDoctorId = await this.getLinkedProfileId(user);
         if (!ownDoctorId || appointment.doctorId !== ownDoctorId) {
           throw new AppError(403, 'You can only view your own appointments');
         }

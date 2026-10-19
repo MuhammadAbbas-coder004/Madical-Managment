@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ClipboardPlus, Calendar } from 'lucide-react';
 import api from '../../shared/services/api';
+import { parseAuthorizedPatients } from '../../shared/services/patients';
 import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -17,9 +18,10 @@ interface PatientOption {
 }
 
 export const LabReportListPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const requestedPatientId = searchParams.get('patientId') || '';
   const user = useAuthStore((state) => state.user);
   const isDoctor = user?.role.toLowerCase() === 'doctor';
-  const canCreateLabReport = !isDoctor || user?.doctorVerificationStatus === 'verified';
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [reports, setReports] = useState<LabReport[]>([]);
@@ -30,12 +32,10 @@ export const LabReportListPage: React.FC = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await api.get('/patients', { skipToast: true }) as
-          | PatientOption[]
-          | { data?: PatientOption[] };
-        const list = Array.isArray(response) ? response : response.data || [];
+        const list = parseAuthorizedPatients(await api.get('/patients', { skipToast: true }));
         setPatients(list);
-        if (list.length > 0) setSelectedPatientId(list[0].patientId);
+        const requestedPatient = list.find((patient) => patient.patientId === requestedPatientId);
+        if (list.length > 0) setSelectedPatientId(requestedPatient?.patientId || list[0].patientId);
       } catch (error: unknown) {
         setError(error instanceof Error ? error.message : 'Failed to load patients.');
       } finally {
@@ -43,7 +43,7 @@ export const LabReportListPage: React.FC = () => {
       }
     };
     void fetchPatients();
-  }, []);
+  }, [requestedPatientId]);
 
   useEffect(() => {
     if (!selectedPatientId) {
@@ -59,8 +59,11 @@ export const LabReportListPage: React.FC = () => {
         const response = await api.get(
           `/lab-reports/patient/${encodeURIComponent(selectedPatientId)}`,
           { skipToast: true }
-        ) as { reports?: LabReport[] };
-        if (!cancelled) setReports(Array.isArray(response.reports) ? response.reports : []);
+        ) as { success?: boolean; reports?: LabReport[] };
+        if (response.success !== true || !Array.isArray(response.reports)) {
+          throw new Error('The lab reports service returned an invalid list response.');
+        }
+        if (!cancelled) setReports(response.reports);
       } catch (error: unknown) {
         if (!cancelled) {
           setReports([]);
@@ -91,15 +94,13 @@ export const LabReportListPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-textPrimary">Lab Reports</h1>
             <p className="mt-0.5 text-sm text-textSecondary">Test results and clinical notes.</p>
           </div>
-          {canCreateLabReport && (
-            <Link
-              to="/lab-reports/upload"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md"
-            >
-              <ClipboardPlus className="mr-2 h-4 w-4" />
-              Create Lab Report
-            </Link>
-          )}
+          <Link
+            to="/lab-reports/upload"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md"
+          >
+            <ClipboardPlus className="mr-2 h-4 w-4" />
+            Create Lab Report
+          </Link>
         </div>
 
         <div className={`mb-6 max-w-sm ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
