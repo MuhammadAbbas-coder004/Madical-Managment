@@ -16,6 +16,13 @@ interface Appointment {
   notes?: string;
 }
 
+interface Patient {
+  patientId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+}
+
 type AppointmentRole = 'patient' | 'doctor';
 
 const statusVariant = (status: string): 'success' | 'warning' | 'danger' => {
@@ -27,8 +34,12 @@ const statusVariant = (status: string): 'success' | 'warning' | 'danger' => {
 const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
   const user = useAuthStore((state) => state.user);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patientNames, setPatientNames] = useState<Map<string, string>>(new Map());
+  const [patientNamesError, setPatientNamesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +47,7 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
     const fetchAppointments = async () => {
       setLoading(true);
       setError(null);
+      setPatientNamesError(null);
 
       if (user?.role.toLowerCase() !== role) {
         setError('You are not authorized to view this appointment list.');
@@ -45,7 +57,7 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
 
       try {
         const profilePath = role === 'patient' ? '/patients/me' : '/doctors/me';
-        const profileResponse = await api.get(profilePath) as {
+        const profileResponse = await api.get(profilePath, { skipToast: true }) as {
           data?: { patientId?: string; doctorId?: string };
         };
         const profileId = role === 'patient'
@@ -55,11 +67,26 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
           throw new Error(`No ${role} profile is linked to your account. Please contact an administrator.`);
         }
 
-        const response = await api.get(`/appointments/${role}/${encodeURIComponent(profileId)}`) as {
+        const response = await api.get(`/appointments/${role}/${encodeURIComponent(profileId)}`, { skipToast: true }) as {
           data?: Appointment[];
         };
         if (!cancelled) {
           setAppointments(Array.isArray(response.data) ? response.data : []);
+          if (role === 'doctor') {
+            try {
+              const patientsResponse = await api.get('/patients', { skipToast: true }) as { data?: Patient[] };
+              if (cancelled) return;
+              const patients = Array.isArray(patientsResponse.data) ? patientsResponse.data : [];
+              setPatientNames(new Map(patients.map((patient) => [
+                patient.patientId,
+                patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.patientId,
+              ])));
+            } catch (err: unknown) {
+              if (!cancelled) {
+                setPatientNamesError(err instanceof Error ? err.message : 'Failed to load patient names.');
+              }
+            }
+          }
         }
       } catch (err: unknown) {
         if (!cancelled) {
@@ -75,12 +102,25 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
     return () => {
       cancelled = true;
     };
-  }, [role, user?.role]);
+  }, [role, user?.role, refreshKey]);
+
+  const cancelAppointment = async (appointmentId: string) => {
+    setCancellingAppointmentId(appointmentId);
+    setError(null);
+    try {
+      await api.put(`/appointments/${encodeURIComponent(appointmentId)}/cancel`);
+      setRefreshKey((key) => key + 1);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel appointment.');
+    } finally {
+      setCancellingAppointmentId(null);
+    }
+  };
 
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef, [loading]);
 
-  const counterpartLabel = role === 'patient' ? 'Doctor ID' : 'Patient ID';
+  const counterpartLabel = role === 'patient' ? 'Doctor' : 'Patient';
 
   return (
     <DashboardLayout>
@@ -103,8 +143,13 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
         {!loading && error && (
           <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-md text-sm">{error}</div>
         )}
+        {!loading && patientNamesError && (
+          <div role="status" className="mb-4 rounded-md border border-warning/20 bg-warning/10 p-4 text-sm text-textSecondary">
+            Appointment patient names could not be loaded: {patientNamesError}
+          </div>
+        )}
         {!loading && !error && (
-          <Card className="!p-0 overflow-hidden">
+          <Card className={`!p-0 overflow-hidden ${role === 'doctor' ? 'shadow-md' : ''}`}>
             {appointments.length === 0 ? (
               <div className="p-8 text-center text-textSecondary text-sm">No appointments scheduled yet.</div>
             ) : (
@@ -116,13 +161,16 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
                       <th className="px-6 py-3">Date &amp; Time</th>
                       <th className="px-6 py-3">Notes</th>
                       <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-textPrimary">
                     {appointments.map((appointment) => (
-                      <tr key={appointment.appointmentId} className="hover:bg-primary/5">
+                      <tr key={appointment.appointmentId} className="transition-colors hover:bg-primary/5">
                         <td className="px-6 py-4 font-medium">
-                          {role === 'patient' ? appointment.doctorId : appointment.patientId}
+                          {role === 'patient'
+                            ? appointment.doctorId
+                            : patientNames.get(appointment.patientId) || appointment.patientId}
                         </td>
                         <td className="px-6 py-4 text-textSecondary">
                           {new Date(appointment.appointmentDate).toLocaleString()}
@@ -130,6 +178,18 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
                         <td className="px-6 py-4 text-textSecondary">{appointment.notes || '—'}</td>
                         <td className="px-6 py-4">
                           <Badge variant={statusVariant(appointment.status)}>{appointment.status || 'scheduled'}</Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          {!['cancelled', 'completed', 'done', 'missed'].includes(appointment.status.toLowerCase()) && (
+                            <button
+                              type="button"
+                              onClick={() => void cancelAppointment(appointment.appointmentId)}
+                              disabled={cancellingAppointmentId === appointment.appointmentId}
+                              className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {cancellingAppointmentId === appointment.appointmentId ? 'Cancelling…' : 'Cancel'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

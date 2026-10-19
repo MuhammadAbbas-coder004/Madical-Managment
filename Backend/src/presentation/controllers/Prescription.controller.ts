@@ -8,7 +8,11 @@ export class PrescriptionController {
 
   public createPrescription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = (req as AuthenticatedRequest).user;
       const { patientId, doctorId, medicines, diagnosis } = req.body;
+      if (user?.role === 'doctor' && (!user.linkedId || user.linkedId !== doctorId)) {
+        throw new AppError(403, 'Doctors can only create prescriptions under their own profile');
+      }
 
       const prescriptionId = await this.prescriptionService.createPrescription({
         patientId,
@@ -63,6 +67,10 @@ export class PrescriptionController {
   public getPrescriptionsByDoctor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const doctorId = String(req.params.doctorId);
+      const user = (req as AuthenticatedRequest).user;
+      if (user?.role === 'doctor' && (!user.linkedId || user.linkedId !== doctorId)) {
+        throw new AppError(403, 'Doctors can only view their own prescriptions');
+      }
       const prescriptions = await this.prescriptionService.getPrescriptionsByDoctor(doctorId);
 
       const data = prescriptions.map((p) => ({

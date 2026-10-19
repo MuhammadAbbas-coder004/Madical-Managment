@@ -4,13 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ScanFace, ShieldCheck, Stethoscope, User, UserRoundPlus, X } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Stethoscope, User, UserRoundPlus } from 'lucide-react';
 import api from '../../shared/services/api';
 import { AivoraLogo } from '../atoms/AivoraLogo';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
-import { FaceScanModal } from '../molecules/FaceScanModal';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { beginOAuth } from '../../shared/services/oauth';
 import './RegisterPage.css';
@@ -149,8 +148,6 @@ export const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-  const [pendingFaceImage, setPendingFaceImage] = useState<Blob | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const oauthStartInProgress = useRef(false);
   const submitInProgress = useRef(false);
@@ -204,7 +201,7 @@ export const RegisterPage: React.FC = () => {
     const normalizedPhone = rawDigits ? `${data.countryCode}${rawDigits}` : undefined;
 
     try {
-      const response = await api.post(
+      await api.post(
         '/auth/register',
         {
           username: data.username.trim(),
@@ -224,36 +221,7 @@ export const RegisterPage: React.FC = () => {
         },
         { skipToast: true }
       );
-      const registration = response as {
-        user?: { faceEnrollmentAvailable?: boolean };
-      };
-
-      if (pendingFaceImage && registration.user?.faceEnrollmentAvailable) {
-        const formData = new FormData();
-        formData.append('image', pendingFaceImage, 'face-enrollment.jpg');
-        formData.append('consent', 'true');
-        try {
-          const enrollment = await api.post('/auth/face-enroll', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            skipToast: true,
-          }) as { enrolled?: boolean; faceEnrollmentStatus?: string };
-          if (!enrollment.enrolled || enrollment.faceEnrollmentStatus !== 'enrolled') {
-            throw new Error('The server did not confirm face enrollment. Please sign in and retry.');
-          }
-          toast.success('Account created and face enrollment completed.');
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error ? error.message : 'Face enrollment could not be completed.';
-          toast.success('Account created. You can sign in normally.');
-          toast.error(`Face enrollment was not completed: ${message}`);
-        }
-      } else if (pendingFaceImage) {
-        toast.success('Account created. You can sign in normally.');
-        toast.error('Face enrollment is unavailable because this server has no enrollment service configured.');
-      } else {
-        toast.success('Account created. You can sign in now.');
-      }
-      setPendingFaceImage(null);
+      toast.success('Account created. You can sign in now.');
       navigate('/login');
     } catch (error: unknown) {
       const message =
@@ -545,46 +513,6 @@ export const RegisterPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C7FFBE]/10 text-[#C7FFBE]">
-                      <ScanFace className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white">Optional Face Registration</p>
-                      <p className="text-[0.62rem] text-white/50">
-                        Capture here; enrollment is submitted after account creation.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsFaceModalOpen(true)}
-                    disabled={isSubmitting || Boolean(providerLoading)}
-                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#C7FFBE]/50 px-3 py-1.5 text-xs font-semibold text-[#C7FFBE] transition-colors hover:bg-[#C7FFBE]/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <ScanFace className="h-3.5 w-3.5" aria-hidden="true" />
-                    {pendingFaceImage ? 'Retake face scan' : 'Open face scan'}
-                  </button>
-                </div>
-                {pendingFaceImage && (
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-[#C7FFBE]/[0.06] px-2.5 py-2">
-                    <p className="text-[0.68rem] text-white/70" role="status">
-                      Camera frame captured. It has not been enrolled yet.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setPendingFaceImage(null)}
-                      aria-label="Remove captured face image"
-                      className="rounded p-1 text-white/55 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
-                    >
-                      <X className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
               {authNotice && (
                 <div className="medivanta-register-notice" role="alert" aria-live="polite">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C7FFBE]" aria-hidden="true" />
@@ -665,7 +593,7 @@ export const RegisterPage: React.FC = () => {
         <aside className="gsap-card medivanta-register-face relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[1.5rem] border border-white/10 shadow-2xl sm:min-h-[380px] lg:min-h-full">
           <div className="medivanta-register-face-model" aria-hidden="true">
             <Suspense fallback={<div className="medivanta-register-face-loading" aria-hidden="true" />}>
-              <FaceScanModel followPointer />
+              <FaceScanModel followPointer normalizeSize />
             </Suspense>
           </div>
           <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-4 sm:p-6">
@@ -761,13 +689,6 @@ export const RegisterPage: React.FC = () => {
           </section>
         </div>
       )}
-      <FaceScanModal
-        isOpen={isFaceModalOpen}
-        onClose={() => setIsFaceModalOpen(false)}
-        mode="enrollment"
-        captureOnly
-        onEnrollmentCapture={async (image) => setPendingFaceImage(image)}
-      />
     </main>
   );
 };

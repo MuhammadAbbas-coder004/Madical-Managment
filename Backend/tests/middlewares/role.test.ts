@@ -3,6 +3,7 @@ import { Response, NextFunction } from 'express';
 import { requirePatientSelfOrRole, requireRole } from '../../src/presentation/middlewares/role.middleware';
 import { AuthenticatedRequest } from '../../src/presentation/middlewares/auth.middleware';
 import { UserModel } from '../../src/infrastructure/database/schemas/User.schema';
+import { AppointmentModel } from '../../src/infrastructure/database/schemas/Appointment.schema';
 
 describe('Role & Patient Access Control Middleware', () => {
   let mockRes: Partial<Response>;
@@ -18,7 +19,7 @@ describe('Role & Patient Access Control Middleware', () => {
   });
 
   describe('requirePatientSelfOrRole', () => {
-    it('should allow admin, doctor, or nurse to access any patient data', async () => {
+    it('should allow admins and nurses to access any patient data', async () => {
       const middleware = requirePatientSelfOrRole('patientId', 'doctor', 'nurse');
 
       const staffRoles = ['admin', 'nurse'];
@@ -36,19 +37,20 @@ describe('Role & Patient Access Control Middleware', () => {
       }
     });
 
-    it('allows verified doctors to access staff routes', async () => {
+    it('allows verified doctors to access their assigned patients', async () => {
       const findById = vi.spyOn(UserModel, 'findById').mockReturnValue({
         select: vi.fn().mockResolvedValue({
           role: 'doctor',
           doctorVerificationStatus: 'verified',
         }),
       } as never);
+      const appointmentExists = vi.spyOn(AppointmentModel, 'exists').mockResolvedValue({ _id: 'appointment-1' } as never);
       const middleware = requirePatientSelfOrRole('patientId', 'doctor', 'nurse');
 
       try {
         await middleware(
           {
-            user: { userId: 'doctor-1', role: 'doctor' },
+            user: { userId: 'doctor-1', role: 'doctor', linkedId: 'doctor-profile-1' },
             params: { patientId: 'patient-1' },
           } as AuthenticatedRequest,
           mockRes as Response,
@@ -56,8 +58,41 @@ describe('Role & Patient Access Control Middleware', () => {
         );
 
         expect(mockNext).toHaveBeenCalled();
+        expect(appointmentExists).toHaveBeenCalledWith({
+          doctorId: 'doctor-profile-1',
+          patientId: 'patient-1',
+        });
       } finally {
         findById.mockRestore();
+        appointmentExists.mockRestore();
+      }
+    });
+
+    it('blocks doctors from accessing patients without an appointment relationship', async () => {
+      const findById = vi.spyOn(UserModel, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          role: 'doctor',
+          doctorVerificationStatus: 'verified',
+        }),
+      } as never);
+      const appointmentExists = vi.spyOn(AppointmentModel, 'exists').mockResolvedValue(null);
+      const middleware = requirePatientSelfOrRole('patientId', 'doctor', 'nurse');
+
+      try {
+        await middleware(
+          {
+            user: { userId: 'doctor-1', role: 'doctor', linkedId: 'doctor-profile-1' },
+            params: { patientId: 'unassigned-patient' },
+          } as AuthenticatedRequest,
+          mockRes as Response,
+          mockNext
+        );
+
+        expect(mockNext).not.toHaveBeenCalled();
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+      } finally {
+        findById.mockRestore();
+        appointmentExists.mockRestore();
       }
     });
 
@@ -85,6 +120,36 @@ describe('Role & Patient Access Control Middleware', () => {
         expect(mockRes.json).toHaveBeenCalledWith({
           success: false,
           message: 'Doctor account verification is pending',
+        });
+      } finally {
+        findById.mockRestore();
+      }
+    });
+
+    it('returns a rejected status message for doctors whose credentials were rejected', async () => {
+      const findById = vi.spyOn(UserModel, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          role: 'doctor',
+          doctorVerificationStatus: 'rejected',
+        }),
+      } as never);
+      const middleware = requireRole('admin', 'doctor');
+
+      try {
+        await middleware(
+          {
+            user: { userId: 'doctor-1', role: 'doctor' },
+            params: {},
+          } as AuthenticatedRequest,
+          mockRes as Response,
+          mockNext
+        );
+
+        expect(mockNext).not.toHaveBeenCalled();
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          success: false,
+          message: 'Doctor verification was not approved. Please contact an administrator.',
         });
       } finally {
         findById.mockRestore();
@@ -164,6 +229,7 @@ describe('Role & Patient Access Control Middleware', () => {
           doctorVerificationStatus: 'verified',
         }),
       } as never);
+      const appointmentExists = vi.spyOn(AppointmentModel, 'exists').mockResolvedValue(null);
 
       try {
         await middleware(req as AuthenticatedRequest, mockRes as Response, mockNext);
@@ -172,6 +238,7 @@ describe('Role & Patient Access Control Middleware', () => {
         expect(mockRes.status).not.toHaveBeenCalled();
       } finally {
         findById.mockRestore();
+        appointmentExists.mockRestore();
       }
     });
 

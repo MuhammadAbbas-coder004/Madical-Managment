@@ -5,6 +5,7 @@ import { ShieldAlert } from 'lucide-react';
 import api from '../../shared/services/api';
 import { COOKIE_SESSION, useAuthStore } from '../../store/authStore';
 import { Spinner } from '../atoms/Spinner';
+import { getRoleHomeRoute } from '../../shared/utils/roleRoutes';
 
 const failureMessages: Record<string, string> = {
   cancelled: 'Sign-in was cancelled. You can try again whenever you are ready.',
@@ -41,6 +42,8 @@ interface SessionResponse {
     doctorVerificationStatus?: 'pending' | 'verified' | 'rejected' | 'not_applicable';
     specialty?: string;
     licenseNumber?: string;
+    faceEnrollmentStatus?: string;
+    faceEnrollmentAvailable?: boolean;
   };
 }
 
@@ -65,18 +68,17 @@ export const OAuthCallbackPage = () => {
         if (!active) return;
         const { user } = response as SessionResponse;
         if (!user) throw new Error('The server did not return the authenticated account.');
+        const destination = getRoleHomeRoute(user.role);
+        if (!destination) {
+          throw new Error('Your account role could not be confirmed. Please contact support.');
+        }
         login(user, COOKIE_SESSION);
         toast.success(enrollFaceAfterSignup ? 'Account created successfully.' : 'Welcome Back!');
         if (enrollFaceAfterSignup) {
           navigate('/face-enrollment-prompt', { replace: true });
           return;
         }
-        const role = user.role?.toLowerCase();
-        if (role === 'patient') {
-          navigate('/portal', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
+        navigate(destination, { replace: true });
       })
       .catch((caught: unknown) => {
         if (!active) return;

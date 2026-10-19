@@ -154,6 +154,10 @@ export const createDoctorSchema = z.object({
   specialization: nonEmptyString('Specialization').max(100, 'Specialization cannot exceed 100 characters'),
 });
 
+export const updateDoctorVerificationSchema = z.object({
+  status: z.enum(['pending', 'verified', 'rejected']),
+});
+
 // ---------------------------------------------------------------------------
 // Appointment schemas
 // ---------------------------------------------------------------------------

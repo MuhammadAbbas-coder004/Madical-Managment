@@ -13,12 +13,14 @@ const labReportController = new LabReportController();
 labReportRouter.post(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
   validate(createLabReportSchema),
   labReportController.createReport
 );
 labReportRouter.post(
   '/:patientId',
   requireRole('admin', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
   validate(createLabReportSchema),
   labReportController.createReport
 );

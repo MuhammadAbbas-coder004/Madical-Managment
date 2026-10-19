@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import './FaceScanModel.css';
 
+const REFERENCE_MODEL_HEIGHT = 632;
+
 const faceLandmarks = [
   [-0.29, 0.69],
   [-0.15, 0.71],
@@ -69,9 +71,10 @@ const createTrackingTexture = () => {
 
 interface FaceScanModelProps {
   followPointer?: boolean;
+  normalizeSize?: boolean;
 }
 
-export const FaceScanModel = ({ followPointer = false }: FaceScanModelProps) => {
+export const FaceScanModel = ({ followPointer = false, normalizeSize = false }: FaceScanModelProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -211,6 +214,10 @@ export const FaceScanModel = ({ followPointer = false }: FaceScanModelProps) => 
       const { width, height } = container.getBoundingClientRect();
       if (width === 0 || height === 0) return;
       camera.aspect = width / height;
+      if (normalizeSize) {
+        const framedHeight = Math.min(height, REFERENCE_MODEL_HEIGHT);
+        camera.position.z = 2.65 * (height / framedHeight);
+      }
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
       scheduleRender();
@@ -398,7 +405,7 @@ export const FaceScanModel = ({ followPointer = false }: FaceScanModelProps) => 
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [followPointer]);
+  }, [followPointer, normalizeSize]);
 
   return (
     <div ref={containerRef} className="face-scan-model">

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { ClipboardPlus, Calendar } from 'lucide-react';
 import api from '../../shared/services/api';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Spinner } from '../atoms/Spinner';
@@ -17,23 +17,27 @@ interface PatientOption {
 }
 
 export const LabReportListPage: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+  const isDoctor = user?.role.toLowerCase() === 'doctor';
+  const canCreateLabReport = !isDoctor || user?.doctorVerificationStatus === 'verified';
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [reports, setReports] = useState<LabReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPatients, setLoadingPatients] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await api.get('/patients') as
+        const response = await api.get('/patients', { skipToast: true }) as
           | PatientOption[]
           | { data?: PatientOption[] };
         const list = Array.isArray(response) ? response : response.data || [];
         setPatients(list);
         if (list.length > 0) setSelectedPatientId(list[0].patientId);
       } catch (error: unknown) {
-        toast.error(error instanceof Error ? error.message : 'Failed to load patients.');
+        setError(error instanceof Error ? error.message : 'Failed to load patients.');
       } finally {
         setLoadingPatients(false);
       }
@@ -50,14 +54,17 @@ export const LabReportListPage: React.FC = () => {
     const fetchReports = async () => {
       try {
         setLoading(true);
+        setError(null);
+        setReports([]);
         const response = await api.get(
-          `/lab-reports/patient/${encodeURIComponent(selectedPatientId)}`
+          `/lab-reports/patient/${encodeURIComponent(selectedPatientId)}`,
+          { skipToast: true }
         ) as { reports?: LabReport[] };
         if (!cancelled) setReports(Array.isArray(response.reports) ? response.reports : []);
       } catch (error: unknown) {
         if (!cancelled) {
           setReports([]);
-          toast.error(error instanceof Error ? error.message : 'Failed to fetch lab reports.');
+          setError(error instanceof Error ? error.message : 'Failed to fetch lab reports.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -70,7 +77,11 @@ export const LabReportListPage: React.FC = () => {
   }, [selectedPatientId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  useFadeUp(containerRef, [loading]);
+  useFadeUp(containerRef, [loading, loadingPatients]);
+  const selectedPatient = patients.find((patient) => patient.patientId === selectedPatientId);
+  const selectedPatientName = selectedPatient?.fullName
+    || [selectedPatient?.firstName, selectedPatient?.lastName].filter(Boolean).join(' ')
+    || '';
 
   return (
     <DashboardLayout>
@@ -80,16 +91,18 @@ export const LabReportListPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-textPrimary">Lab Reports</h1>
             <p className="mt-0.5 text-sm text-textSecondary">Test results and clinical notes.</p>
           </div>
-          <Link
-            to="/lab-reports/upload"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-colors hover:bg-primary-hover"
-          >
-            <ClipboardPlus className="mr-2 h-4 w-4" />
-            Create Lab Report
-          </Link>
+          {canCreateLabReport && (
+            <Link
+              to="/lab-reports/upload"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md"
+            >
+              <ClipboardPlus className="mr-2 h-4 w-4" />
+              Create Lab Report
+            </Link>
+          )}
         </div>
 
-        <div className="mb-6 max-w-sm">
+        <div className={`mb-6 max-w-sm ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
           <label htmlFor="reportPatient" className="mb-1.5 block text-xs font-semibold uppercase text-textSecondary">
             Select Patient
           </label>
@@ -109,6 +122,15 @@ export const LabReportListPage: React.FC = () => {
           </select>
         </div>
 
+        {selectedPatientName && (
+          <p className="mb-4 text-sm text-textSecondary">Showing reports for {selectedPatientName}</p>
+        )}
+        {!loadingPatients && error && (
+          <div role="alert" className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+            {error}
+          </div>
+        )}
+
         {(loading || loadingPatients) && (
           <div className="flex items-center justify-center py-16 text-primary">
             <Spinner size="lg" />
@@ -116,7 +138,13 @@ export const LabReportListPage: React.FC = () => {
           </div>
         )}
 
-        {!loading && !loadingPatients && reports.length === 0 && (
+        {!loading && !loadingPatients && !error && patients.length === 0 && (
+          <Card>
+            <p className="py-6 text-center text-sm text-textSecondary">No assigned patients are available.</p>
+          </Card>
+        )}
+
+        {!loading && !loadingPatients && !error && selectedPatientId && reports.length === 0 && (
           <Card>
             <p className="py-6 text-center text-sm text-textSecondary">
               No lab reports yet for this patient.
@@ -124,10 +152,10 @@ export const LabReportListPage: React.FC = () => {
           </Card>
         )}
 
-        {!loading && reports.length > 0 && (
+        {!loading && !loadingPatients && !error && reports.length > 0 && (
           <div className="space-y-4">
             {reports.map((report) => (
-              <Card key={report._id}>
+              <Card key={report._id} className={isDoctor ? 'shadow-md transition-shadow hover:shadow-lg' : ''}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-semibold text-textPrimary">{report.testName}</h2>

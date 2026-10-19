@@ -1,9 +1,9 @@
 import React, { useRef,  useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { FilePlus, Calendar, AlertOctagon, User } from 'lucide-react';
 
 import api from '../../shared/services/api';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Spinner } from '../atoms/Spinner';
@@ -19,27 +19,42 @@ interface MedicalRecord {
   createdAt: string;
 }
 
+interface Patient {
+  patientId: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+}
+
 interface Doctor { doctorId: string; firstName?: string; lastName?: string; fullName?: string; specialization?: string; }
 
 export const MedicalRecordListPage: React.FC = () => {
-  const [patients, setPatients] = useState<any[]>([]);
+  const user = useAuthStore((state) => state.user);
+  const isDoctor = user?.role.toLowerCase() === 'doctor';
+  const canCreateRecord = !isDoctor || user?.doctorVerificationStatus === 'verified';
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [doctorMap, setDoctorMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [patRes, docRes]: any[] = await Promise.all([
-          api.get('/patients'),
-          api.get('/doctors'),
-        ]);
+        const [patRes, docRes] = await Promise.all([
+          api.get('/patients', { skipToast: true }),
+          api.get('/doctors', { skipToast: true }),
+        ]) as [
+          Patient[] | { data?: Patient[] },
+          Doctor[] | { data?: Doctor[] },
+        ];
         const patList = Array.isArray(patRes) ? patRes : patRes.data || [];
         setPatients(patList);
         if (patList.length > 0) setSelectedPatientId(patList[0].patientId);
 
-        const docList: Doctor[] = Array.isArray(docRes) ? docRes : docRes.data || [];
+        const docList = Array.isArray(docRes) ? docRes : docRes.data || [];
         const map = new Map<string, string>();
         docList.forEach((d) => {
           const name = d.fullName || `Dr. ${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Unknown Doctor';
@@ -47,8 +62,10 @@ export const MedicalRecordListPage: React.FC = () => {
           map.set(d.doctorId, label);
         });
         setDoctorMap(map);
-      } catch (err) {
-        toast.error('Failed to load data');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load patient data.');
+      } finally {
+        setLoadingPatients(false);
       }
     };
     fetchInitialData();
@@ -60,11 +77,14 @@ export const MedicalRecordListPage: React.FC = () => {
     const fetchRecords = async () => {
       try {
         setLoading(true);
-        const res: any = await api.get(`/medical-records/patient/${selectedPatientId}`);
+        setError(null);
+        setRecords([]);
+        const res: any = await api.get(`/medical-records/patient/${selectedPatientId}`, { skipToast: true });
         const data = Array.isArray(res) ? res : res.data || [];
         setRecords(data);
-      } catch (err: any) {
-        toast.error('Failed to load medical records');
+      } catch (err: unknown) {
+        setRecords([]);
+        setError(err instanceof Error ? err.message : 'Failed to load medical records.');
       } finally {
         setLoading(false);
       }
@@ -74,7 +94,7 @@ export const MedicalRecordListPage: React.FC = () => {
   }, [selectedPatientId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  useFadeUp(containerRef, [loading]);
+  useFadeUp(containerRef, [loading, loadingPatients]);
 
   return (
     <DashboardLayout>
@@ -87,22 +107,25 @@ export const MedicalRecordListPage: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/medical-records/new"
-          className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm"
-        >
-          <FilePlus className="w-4 h-4 mr-2" />
-          Add Medical Record
-        </Link>
+        {canCreateRecord && (
+          <Link
+            to="/medical-records/new"
+            className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-all shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <FilePlus className="w-4 h-4 mr-2" />
+            Add Medical Record
+          </Link>
+        )}
       </div>
 
-      <div className="mb-6 max-w-sm">
+      <div className={`mb-6 max-w-sm ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
         <label className="block text-xs font-semibold uppercase text-textSecondary mb-1.5">
           Select Patient
         </label>
         <select
           value={selectedPatientId}
           onChange={(e) => setSelectedPatientId(e.target.value)}
+          disabled={loadingPatients || patients.length === 0}
           className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
         >
           {patients.map((p) => (
@@ -113,6 +136,17 @@ export const MedicalRecordListPage: React.FC = () => {
         </select>
       </div>
 
+      {loadingPatients && (
+        <div className="flex items-center justify-center py-10 text-primary">
+          <Spinner size="lg" />
+          <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
+        </div>
+      )}
+      {!loadingPatients && error && (
+        <div role="alert" className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+          {error}
+        </div>
+      )}
       {loading && (
         <div className="flex items-center justify-center py-16 text-primary">
           <Spinner size="lg" />
@@ -120,7 +154,11 @@ export const MedicalRecordListPage: React.FC = () => {
         </div>
       )}
 
-      {!loading && (
+      {!loading && !loadingPatients && !error && patients.length === 0 && (
+        <Card><p className="py-4 text-center text-sm text-textSecondary">No assigned patients are available.</p></Card>
+      )}
+
+      {!loading && !loadingPatients && !error && selectedPatientId && (
         <div className="space-y-4">
           {records.length === 0 ? (
             <Card>
@@ -130,7 +168,7 @@ export const MedicalRecordListPage: React.FC = () => {
             </Card>
           ) : (
             records.map((rec) => (
-              <Card key={rec.recordId} className="space-y-3">
+              <Card key={rec.recordId} className={`space-y-3 ${isDoctor ? 'shadow-md' : ''}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
                   <div>
                     <h3 className="text-base font-bold text-textPrimary">

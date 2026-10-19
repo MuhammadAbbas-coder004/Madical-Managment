@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ScanFace, ShieldCheck } from 'lucide-react';
 import api from '../../shared/services/api';
-import { COOKIE_SESSION, useAuthStore } from '../../store/authStore';
+import { COOKIE_SESSION, useAuthStore, type User } from '../../store/authStore';
 import { AivoraLogo } from '../atoms/AivoraLogo';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
@@ -14,6 +14,7 @@ import { Button } from '../atoms/Button';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { beginOAuth } from '../../shared/services/oauth';
 import { FaceScanModal } from '../molecules/FaceScanModal';
+import { getRoleHomeRoute } from '../../shared/utils/roleRoutes';
 import './LoginPage.css';
 
 const FaceScanModel = lazy(() =>
@@ -68,6 +69,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [signInNotice, setSignInNotice] = useState<string | null>(null);
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [verifiedFaceUser, setVerifiedFaceUser] = useState<User | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const oauthStartInProgress = useRef(false);
   const submitInProgress = useRef(false);
@@ -124,14 +126,13 @@ export const LoginPage: React.FC = () => {
       if (!response.user) {
         throw new Error('Login succeeded but the server did not return a user account.');
       }
+      const destination = getRoleHomeRoute(response.user.role);
+      if (!destination) {
+        throw new Error('Your account role could not be confirmed. Please contact support.');
+      }
       login(response.user, response.token || COOKIE_SESSION);
       toast.success('Welcome Back!');
-      const role = response.user.role?.toLowerCase();
-      if (role === 'patient') {
-        navigate('/portal');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(destination);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Invalid credentials';
       setSignInNotice(message);
@@ -172,6 +173,7 @@ export const LoginPage: React.FC = () => {
     if (faceLoginInProgress.current) return;
     faceLoginInProgress.current = true;
     setSignInNotice(null);
+    setVerifiedFaceUser(null);
     try {
       const formData = new FormData();
       formData.append('image', image, 'face-login.jpg');
@@ -179,26 +181,19 @@ export const LoginPage: React.FC = () => {
       const response = await api.post('/auth/face-verify', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         skipToast: true,
+        timeout: 30000,
       }) as {
         verified?: boolean;
-        user?: {
-          id: string;
-          name?: string;
-          username?: string;
-          fullName?: string;
-          email: string;
-          role: string;
-          patientId?: string;
-          doctorId?: string;
-        };
+        user?: User;
       };
 
-      if (!response.verified || !response.user) {
+      if (response.verified !== true || !response.user) {
         throw new Error('Face sign-in could not be verified. Please use your email and password.');
       }
-      login(response.user, COOKIE_SESSION);
-      toast.success('Face sign-in verified. Welcome back!');
-      navigate(response.user.role.toLowerCase() === 'patient' ? '/portal' : '/dashboard');
+      if (!getRoleHomeRoute(response.user.role)) {
+        throw new Error('The verified account does not have an available dashboard. Please contact support.');
+      }
+      setVerifiedFaceUser(response.user);
     } finally {
       faceLoginInProgress.current = false;
     }
@@ -344,7 +339,7 @@ export const LoginPage: React.FC = () => {
         <aside className="gsap-card medivanta-face-panel relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[1.5rem] border border-white/10 shadow-2xl sm:min-h-[380px] lg:min-h-full">
           <div className="medivanta-face-model">
             <Suspense fallback={<div className="medivanta-face-loading" aria-hidden="true" />}>
-              <FaceScanModel followPointer />
+              <FaceScanModel followPointer normalizeSize />
             </Suspense>
           </div>
           <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-5 sm:p-6">
@@ -361,9 +356,20 @@ export const LoginPage: React.FC = () => {
 
       <FaceScanModal
         isOpen={isFaceModalOpen}
-        onClose={() => setIsFaceModalOpen(false)}
+        onClose={() => {
+          setIsFaceModalOpen(false);
+          setVerifiedFaceUser(null);
+        }}
         mode="login"
         onFaceVerification={handleFaceVerification}
+        onVerificationComplete={() => {
+          if (!verifiedFaceUser) return;
+          const destination = getRoleHomeRoute(verifiedFaceUser.role);
+          if (!destination) return;
+          login(verifiedFaceUser, COOKIE_SESSION);
+          toast.success('Face sign-in verified. Welcome back!');
+          navigate(destination, { replace: true });
+        }}
       />
     </main>
   );

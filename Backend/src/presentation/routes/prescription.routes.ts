@@ -19,7 +19,13 @@ const prescriptionController = new PrescriptionController(prescriptionService);
 
 // Route definitions
 // Doctor & Admin only can create prescriptions
-prescriptionRouter.post('/', requireRole('admin', 'doctor'), validate(createPrescriptionSchema), prescriptionController.createPrescription);
+prescriptionRouter.post(
+  '/',
+  requireRole('admin', 'doctor'),
+  requirePatientSelfOrRole('patientId', 'doctor'),
+  validate(createPrescriptionSchema),
+  prescriptionController.createPrescription
+);
 
 // Patients can only view their own prescriptions; staff has access
 prescriptionRouter.get(

@@ -18,6 +18,7 @@ describe('email and password registration', () => {
       .spyOn(ProfileLinker, 'ensureUserProfile')
       .mockResolvedValue(body.role === 'doctor' ? 'doctor-profile-id' : 'patient-profile-id');
     const response = {
+      cookie: vi.fn().mockReturnThis(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
     } as unknown as Response;

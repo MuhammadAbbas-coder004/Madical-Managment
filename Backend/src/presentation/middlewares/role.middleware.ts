@@ -2,12 +2,19 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from './auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { AppointmentModel } from '../../infrastructure/database/schemas/Appointment.schema';
 
 const doctorVerificationMessage = 'Doctor account verification is pending';
+const doctorRejectedMessage = 'Doctor verification was not approved. Please contact an administrator.';
+const doctorStatusUnavailableMessage = 'Doctor verification is required before clinical access can be granted.';
 
-const isDoctorVerified = async (userId: string): Promise<boolean> => {
+const getDoctorVerificationMessage = async (userId: string): Promise<string | null> => {
   const user = await UserModel.findById(userId).select('role doctorVerificationStatus');
-  return user?.role === 'doctor' && user.doctorVerificationStatus === 'verified';
+  if (user?.role !== 'doctor') return doctorStatusUnavailableMessage;
+  if (user.doctorVerificationStatus === 'verified') return null;
+  if (user.doctorVerificationStatus === 'pending') return doctorVerificationMessage;
+  if (user.doctorVerificationStatus === 'rejected') return doctorRejectedMessage;
+  return doctorStatusUnavailableMessage;
 };
 
 /**
@@ -41,10 +48,13 @@ export const requireRole = (...roles: string[]) => {
     }
 
     if (userRole === 'doctor') {
-      if (!req.user.userId || !(await isDoctorVerified(req.user.userId))) {
+      const verificationMessage = req.user.userId
+        ? await getDoctorVerificationMessage(req.user.userId)
+        : doctorStatusUnavailableMessage;
+      if (verificationMessage) {
         res.status(403).json({
           success: false,
-          message: doctorVerificationMessage,
+          message: verificationMessage,
         });
         return;
       }
@@ -55,9 +65,10 @@ export const requireRole = (...roles: string[]) => {
 };
 
 /**
- * Ensures patients can only access their own records while authorized staff have access.
+ * Ensures patients can only access their own records and doctors only access assigned patients.
  * Runs after authMiddleware.
- * - If user is admin or an authorized staff role (e.g. doctor, nurse), allows access.
+ * - Admins and nurses retain their existing staff access.
+ * - Doctors must have an appointment relationship with the requested patient.
  * - If user is patient:
  *     1. Validates that patient is accessing their own data.
  *     2. Returns 403 Forbidden if patient tries to access another patient's data.
@@ -85,15 +96,38 @@ export const requirePatientSelfOrRole = (
       }
 
       if (staffRoles.includes(userRole)) {
-        if (
-          userRole === 'doctor' &&
-          (!req.user.userId || !(await isDoctorVerified(req.user.userId)))
-        ) {
-          res.status(403).json({
-            success: false,
-            message: doctorVerificationMessage,
-          });
-          return;
+        if (userRole === 'doctor') {
+          const verificationMessage = req.user.userId
+            ? await getDoctorVerificationMessage(req.user.userId)
+            : doctorStatusUnavailableMessage;
+          if (verificationMessage) {
+            res.status(403).json({
+              success: false,
+              message: verificationMessage,
+            });
+            return;
+          }
+        }
+        if (userRole === 'doctor') {
+          const targetPatientId =
+            req.params[paramName] ||
+            req.body?.[paramName] ||
+            (req.query?.[paramName] as string | undefined);
+          if (targetPatientId) {
+            if (
+              !req.user.linkedId ||
+              !(await AppointmentModel.exists({
+                doctorId: req.user.linkedId,
+                patientId: String(targetPatientId),
+              }))
+            ) {
+              res.status(403).json({
+                success: false,
+                message: 'You can only access records for your assigned patients',
+              });
+              return;
+            }
+          }
         }
         next();
         return;

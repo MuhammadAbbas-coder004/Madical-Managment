@@ -45,8 +45,8 @@ export interface EnvConfig {
   TWILIO_AUTH_TOKEN: string;
   TWILIO_PHONE: string;
   FACE_ENROLLMENT_ENABLED: boolean;
-  AWS_REGION: string;
-  REKOGNITION_COLLECTION_ID: string;
+  BIOMETRIC_ENCRYPTION_KEY: string;
+  FACE_PYTHON_PATH: string;
 }
 
 export const validateEnv = (): EnvConfig => {
@@ -106,15 +106,14 @@ export const validateEnv = (): EnvConfig => {
     errors.push('FACE_ENROLLMENT_ENABLED must be "true" or "false".');
   }
   const faceEnrollmentEnabled = faceEnrollmentSetting === 'true';
-  const awsRegion = process.env.AWS_REGION?.trim() || '';
-  const rekognitionCollectionId = process.env.REKOGNITION_COLLECTION_ID?.trim() || '';
-  if (faceEnrollmentEnabled && !awsRegion) {
-    errors.push('AWS_REGION is required when FACE_ENROLLMENT_ENABLED=true.');
+  const biometricEncryptionKey = process.env.BIOMETRIC_ENCRYPTION_KEY?.trim() || '';
+  const biometricEncryptionKeyBytes = Buffer.from(biometricEncryptionKey, 'base64');
+  if (
+    faceEnrollmentEnabled &&
+    (!/^[A-Za-z0-9+/]{43}=$/.test(biometricEncryptionKey) || biometricEncryptionKeyBytes.length !== 32)
+  ) {
+    errors.push('BIOMETRIC_ENCRYPTION_KEY must be a base64-encoded 32-byte key when face enrollment is enabled.');
   }
-  if (faceEnrollmentEnabled && !rekognitionCollectionId) {
-    errors.push('REKOGNITION_COLLECTION_ID is required when FACE_ENROLLMENT_ENABLED=true.');
-  }
-
   const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || '';
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() || '';
   const googleRedirectUri =
@@ -201,8 +200,8 @@ export const validateEnv = (): EnvConfig => {
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN?.trim() || '',
     TWILIO_PHONE: process.env.TWILIO_PHONE?.trim() || '',
     FACE_ENROLLMENT_ENABLED: faceEnrollmentEnabled,
-    AWS_REGION: awsRegion,
-    REKOGNITION_COLLECTION_ID: rekognitionCollectionId,
+    BIOMETRIC_ENCRYPTION_KEY: biometricEncryptionKey,
+    FACE_PYTHON_PATH: process.env.FACE_PYTHON_PATH?.trim() || '',
   };
 };
 

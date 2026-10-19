@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { GuestRoute, ProtectedRoute } from './ProtectedRoute';
 import { useAuthStore } from '../store/authStore';
 import { Spinner } from '../components/atoms/Spinner';
+import { normalizeAppRole } from '../shared/utils/roleRoutes';
 
 // --- Auth Pages (Public) ---
 import { LoginPage } from '../components/pages/LoginPage';
@@ -18,6 +19,7 @@ const OAuthCallbackPage = lazy(() => import('../components/pages/OAuthCallbackPa
 // --- Clinical Modules (Protected) ---
 const DashboardPage = lazy(() => import('../components/pages/DashboardPage').then(({ DashboardPage }) => ({ default: DashboardPage })));
 const DoctorDashboardPage = lazy(() => import('../components/pages/DoctorDashboardPage').then(({ DoctorDashboardPage }) => ({ default: DoctorDashboardPage })));
+const DoctorProfilePage = lazy(() => import('../components/pages/DoctorProfilePage').then(({ DoctorProfilePage }) => ({ default: DoctorProfilePage })));
 const PatientListPage = lazy(() => import('../components/pages/PatientListPage').then(({ PatientListPage }) => ({ default: PatientListPage })));
 const PatientCreatePage = lazy(() => import('../components/pages/PatientCreatePage').then(({ PatientCreatePage }) => ({ default: PatientCreatePage })));
 const PatientDetailPage = lazy(() => import('../components/pages/PatientDetailPage').then(({ PatientDetailPage }) => ({ default: PatientDetailPage })));
@@ -46,9 +48,11 @@ const PatientAppointmentListPage = lazy(() => import('../components/pages/MyAppo
 // Renders the correct dashboard based on the logged-in user's role
 const RoleAwareDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  if (user?.role?.toLowerCase() === 'doctor') return <DoctorDashboardPage />;
-  if (user?.role?.toLowerCase() === 'patient') return <PatientPortalPage />;
-  return <DashboardPage />;
+  const role = normalizeAppRole(user?.role);
+  if (role === 'doctor') return <DoctorDashboardPage />;
+  if (role === 'patient') return <Navigate to="/portal" replace />;
+  if (role === 'admin' || role === 'nurse') return <DashboardPage />;
+  return <Navigate to="/login" replace />;
 };
 
 const RoleAwareAppointmentList: React.FC = () => {
@@ -87,6 +91,14 @@ const RoleAwareVitalsPage: React.FC = () => {
   return <Navigate to="/dashboard" replace />;
 };
 
+const RoleAwareFaceEnrollPage: React.FC = () => {
+  const { user } = useAuthStore();
+  if (!['patient', 'doctor'].includes(user?.role?.toLowerCase() || '')) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <FaceEnrollPage />;
+};
+
 export const AppRoutes: React.FC = () => {
   const token = useAuthStore((state) => state.token);
 
@@ -106,7 +118,10 @@ export const AppRoutes: React.FC = () => {
       <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
       <Route path="/auth/callback" element={<OAuthCallbackPage />} />
-      <Route path="/face-enrollment-prompt" element={<FaceEnrollPage />} />
+      <Route
+        path="/face-enrollment-prompt"
+        element={<ProtectedRoute><RoleAwareFaceEnrollPage /></ProtectedRoute>}
+      />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-otp" element={<VerifyOtpPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -117,6 +132,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <RoleAwareDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorProfilePage />
           </ProtectedRoute>
         }
       />
@@ -311,7 +334,7 @@ export const AppRoutes: React.FC = () => {
       <Route
         path="/portal"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['patient']}>
             <PatientPortalPage />
           </ProtectedRoute>
         }

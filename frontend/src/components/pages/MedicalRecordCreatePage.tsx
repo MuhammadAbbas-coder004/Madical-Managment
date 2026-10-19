@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../shared/services/api';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Button } from '../atoms/Button';
@@ -25,6 +26,7 @@ interface Doctor {
 
 export const MedicalRecordCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const isDoctor = useAuthStore((state) => state.user?.role.toLowerCase() === 'doctor');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDirectory, setLoadingDirectory] = useState(true);
@@ -42,15 +44,17 @@ export const MedicalRecordCreatePage: React.FC = () => {
         setLoadingDirectory(true);
         const [patientsRes, doctorsRes]: [any, any] = await Promise.all([
           api.get('/patients'),
-          api.get('/doctors'),
+          isDoctor ? api.get('/doctors/me') : api.get('/doctors'),
         ]);
 
         const patientList: Patient[] = Array.isArray(patientsRes)
           ? patientsRes
           : patientsRes?.data || [];
-        const doctorList: Doctor[] = Array.isArray(doctorsRes)
-          ? doctorsRes
-          : doctorsRes?.data || [];
+        const doctorList: Doctor[] = isDoctor
+          ? (doctorsRes?.data ? [doctorsRes.data] : [])
+          : Array.isArray(doctorsRes)
+            ? doctorsRes
+            : doctorsRes?.data || [];
 
         setPatients(patientList);
         setDoctors(doctorList);
@@ -61,15 +65,15 @@ export const MedicalRecordCreatePage: React.FC = () => {
         if (doctorList.length > 0) {
           setDoctorId(doctorList[0].doctorId);
         }
-      } catch (err) {
-        toast.error('Failed to load clinic directory');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to load clinic directory.');
       } finally {
         setLoadingDirectory(false);
       }
     };
 
     fetchDirectory();
-  }, []);
+  }, [isDoctor]);
 
   const fieldClass =
     'w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary placeholder:text-textSecondary/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50';

@@ -19,7 +19,13 @@ const medicalRecordController = new MedicalRecordController(medicalRecordService
 
 // Route definitions
 // Doctor & Admin only can create medical records
-medicalRecordRouter.post('/', requireRole('admin', 'doctor'), validate(createMedicalRecordSchema), medicalRecordController.createRecord);
+medicalRecordRouter.post(
+  '/',
+  requireRole('admin', 'doctor'),
+  requirePatientSelfOrRole('patientId', 'doctor'),
+  validate(createMedicalRecordSchema),
+  medicalRecordController.createRecord
+);
 
 // Patients can only view their own medical records; staff has access
 medicalRecordRouter.get(

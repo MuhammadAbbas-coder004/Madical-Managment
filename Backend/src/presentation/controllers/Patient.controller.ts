@@ -3,6 +3,7 @@ import { PatientApplicationService } from '../../application/patient/PatientAppl
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { UserModel } from '../../infrastructure/database/schemas/User.schema';
 import { PatientModel } from '../../infrastructure/database/schemas/Patient.schema';
+import { AppointmentModel } from '../../infrastructure/database/schemas/Appointment.schema';
 import { ensureUserProfile } from '../../infrastructure/database/UserProfileLinker';
 import { AppError } from '../../domain/errors/AppError';
 
@@ -111,17 +112,33 @@ export class PatientController {
 
   public getAllPatients = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = (req as AuthenticatedRequest).user;
       const patients = await this.patientService.getAllPatients();
+      let assignedPatientIds: Set<string> | null = null;
+      if (user?.role?.toLowerCase() === 'doctor') {
+        const persistedUser = user.userId ? await UserModel.findById(user.userId) : null;
+        const doctorId = persistedUser?.role === 'doctor'
+          ? await ensureUserProfile(persistedUser)
+          : user.linkedId;
+        const linkedPatientIds = doctorId
+          ? await AppointmentModel.distinct('patientId', { doctorId })
+          : [];
+        assignedPatientIds = new Set(linkedPatientIds.map(String));
+      }
 
-      const data = patients.map((patient) => ({
-        patientId: patient.patientId.getValue(),
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        fullName: patient.fullName,
-        email: patient.email.getValue(),
-        phone: patient.phone,
-        dateOfBirth: patient.dateOfBirth,
-      }));
+      const data = patients
+        .filter((patient) =>
+          assignedPatientIds === null || assignedPatientIds.has(patient.patientId.getValue())
+        )
+        .map((patient) => ({
+          patientId: patient.patientId.getValue(),
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          fullName: patient.fullName,
+          email: patient.email.getValue(),
+          phone: patient.phone,
+          dateOfBirth: patient.dateOfBirth,
+        }));
 
       res.status(200).json({
         success: true,

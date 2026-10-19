@@ -20,11 +20,13 @@ export interface User {
   licenseNumber?: string;
   authProvider?: string;
   faceEnrollmentStatus?: string;
+  faceEnrollmentAvailable?: boolean;
 }
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  sessionVerified: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
 }
@@ -34,14 +36,16 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
-      login: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      sessionVerified: false,
+      login: (user, token) => set({ user, token, sessionVerified: true }),
+      logout: () => set({ user: null, token: null, sessionVerified: false }),
     }),
     {
       name: 'auth-storage', // key used in localStorage
       version: 1,
       // Old frontend builds persisted a fake token and could lock users out of public auth pages.
-      migrate: () => ({ user: null, token: null }),
+      migrate: () => ({ user: null, token: null, sessionVerified: false }),
+      partialize: ({ user, token }) => ({ user, token }),
     }
   )
 );

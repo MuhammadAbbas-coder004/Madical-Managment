@@ -13,6 +13,7 @@ dist/
 # Uploads & temporary media
 uploads/*
 !uploads/.gitkeep
+face-service/models/*.onnx
 
 # Logs
 *.log

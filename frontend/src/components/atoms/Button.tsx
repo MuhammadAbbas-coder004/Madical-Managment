@@ -7,10 +7,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const ButtonSpinner: React.FC<{ className?: string }> = ({
-  className = 'h-4 w-4 shrink-0 animate-spin',
+  className = '',
 }) => (
   <svg
-    className={className}
+    className={`h-4 w-4 shrink-0 animate-spin ${className}`}
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
@@ -57,4 +57,3 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
-

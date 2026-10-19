@@ -5,11 +5,15 @@ import { OAuthController } from '../controllers/OAuth.controller';
 import { authMiddleware, faceEnrollmentAuthMiddleware } from '../middlewares/auth.middleware';
 import {
   faceEnrollmentRateLimiter,
+  ensureFaceVerificationConfigured,
+  faceVerificationIpRateLimiter,
   faceVerificationRateLimiter,
   loginRateLimiter,
   oauthRateLimiter,
   passwordResetRateLimiter,
   registerRateLimiter,
+  ensureFaceVerificationClientIdentity,
+  validateFaceVerificationInput,
 } from '../middlewares/rateLimit.middleware';
 import { AppError } from '../../domain/errors/AppError';
 import { validate } from '../middlewares/validate.middleware';
@@ -43,8 +47,12 @@ authRouter.post('/register', registerRateLimiter, validate(registerSchema), auth
 authRouter.post('/login', loginRateLimiter, validate(loginSchema), authController.login);
 authRouter.post(
   '/face-verify',
-  faceVerificationRateLimiter,
   faceImageUpload.single('image'),
+  validateFaceVerificationInput,
+  ensureFaceVerificationConfigured,
+  ensureFaceVerificationClientIdentity,
+  faceVerificationIpRateLimiter,
+  faceVerificationRateLimiter,
   authController.faceVerify
 );
 authRouter.post(
@@ -53,6 +61,12 @@ authRouter.post(
   faceEnrollmentRateLimiter,
   faceImageUpload.single('image'),
   authController.enrollFace
+);
+authRouter.delete(
+  '/face-enroll',
+  authMiddleware,
+  faceEnrollmentRateLimiter,
+  authController.deleteFaceEnrollment
 );
 authRouter.post('/logout', authController.logout);
 authRouter.get('/session', authMiddleware, authController.providerSession);

@@ -35,7 +35,9 @@ const clientOriginForRequest = (req: Request): string => {
   const referer = req.get('referer');
   try {
     const origin = requestOrigin || (referer ? new URL(referer).origin : undefined);
-    return origin && allowedClientOrigins().has(origin) ? origin : defaultClientOrigin();
+    if (!origin || !allowedClientOrigins().has(origin)) return defaultClientOrigin();
+    if (env.isDevelopment && origin !== defaultClientOrigin()) return defaultClientOrigin();
+    return origin;
   } catch {
     return defaultClientOrigin();
   }

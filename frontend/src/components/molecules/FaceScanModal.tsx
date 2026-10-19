@@ -8,10 +8,11 @@ interface FaceScanModalProps {
   mode: 'enrollment' | 'login';
   onEnrollmentCapture?: (image: Blob) => Promise<void>;
   onFaceVerification?: (image: Blob) => Promise<void>;
+  onVerificationComplete?: () => void;
   captureOnly?: boolean;
 }
 
-type ScanStage = 'idle' | 'initializing' | 'ready' | 'capturing' | 'failed' | 'captured' | 'enrolled';
+type ScanStage = 'idle' | 'initializing' | 'ready' | 'capturing' | 'failed' | 'captured' | 'enrolled' | 'verified';
 
 const waitForVideoReady = (video: HTMLVideoElement, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -102,18 +103,73 @@ const getCameraErrorMessage = (error: unknown, phase: 'access' | 'preview') => {
     : 'The camera preview could not be started. Check camera access and retry.';
 };
 
+const getRetryAfterSeconds = (error: unknown): number => {
+  if (typeof error !== 'object' || error === null || !('response' in error)) return 0;
+  const response = error.response;
+  if (typeof response !== 'object' || response === null || !('data' in response)) return 0;
+  const data = response.data;
+  if (typeof data !== 'object' || data === null || !('retryAfterSeconds' in data)) return 0;
+  const seconds = data.retryAfterSeconds;
+  return typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
+    ? Math.ceil(seconds)
+    : 0;
+};
+
+const getVerificationErrorMessage = (error: unknown): string => {
+  const requestError = error as {
+    code?: string;
+    message?: string;
+    response?: {
+      status?: number;
+      data?: { diagnosticCode?: string };
+    };
+  } | null;
+  const status = requestError?.response?.status;
+  const diagnosticCode = requestError?.response?.data?.diagnosticCode;
+
+  if (
+    status === 409
+    || diagnosticCode === 'NO_ELIGIBLE_ENROLLMENT'
+    || diagnosticCode === 'FACE_TEMPLATE_MISSING'
+  ) {
+    return 'No eligible face enrollment is available for this sign-in. Use your password to sign in, then enroll or update your face from your account.';
+  }
+  if (status === 401 || diagnosticCode === 'FACE_MISMATCH') {
+    return 'The camera image did not match an eligible face enrollment. Retry with your enrolled face or sign in with your password.';
+  }
+  if (status === 429) {
+    return 'Too many verification attempts were made. Wait for the retry timer, then try again or use your password.';
+  }
+  if (requestError?.code === 'ECONNABORTED' || requestError?.message?.toLowerCase().includes('timeout')) {
+    return 'Face verification timed out. No identity was confirmed. Retry when the service is available.';
+  }
+  if (status === 503 || (typeof status === 'number' && status >= 500)) {
+    return 'Face verification is temporarily unavailable. No identity was confirmed. Please retry later or use your password.';
+  }
+  if (requestError?.code === 'ERR_NETWORK' || requestError?.message === 'Network Error') {
+    return 'The verification service could not be reached. Check your connection and retry, or use your password.';
+  }
+  if (typeof status === 'number') {
+    return 'Face verification could not be completed. Retry or use your password to sign in.';
+  }
+  return requestError?.message || 'Face verification could not be completed. Please retry.';
+};
+
 export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   isOpen,
   onClose,
   mode,
   onEnrollmentCapture,
   onFaceVerification,
+  onVerificationComplete,
   captureOnly = false,
 }) => {
   const [stage, setStage] = useState<ScanStage>('idle');
   const [failureReason, setFailureReason] = useState('');
   const [consentGiven, setConsentGiven] = useState(false);
+  const [retryDelaySeconds, setRetryDelaySeconds] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const captureInProgressRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraRequestRef = useRef(0);
   const activeCameraRequestRef = useRef<number | null>(null);
@@ -136,10 +192,15 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   }, []);
 
   const handleClose = () => {
+    if (mode === 'login' && stage === 'verified') {
+      onVerificationComplete?.();
+      return;
+    }
     stopCamera();
     setStage('idle');
     setFailureReason('');
     setConsentGiven(false);
+    setRetryDelaySeconds(0);
     onClose();
   };
 
@@ -161,9 +222,18 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
     };
   }, [isOpen, stopCamera]);
 
+  useEffect(() => {
+    if (retryDelaySeconds <= 0) return;
+    const timer = window.setTimeout(
+      () => setRetryDelaySeconds((seconds) => Math.max(0, seconds - 1)),
+      1000
+    );
+    return () => window.clearTimeout(timer);
+  }, [retryDelaySeconds]);
+
   const startCamera = async () => {
     if (activeCameraRequestRef.current !== null) return;
-    if (!consentGiven) return;
+    if (!consentGiven || retryDelaySeconds > 0) return;
 
     const requestId = ++cameraRequestRef.current;
     activeCameraRequestRef.current = requestId;
@@ -248,6 +318,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
   };
 
   const handleVerify = async () => {
+    if (captureInProgressRef.current || retryDelaySeconds > 0) return;
     if (!consentGiven) {
       setStage('failed');
       setFailureReason('Consent is required before sending a camera frame for biometric processing.');
@@ -271,6 +342,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       return;
     }
 
+    captureInProgressRef.current = true;
     setStage('capturing');
     try {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -288,20 +360,25 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       } else {
         if (!onFaceVerification) throw new Error(unavailableMessage);
         await onFaceVerification(capture);
+        setFailureReason('');
+        setStage('verified');
       }
     } catch (error: unknown) {
+      const retryAfterSeconds = getRetryAfterSeconds(error);
+      if (retryAfterSeconds) setRetryDelaySeconds(retryAfterSeconds);
       setStage('failed');
       setFailureReason(
-        error instanceof Error
+        mode === 'login'
+          ? getVerificationErrorMessage(error)
+          : error instanceof Error
           ? error.message
-          : mode === 'login'
-            ? 'Face sign-in could not be completed. Please retry or use your password.'
             : 'Face enrollment could not be completed. Please retry.'
       );
     } finally {
       canvas.width = 0;
       canvas.height = 0;
       stopCamera();
+      captureInProgressRef.current = false;
     }
   };
 
@@ -314,13 +391,13 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
       aria-labelledby="face-verification-heading"
       className="face-scan-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 backdrop-blur-md animate-fade-in sm:p-4"
     >
-      <div className="face-scan-dialog relative flex w-full max-w-2xl flex-col rounded-3xl border border-[#C7FFBE]/20 bg-[#171B1A] p-4 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_30px_rgba(199,255,190,0.08)] sm:p-6">
+      <div className="face-scan-dialog relative flex w-full max-w-2xl flex-col rounded-3xl border border-[#56E8F2]/20 bg-[#071423] p-4 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_30px_rgba(86,232,242,0.08)] sm:p-6">
         {/* Header */}
         <div className="face-scan-header flex shrink-0 items-start justify-between gap-4 border-b border-white/10 pb-3 sm:pb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex h-2 w-2 rounded-full bg-[#C7FFBE]" />
-              <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-[#C7FFBE]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-[#56E8F2]" />
+              <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-[#56E8F2]">
                 Face {mode === 'login' ? 'sign-in' : 'registration'}
               </span>
             </div>
@@ -332,14 +409,14 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 ? 'A camera frame is compared on the server with your enrolled face. This similarity check does not detect presentation attacks.'
                 : captureOnly
                   ? 'Capture a camera frame now. It will only be submitted for enrollment after your account is created.'
-                  : 'AWS Rekognition creates face enrollment data for your account. This does not verify legal identity or enable face sign-in.'}
+                  : 'Medivanta processes the camera frame locally and stores an encrypted face template for your account. This does not verify legal identity or detect presentation attacks.'}
             </p>
           </div>
           <button
             type="button"
             onClick={handleClose}
             aria-label="Close face scan"
-            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
+            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#56E8F2]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -350,7 +427,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             <input
               type="checkbox"
               checked={consentGiven}
-              disabled={stage === 'initializing' || stage === 'ready' || stage === 'capturing' || stage === 'captured' || stage === 'enrolled'}
+              disabled={stage === 'initializing' || stage === 'ready' || stage === 'capturing' || stage === 'captured' || stage === 'enrolled' || stage === 'verified'}
               onChange={(event) => {
                 setConsentGiven(event.target.checked);
                 if (!event.target.checked) {
@@ -359,14 +436,14 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                   setStage('idle');
                 }
               }}
-              className="mt-0.5 accent-[#C7FFBE]"
+              className="mt-0.5 accent-[#56E8F2]"
             />
             <span>
               {mode === 'login'
-                ? 'I consent to sending this camera frame to AWS Rekognition to compare it with face data I previously enrolled. This comparison does not perform liveness detection, and AWS processes the image for matching.'
+                ? 'I consent to sending this camera frame to Medivanta’s local face service to compare it with my encrypted face template. The camera image is processed in memory and is not stored. This check does not detect presentation attacks.'
                 : captureOnly
                   ? 'I consent to capturing a camera frame in this browser and submitting it for server-side face enrollment after account registration. The frame is not uploaded unless account creation succeeds.'
-                  : 'I consent to sending this camera frame to AWS Rekognition to create face enrollment data for my account. The frame is processed for enrollment and is not stored by Medivanta; AWS retains the face features in its configured collection.'}
+                  : 'I consent to sending this camera frame to Medivanta’s local face service to create an encrypted face template for my account. The camera image is processed in memory and is not stored. This does not detect presentation attacks.'}
             </span>
           </label>
         )}
@@ -374,7 +451,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
         {/* Viewport Container */}
         <div className="face-scan-preview-wrap">
           <div
-            className="face-scan-viewport relative mx-auto overflow-hidden rounded-2xl border border-[#C7FFBE]/30 bg-[#0E1211] shadow-[0_0_30px_rgba(199,255,190,0.12)]"
+            className="face-scan-viewport relative mx-auto overflow-hidden rounded-2xl border border-[#56E8F2]/30 bg-[#06111D] shadow-[0_0_30px_rgba(86,232,242,0.12)]"
             aria-busy={stage === 'initializing' || stage === 'capturing'}
           >
             {/* Live Video Preview */}
@@ -397,7 +474,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 <div
                   className="absolute inset-0 opacity-15"
                   style={{
-                    backgroundImage: `radial-gradient(rgba(199,255,190,0.4) 1px, transparent 1px)`,
+                    backgroundImage: `radial-gradient(rgba(86,232,242,0.4) 1px, transparent 1px)`,
                     backgroundSize: '20px 20px',
                   }}
                   aria-hidden="true"
@@ -405,7 +482,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
                 {stage === 'idle' && (
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#C7FFBE]/30 bg-[#C7FFBE]/10 text-[#C7FFBE] shadow-[0_0_24px_rgba(199,255,190,0.2)]">
+                    <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#56E8F2]/30 bg-[#56E8F2]/10 text-[#56E8F2] shadow-[0_0_24px_rgba(86,232,242,0.2)]">
                       <Camera className="h-8 w-8" />
                     </div>
                     <p className="text-sm font-semibold text-white">Live Camera Preview</p>
@@ -421,7 +498,7 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
                 {stage === 'initializing' && (
                   <div className="relative z-10 flex flex-col items-center">
-                    <RefreshCw className="h-9 w-9 animate-spin text-[#C7FFBE]" />
+                    <RefreshCw className="h-9 w-9 animate-spin text-[#56E8F2]" />
                     <p className="mt-3 text-sm font-medium text-white">Preparing your camera…</p>
                     <p className="mt-1 text-xs text-white/50">Requesting browser camera permission…</p>
                   </div>
@@ -441,17 +518,27 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
 
                 {stage === 'enrolled' && (
                   <div role="status" className="relative z-10 flex flex-col items-center max-w-sm px-4">
-                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#C7FFBE]" />
+                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#56E8F2]" />
                     <p className="text-sm font-semibold text-white">Face enrollment complete</p>
                     <p className="mt-2 text-xs leading-relaxed text-white/70">
-                      AWS Rekognition confirmed enrollment for your account. Your camera frame was not stored by Medivanta.
+                      Local face processing created an encrypted template for your account. Your camera frame was not stored by Medivanta.
+                    </p>
+                  </div>
+                )}
+
+                {stage === 'verified' && (
+                  <div role="status" className="relative z-10 flex flex-col items-center max-w-sm px-4">
+                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#56E8F2]" />
+                    <p className="text-sm font-semibold text-white">Face sign-in verified</p>
+                    <p className="mt-2 text-xs leading-relaxed text-white/70">
+                      Medivanta confirmed this sign-in with the face-verification service. Continue to open the dashboard for your account.
                     </p>
                   </div>
                 )}
 
                 {stage === 'captured' && (
                   <div role="status" className="relative z-10 flex flex-col items-center max-w-sm px-4">
-                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#C7FFBE]" />
+                    <CheckCircle2 className="mb-3 h-12 w-12 text-[#56E8F2]" />
                     <p className="text-sm font-semibold text-white">Camera frame captured</p>
                     <p className="mt-2 text-xs leading-relaxed text-white/70">
                       This is not face enrollment or verification. The frame will be submitted for enrollment only after your account is created.
@@ -467,38 +554,27 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 {/* Elegant Corner Brackets */}
                 <div className="pointer-events-none absolute inset-6 flex flex-col justify-between" aria-hidden="true">
                   <div className="flex justify-between">
-                    <div className="h-8 w-8 border-l-2 border-t-2 border-[#C7FFBE] rounded-tl-lg shadow-[-2px_-2px_10px_rgba(199,255,190,0.5)]" />
-                    <div className="h-8 w-8 border-r-2 border-t-2 border-[#C7FFBE] rounded-tr-lg shadow-[2px_-2px_10px_rgba(199,255,190,0.5)]" />
+                    <div className="h-8 w-8 border-l-2 border-t-2 border-[#56E8F2] rounded-tl-lg shadow-[-2px_-2px_10px_rgba(86,232,242,0.5)]" />
+                    <div className="h-8 w-8 border-r-2 border-t-2 border-[#56E8F2] rounded-tr-lg shadow-[2px_-2px_10px_rgba(86,232,242,0.5)]" />
                   </div>
                   <div className="flex justify-between">
-                    <div className="h-8 w-8 border-l-2 border-b-2 border-[#C7FFBE] rounded-bl-lg shadow-[-2px_2px_10px_rgba(199,255,190,0.5)]" />
-                    <div className="h-8 w-8 border-r-2 border-b-2 border-[#C7FFBE] rounded-br-lg shadow-[2px_2px_10px_rgba(199,255,190,0.5)]" />
+                    <div className="h-8 w-8 border-l-2 border-b-2 border-[#56E8F2] rounded-bl-lg shadow-[-2px_2px_10px_rgba(86,232,242,0.5)]" />
+                    <div className="h-8 w-8 border-r-2 border-b-2 border-[#56E8F2] rounded-br-lg shadow-[2px_2px_10px_rgba(86,232,242,0.5)]" />
                   </div>
                 </div>
 
                 {/* Subtle Centered Reticle */}
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                  <div className="h-44 w-36 rounded-[50%] border border-[#C7FFBE]/30 shadow-[0_0_20px_rgba(199,255,190,0.15)]" />
+                  <div className="h-44 w-36 rounded-[50%] border border-[#56E8F2]/30 shadow-[0_0_20px_rgba(86,232,242,0.15)]" />
                 </div>
 
-                {/* Status Badge overlay */}
-                <div className="absolute bottom-3 inset-x-3 flex items-center justify-between rounded-xl bg-black/60 px-3 py-1.5 backdrop-blur-md border border-white/10 text-xs">
-                  <span className="flex items-center gap-2 text-white/80">
-                    <span className="h-2 w-2 rounded-full bg-[#C7FFBE]" />
-                    {stage === 'capturing'
-                      ? mode === 'enrollment'
-                        ? captureOnly ? 'Capturing frame for registration…' : 'Sending frame for server enrollment…'
-                        : 'Checking your enrolled face…'
-                      : 'Camera preview ready — position your face in the frame.'}
-                  </span>
-                  <span className="font-mono text-[0.65rem] text-[#C7FFBE]">
-                    {stage === 'capturing'
-                      ? mode === 'enrollment' && !captureOnly
-                        ? 'ENROLLING'
-                        : mode === 'login' ? 'VERIFYING' : 'CAPTURING'
-                      : 'CAMERA ON'}
-                  </span>
-                </div>
+                {stage === 'capturing' && (
+                  <div role="status" className="absolute bottom-3 inset-x-3 flex items-center justify-center rounded-xl bg-black/60 px-3 py-1.5 text-xs text-white/80 backdrop-blur-md border border-white/10">
+                    {mode === 'enrollment'
+                      ? captureOnly ? 'Capturing frame for registration…' : 'Sending frame for server enrollment…'
+                      : 'Checking your enrolled face…'}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -512,9 +588,9 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
                 type="button"
                 onClick={startCamera}
                 disabled={!consentGiven}
-                className="group relative inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_20px_rgba(199,255,190,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(199,255,190,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE] active:scale-[0.99]"
+                className="group relative inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2] bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2] shadow-[0_0_20px_rgba(86,232,242,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(86,232,242,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#56E8F2] active:scale-[0.99]"
               >
-                <Camera className="h-4 w-4 shrink-0 text-[#C7FFBE] transition-transform group-hover:scale-110" aria-hidden="true" />
+                <Camera className="h-4 w-4 shrink-0 text-[#56E8F2] transition-transform group-hover:scale-110" aria-hidden="true" />
                 <span>Start Camera Preview</span>
               </button>
               <button
@@ -531,9 +607,20 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="col-span-full inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#C7FFBE] bg-[#C7FFBE] px-4 py-2.5 text-sm font-semibold text-[#171B1A]"
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#56E8F2] bg-[#56E8F2] px-4 py-2.5 text-sm font-semibold text-[#071423]"
             >
               {stage === 'captured' ? 'Return to registration' : 'Done'}
+            </button>
+          )}
+
+          {stage === 'verified' && mode === 'login' && (
+            <button
+              type="button"
+              onClick={onVerificationComplete}
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2] bg-[#56E8F2] px-4 py-2.5 text-sm font-semibold text-[#071423] shadow-[0_0_24px_rgba(86,232,242,0.2)]"
+            >
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              Continue to your dashboard
             </button>
           )}
 
@@ -541,9 +628,9 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             <button
               type="button"
               disabled
-              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/40 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]/70 cursor-not-allowed opacity-80"
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2]/40 bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2]/70 cursor-not-allowed opacity-80"
             >
-              <RefreshCw className="h-4 w-4 animate-spin text-[#C7FFBE]" />
+              <RefreshCw className="h-4 w-4 animate-spin text-[#56E8F2]" />
               <span>Preparing your camera…</span>
             </button>
           )}
@@ -553,9 +640,9 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
               <button
                 type="button"
                 onClick={handleVerify}
-                className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_24px_rgba(199,255,190,0.24)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_32px_rgba(199,255,190,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE] active:scale-[0.99]"
+                className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2] bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2] shadow-[0_0_24px_rgba(86,232,242,0.24)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_32px_rgba(86,232,242,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#56E8F2] active:scale-[0.99]"
               >
-                <Scan className="h-4 w-4 shrink-0 text-[#C7FFBE] transition-transform group-hover:scale-110" />
+                <Scan className="h-4 w-4 shrink-0 text-[#56E8F2] transition-transform group-hover:scale-110" />
                 <span>
                   {mode === 'enrollment'
                     ? captureOnly ? 'Capture Frame' : 'Enroll Face'
@@ -576,9 +663,9 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
             <button
               type="button"
               disabled
-              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE]/40 bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE]/80 cursor-wait"
+              className="col-span-full inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2]/40 bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2]/80 cursor-wait"
             >
-              <RefreshCw className="h-4 w-4 animate-spin text-[#C7FFBE]" />
+              <RefreshCw className="h-4 w-4 animate-spin text-[#56E8F2]" />
               <span>
                 {mode === 'login'
                   ? 'Verifying your face…'
@@ -594,10 +681,15 @@ export const FaceScanModal: React.FC<FaceScanModalProps> = ({
               <button
                 type="button"
                 onClick={startCamera}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#C7FFBE] bg-[#171B1A] px-4 py-2.5 text-sm font-semibold text-[#C7FFBE] shadow-[0_0_20px_rgba(199,255,190,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(199,255,190,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C7FFBE]"
+                disabled={retryDelaySeconds > 0}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#56E8F2] bg-[#071423] px-4 py-2.5 text-sm font-semibold text-[#56E8F2] shadow-[0_0_20px_rgba(86,232,242,0.18)] transition-all duration-200 hover:bg-[#1E2522] hover:shadow-[0_0_28px_rgba(86,232,242,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#56E8F2]"
               >
-                <RefreshCw className="h-4 w-4 shrink-0 text-[#C7FFBE]" />
-                <span>Retry Camera Preview</span>
+                <RefreshCw className="h-4 w-4 shrink-0 text-[#56E8F2]" />
+                <span>
+                  {retryDelaySeconds > 0
+                    ? `Try face sign-in again in ${retryDelaySeconds}s`
+                    : 'Retry Camera Preview'}
+                </span>
               </button>
               <button
                 type="button"

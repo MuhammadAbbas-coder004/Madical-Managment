@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { MulterError } from 'multer';
 import { env } from '../../infrastructure/config/env';
 import { AppError } from '../../domain/errors/AppError';
+import { FaceVerificationError } from '../../domain/errors/FaceVerificationError';
 
 export const errorMiddleware = (
   err: any,
@@ -42,6 +43,9 @@ export const errorMiddleware = (
     res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      ...(env.isDevelopment && err instanceof FaceVerificationError
+        ? { diagnosticCode: err.diagnosticCode }
+        : {}),
     });
     return;
   }

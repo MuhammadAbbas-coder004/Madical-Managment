@@ -17,6 +17,7 @@ export interface IUserDocument extends Document {
   isPhoneVerified: boolean;
   faceEnrollmentStatus: 'unavailable' | 'not_enrolled' | 'enrolling' | 'enrolled';
   faceProviderFaceId?: string;
+  faceTemplateEncrypted?: Buffer;
   faceEnrollmentStartedAt?: Date;
   faceEnrolledAt?: Date;
   faceConsentAt?: Date;
@@ -113,6 +114,10 @@ const userSchema = new mongoose.Schema(
     },
     faceProviderFaceId: {
       type: String,
+      select: false,
+    },
+    faceTemplateEncrypted: {
+      type: Buffer,
       select: false,
     },
     faceEnrollmentStartedAt: {

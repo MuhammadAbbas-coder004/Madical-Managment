@@ -11,8 +11,12 @@ import { RegisterDTO, LoginDTO } from '../../application/auth';
 import { EmailService } from '../../infrastructure/notifications/EmailService';
 import { env } from '../../infrastructure/config/env';
 import { AppError } from '../../domain/errors/AppError';
+import { FaceVerificationError } from '../../domain/errors/FaceVerificationError';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { faceEnrollmentService } from '../../infrastructure/biometrics/FaceEnrollmentService';
+import {
+  faceEnrollmentService,
+  isFaceEnrollmentConfigured,
+} from '../../infrastructure/biometrics/FaceEnrollmentService';
 import { faceVerificationService } from '../../infrastructure/biometrics/FaceVerificationService';
 
 export class AuthController {
@@ -105,7 +109,7 @@ export class AuthController {
           authProvider: newUser.authProvider,
           createdAt: newUser.createdAt,
           faceEnrollmentStatus: newUser.faceEnrollmentStatus,
-          faceEnrollmentAvailable: env.FACE_ENROLLMENT_ENABLED,
+          faceEnrollmentAvailable: isFaceEnrollmentConfigured(),
         },
       });
     } catch (error) {
@@ -204,6 +208,8 @@ export class AuthController {
           licenseNumber: user.licenseNumber,
           authProvider: user.authProvider,
           faceEnrollmentStatus: user.faceEnrollmentStatus,
+          faceEnrollmentAvailable:
+            ['patient', 'doctor'].includes(user.role) && isFaceEnrollmentConfigured(),
           ...(user.role === 'patient' && linkedId ? { patientId: linkedId } : {}),
           ...(user.role === 'doctor' && linkedId ? { doctorId: linkedId } : {}),
         },
@@ -243,6 +249,7 @@ export class AuthController {
           licenseNumber: user.licenseNumber,
           authProvider: user.authProvider,
           faceEnrollmentStatus: user.faceEnrollmentStatus,
+          faceEnrollmentAvailable: isFaceEnrollmentConfigured(),
           ...(user.role === 'patient' && user.linkedId ? { patientId: user.linkedId } : {}),
           ...(user.role === 'doctor' && user.linkedId ? { doctorId: user.linkedId } : {}),
         },
@@ -257,12 +264,11 @@ export class AuthController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
-    let faceId: string | undefined;
-    let persisted = false;
+    let encryptedTemplate: Buffer | undefined;
     let enrollmentStartedAt: Date | undefined;
 
     try {
-      if (!env.FACE_ENROLLMENT_ENABLED) {
+      if (!isFaceEnrollmentConfigured()) {
         throw new AppError(503, 'Face enrollment is not configured on this server.');
       }
       if (!req.user?.userId || !req.file?.buffer?.length) {
@@ -272,12 +278,15 @@ export class AuthController {
         throw new AppError(400, 'Consent is required before biometric enrollment.');
       }
 
-      const user = await UserModel.findById(req.user.userId);
+      const user = await UserModel.findById(req.user.userId).select('+faceTemplateEncrypted');
       if (!user) throw new AppError(401, 'The account for this enrollment session no longer exists.');
       if (!['patient', 'doctor'].includes(user.role)) {
         throw new AppError(403, 'Face enrollment is available only for Patient and Doctor accounts.');
       }
-      if (user.faceEnrollmentStatus === 'enrolled') {
+      if (user.status !== 'active') {
+        throw new AppError(403, 'Only active accounts can enroll for face sign-in.');
+      }
+      if (user.faceEnrollmentStatus === 'enrolled' && user.faceTemplateEncrypted) {
         throw new AppError(409, 'A face is already enrolled for this account.');
       }
 
@@ -287,7 +296,8 @@ export class AuthController {
         {
           _id: user._id,
           role: user.role,
-          faceEnrollmentStatus: { $ne: 'enrolled' },
+          status: 'active',
+          faceTemplateEncrypted: { $exists: false },
           $or: [
             { faceEnrollmentStatus: { $ne: 'enrolling' } },
             { faceEnrollmentStartedAt: { $lt: staleEnrollmentStartedAt } },
@@ -306,29 +316,54 @@ export class AuthController {
         throw new AppError(409, 'Face enrollment is already in progress or completed for this account.');
       }
 
-      faceId = await faceEnrollmentService.enrollFace(user._id.toString(), req.file.buffer);
+      encryptedTemplate = await faceEnrollmentService.enrollFace(user._id.toString(), req.file.buffer);
       const enrolledUser = await UserModel.findOneAndUpdate(
         {
           _id: user._id,
+          role: user.role,
+          status: 'active',
           faceEnrollmentStatus: 'enrolling',
           faceEnrollmentStartedAt: enrollmentStartedAt,
         },
         {
           $set: {
             faceEnrollmentStatus: 'enrolled',
-            faceProviderFaceId: faceId,
+            faceTemplateEncrypted: encryptedTemplate,
             faceEnrolledAt: new Date(),
             faceConsentAt: new Date(),
           },
-          $unset: { faceEnrollmentStartedAt: '' },
+          $unset: { faceEnrollmentStartedAt: '', faceProviderFaceId: '' },
         },
         { new: true }
-      );
-      if (!enrolledUser) {
+      ).select('+faceTemplateEncrypted');
+      const consentPersisted =
+        enrolledUser?.faceConsentAt instanceof Date &&
+        Number.isFinite(enrolledUser.faceConsentAt.getTime());
+      if (
+        !enrolledUser ||
+        enrolledUser.status !== 'active' ||
+        enrolledUser.faceEnrollmentStatus !== 'enrolled' ||
+        !Buffer.isBuffer(enrolledUser.faceTemplateEncrypted) ||
+        !consentPersisted
+      ) {
+        console.warn('[FaceEnrollment] Persistence verification failed', {
+          persisted: Boolean(enrolledUser),
+          activeAccount: enrolledUser?.status === 'active',
+          enrolledStatus: enrolledUser?.faceEnrollmentStatus === 'enrolled',
+          templatePresent: Buffer.isBuffer(enrolledUser?.faceTemplateEncrypted),
+          consentPersisted,
+        });
         throw new AppError(409, 'The enrollment session expired before it could be saved. Please retry.');
       }
-      persisted = true;
-
+      console.info('[FaceEnrollment] Enrollment persisted', {
+        persisted: true,
+        templatePresent: true,
+        consentPersisted: true,
+        modelReady: true,
+        embeddingDimensions: encryptedTemplate.length > 29
+          ? (encryptedTemplate.length - 29) / Float32Array.BYTES_PER_ELEMENT
+          : null,
+      });
       res.clearCookie('face_enrollment', {
         httpOnly: true,
         secure: env.isProduction,
@@ -343,17 +378,6 @@ export class AuthController {
         message: 'Face enrollment completed for this account.',
       });
     } catch (error) {
-      let failure = error;
-      if (faceId && !persisted) {
-        try {
-          await faceEnrollmentService.deleteFaces([faceId]);
-        } catch (cleanupError) {
-          const cleanupName =
-            cleanupError instanceof Error ? cleanupError.name : 'UnknownCleanupError';
-          console.error(`[FaceEnrollment] Failed to remove an uncommitted face (error=${cleanupName}).`);
-          failure = cleanupError;
-        }
-      }
       if (enrollmentStartedAt && req.user?.userId) {
         await UserModel.updateOne(
           {
@@ -367,7 +391,41 @@ export class AuthController {
           }
         );
       }
-      next(failure);
+      next(error);
+    }
+  };
+
+  public deleteFaceEnrollment = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!req.user?.userId) throw new AppError(401, 'Unauthorized');
+
+      const updated = await UserModel.findOneAndUpdate(
+        { _id: req.user.userId, role: { $in: ['patient', 'doctor'] } },
+        {
+          $set: { faceEnrollmentStatus: 'not_enrolled' },
+          $unset: {
+            faceTemplateEncrypted: '',
+            faceProviderFaceId: '',
+            faceEnrollmentStartedAt: '',
+            faceEnrolledAt: '',
+            faceConsentAt: '',
+          },
+        },
+        { new: true }
+      );
+      if (!updated) throw new AppError(404, 'Patient or Doctor account was not found.');
+
+      res.status(200).json({
+        success: true,
+        deleted: true,
+        faceEnrollmentStatus: updated.faceEnrollmentStatus,
+      });
+    } catch (error) {
+      next(error);
     }
   };
 
@@ -513,10 +571,10 @@ export class AuthController {
 
   public faceVerify = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!env.FACE_ENROLLMENT_ENABLED) {
+      if (!isFaceEnrollmentConfigured()) {
         throw new AppError(
           503,
-          'Face verification is not configured. Please sign in with your email and password.'
+          'Local face verification is disabled or its encryption key is missing. Use email and password sign-in.'
         );
       }
       if (!req.file?.buffer?.length) {
@@ -528,21 +586,23 @@ export class AuthController {
 
       const matchingFaces = await faceVerificationService.findMatchingFaces(req.file.buffer);
       if (!matchingFaces.length) {
-        throw new AppError(
+        throw new FaceVerificationError(
           401,
-          'No enrolled face matched this camera image. If you have not enrolled a face, sign in with your email and password.'
+          'This camera image did not match an enrolled face. Try again with your enrolled face or sign in with your password.',
+          'FACE_MISMATCH'
         );
       }
 
       const matchingUsers = await UserModel.find({
-        faceProviderFaceId: { $in: matchingFaces.map(({ faceId }) => faceId) },
+        _id: { $in: matchingFaces.map(({ userId }) => userId) },
+        role: { $in: ['patient', 'doctor'] },
+        status: 'active',
         faceEnrollmentStatus: 'enrolled',
-      }).select('+faceProviderFaceId');
+        faceConsentAt: { $type: 'date' },
+      });
       const correctlyMappedUsers = matchingUsers.filter((user) =>
         matchingFaces.some(
-          ({ faceId, externalImageId }) =>
-            user.faceProviderFaceId === faceId &&
-            user._id.toString() === externalImageId
+          ({ userId }) => user._id.toString() === userId
         )
       );
       const distinctUsers = new Map(correctlyMappedUsers.map((user) => [user._id.toString(), user]));
@@ -550,9 +610,14 @@ export class AuthController {
         correctlyMappedUsers.length !== matchingFaces.length ||
         distinctUsers.size !== 1
       ) {
-        throw new AppError(
+        throw new FaceVerificationError(
           401,
-          'No active enrolled account is linked to the matched face. Sign in with your email and password or contact support.'
+          correctlyMappedUsers.length !== matchingFaces.length
+            ? 'The matched face is not linked to an active enrollment. Sign in with your password and enroll again.'
+            : 'More than one enrolled account matched this face. Sign in with your password and contact support.',
+          correctlyMappedUsers.length !== matchingFaces.length
+            ? 'MATCHED_ACCOUNT_UNAVAILABLE'
+            : 'AMBIGUOUS_FACE_MATCH'
         );
       }
 
@@ -563,7 +628,11 @@ export class AuthController {
         user.status !== 'active' ||
         !user.faceConsentAt
       ) {
-        throw new AppError(401, 'Face was not recognized. Try again or sign in with your email and password.');
+        throw new FaceVerificationError(
+          401,
+          'The matched account is no longer eligible for face sign-in. Sign in with your password.',
+          'MATCHED_ACCOUNT_INVALID'
+        );
       }
 
       const linkedId = await ensureUserProfile(user);

@@ -283,7 +283,7 @@ describe('OAuth transaction and identity-token verification', () => {
     }
   });
 
-  it('returns OAuth failures to the same allowed development loopback origin', () => {
+  it('canonicalizes allowed development loopback aliases to the configured client origin', () => {
     const controller = new OAuthController();
     const originalClientId = env.GOOGLE_CLIENT_ID;
     const originalClientSecret = env.GOOGLE_CLIENT_SECRET;
@@ -304,7 +304,7 @@ describe('OAuth transaction and identity-token verification', () => {
 
       expect(response.redirect).toHaveBeenCalledWith(
         302,
-        expect.stringMatching(/^http:\/\/127\.0\.0\.1:5173\/auth\/callback\?/)
+        expect.stringMatching(/^http:\/\/localhost:5173\/auth\/callback\?/)
       );
     } finally {
       env.GOOGLE_CLIENT_ID = originalClientId;

@@ -27,6 +27,13 @@ interface Appointment {
   status: string;
 }
 
+interface Patient {
+  patientId: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface VitalRecord {
   patientId: string;
   status?: string;
@@ -71,8 +78,8 @@ const isToday = (dateStr: string): boolean => {
 };
 
 const statusVariant = (status: string): 'success' | 'warning' | 'danger' => {
-  if (status === 'completed') return 'success';
-  if (status === 'cancelled') return 'danger';
+  if (status.toLowerCase() === 'completed') return 'success';
+  if (['cancelled', 'missed'].includes(status.toLowerCase())) return 'danger';
   return 'warning';
 };
 
@@ -87,7 +94,7 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon, iconBg, valueCls }) => (
-  <Card>
+  <Card className="border-primary/10 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-textSecondary">{label}</p>
@@ -105,9 +112,12 @@ export const DoctorDashboardPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+  const [patientNames, setPatientNames] = useState<Map<string, string>>(new Map());
   const [criticalAlerts, setCriticalAlerts] = useState<CriticalAlert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef, [loading]);
@@ -124,8 +134,9 @@ export const DoctorDashboardPage: React.FC = () => {
     const fetchAppointments = async () => {
       setLoading(true);
       setAppointmentsError(null);
+      setPatientsError(null);
       try {
-        const profileResponse = await api.get('/doctors/me') as {
+        const profileResponse = await api.get('/doctors/me', { skipToast: true }) as {
           data?: { doctorId?: string };
         };
         const doctorId = profileResponse.data?.doctorId;
@@ -133,11 +144,26 @@ export const DoctorDashboardPage: React.FC = () => {
           throw new Error('No doctor profile is linked to your account. Please contact an administrator.');
         }
 
-        const response = await api.get(`/appointments/doctor/${encodeURIComponent(doctorId)}`) as {
+        const [response, patientsResponse] = await Promise.all([
+          api.get(`/appointments/doctor/${encodeURIComponent(doctorId)}`, { skipToast: true }) as Promise<{
           data?: Appointment[];
-        };
+          }>,
+          api.get('/patients', { skipToast: true }).catch((error: unknown) => {
+            if (!cancelled) {
+              setPatientsError(error instanceof Error ? error.message : 'Failed to load patient details.');
+            }
+            return null;
+          }) as Promise<{ data?: Patient[] } | null>,
+        ]);
         if (!cancelled) {
           setAllAppointments(Array.isArray(response.data) ? response.data : []);
+          const patients = patientsResponse && Array.isArray(patientsResponse.data)
+            ? patientsResponse.data
+            : [];
+          setPatientNames(new Map(patients.map((patient) => [
+            patient.patientId,
+            patient.fullName || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.patientId,
+          ])));
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -156,55 +182,86 @@ export const DoctorDashboardPage: React.FC = () => {
 
   // Step 2 — once appointments load, scan vitals for critical readings
   useEffect(() => {
-    if (allAppointments.length === 0) return;
+    if (allAppointments.length === 0) {
+      setCriticalAlerts([]);
+      setAlertsError(null);
+      setAlertsLoading(false);
+      return;
+    }
 
+    let cancelled = false;
     const uniquePatientIds = Array.from(
       new Set(allAppointments.map((appointment) => getPatientRawId(appointment.patientId)))
     ).filter(Boolean);
 
     const fetchCriticalAlerts = async () => {
       setAlertsLoading(true);
-      const alerts: CriticalAlert[] = [];
+      setAlertsError(null);
+      const results = await Promise.allSettled(
+        uniquePatientIds.map(async (pid): Promise<CriticalAlert | null> => {
+          const res: any = await api.get(`/vitals/patient/${encodeURIComponent(pid)}`, { skipToast: true });
+          const vitals: VitalRecord[] = Array.isArray(res) ? res : res.data ?? [];
+          const latest = vitals[0];
+          if (!latest || latest.status !== 'critical') return null;
 
-      await Promise.allSettled(
-        uniquePatientIds.map(async (pid) => {
-          try {
-            const res: any = await api.get(`/vitals/patient/${pid}`);
-            const vitals: VitalRecord[] = Array.isArray(res) ? res : res.data ?? [];
-            const latest = vitals[0];
-            if (latest && latest.status === 'critical') {
-              const matchingAppt = allAppointments.find(
-                (a) => getPatientRawId(a.patientId) === pid
-              );
-              const name = matchingAppt
-                ? getPatientName(matchingAppt.patientId, pid)
-                : pid;
-              const detail = latest.bloodPressure
-                ? `BP: ${latest.bloodPressure}${latest.heartRate ? `, HR: ${latest.heartRate} bpm` : ''}`
-                : latest.heartRate
-                ? `HR: ${latest.heartRate} bpm`
-                : 'Critical readings recorded';
-              alerts.push({ patientId: pid, patientName: name, detail });
-            }
-          } catch {
-            // skip
-          }
+          const matchingAppt = allAppointments.find(
+            (appointment) => getPatientRawId(appointment.patientId) === pid
+          );
+          const name = patientNames.get(pid)
+            || (matchingAppt ? getPatientName(matchingAppt.patientId, pid) : pid);
+          const detail = latest.bloodPressure
+            ? `BP: ${latest.bloodPressure}${latest.heartRate ? `, HR: ${latest.heartRate} bpm` : ''}`
+            : latest.heartRate
+              ? `HR: ${latest.heartRate} bpm`
+              : 'Critical readings recorded';
+          return { patientId: pid, patientName: name, detail };
         })
       );
-
-      setCriticalAlerts(alerts);
+      if (cancelled) return;
+      setCriticalAlerts(results.flatMap((result) =>
+        result.status === 'fulfilled' && result.value ? [result.value] : []
+      ));
+      const failedChecks = results.filter((result) => result.status === 'rejected').length;
+      if (failedChecks > 0) {
+        setAlertsError(`Could not load vitals for ${failedChecks} assigned patient${failedChecks === 1 ? '' : 's'}.`);
+      }
       setAlertsLoading(false);
     };
 
-    fetchCriticalAlerts();
-  }, [allAppointments]);
+    void fetchCriticalAlerts();
+    return () => {
+      cancelled = true;
+    };
+  }, [allAppointments, patientNames]);
 
   // ─── Derived values ─────────────────────────────────────────────────────────
   const todaysAppointments = allAppointments.filter((a) => isToday(a.appointmentDate));
+  const recentActivity = allAppointments
+    .filter((appointment) => ['completed', 'cancelled', 'missed'].includes(appointment.status.toLowerCase()))
+    .sort((first, second) => new Date(second.appointmentDate).getTime() - new Date(first.appointmentDate).getTime())
+    .slice(0, 5);
 
   const uniquePatientCount = new Set(
     allAppointments.map((appointment) => getPatientRawId(appointment.patientId))
   ).size;
+  const appointmentStatusData = Array.from(
+    allAppointments.reduce((counts, appointment) => {
+      const status = appointment.status.trim() || 'Unspecified';
+      counts.set(status, (counts.get(status) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>())
+  )
+    .map(([status, count]) => ({
+      status,
+      count,
+      percentage: allAppointments.length > 0
+        ? Math.round((count / allAppointments.length) * 100)
+        : 0,
+    }))
+    .sort((first, second) => second.count - first.count);
+  const isVerificationBlocked = user?.doctorVerificationStatus === 'pending'
+    || user?.doctorVerificationStatus === 'rejected'
+    || appointmentsError?.toLowerCase().includes('verification') === true;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -226,16 +283,6 @@ export const DoctorDashboardPage: React.FC = () => {
           </p>
         </div>
 
-        {user?.doctorVerificationStatus === 'pending' && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
-            <div>
-              <strong className="block text-sm font-semibold text-white mb-0.5">Doctor Credential Verification Pending</strong>
-              Your medical credentials {user.specialty ? `(Specialty: ${user.specialty}` : ''}{user.licenseNumber ? `, License: ${user.licenseNumber})` : ')'} are currently under administrative review. Full clinical authorizations will be enabled once your license is authenticated.
-            </div>
-          </div>
-        )}
-
         {loading && (
           <div className="flex items-center justify-center py-20 text-primary">
             <Spinner size="lg" />
@@ -245,13 +292,26 @@ export const DoctorDashboardPage: React.FC = () => {
 
         {!loading && (
           <>
-            {appointmentsError && (
+            {appointmentsError && !isVerificationBlocked && (
               <div className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
                 {appointmentsError}
               </div>
             )}
+            {patientsError && (
+              <div className="mb-6 rounded-md border border-warning/20 bg-warning/10 p-4 text-sm text-textSecondary">
+                Patient names could not be loaded: {patientsError}
+              </div>
+            )}
+            {isVerificationBlocked ? (
+              <Card className="border-warning/20 shadow-md" title="Clinical workspace unavailable">
+                <p className="text-sm leading-relaxed text-textSecondary">
+                  {appointmentsError || 'Your doctor credentials are awaiting administrator review. Patient data and clinical tools stay restricted until approval.'}
+                </p>
+              </Card>
+            ) : appointmentsError ? null : (
+            <>
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-3">
               <StatCard
                 label="Today's Appointments"
                 value={todaysAppointments.length}
@@ -285,6 +345,7 @@ export const DoctorDashboardPage: React.FC = () => {
                 <Card
                   title="Today's Schedule"
                   subtitle={`${todaysAppointments.length} appointment${todaysAppointments.length !== 1 ? 's' : ''} today`}
+                  className="shadow-md"
                 >
                   {todaysAppointments.length === 0 ? (
                     <div className="text-center py-10">
@@ -314,7 +375,7 @@ export const DoctorDashboardPage: React.FC = () => {
                           {/* Patient + reason */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-textPrimary truncate">
-                              {getPatientName(appt.patientId)}
+                              {patientNames.get(getPatientRawId(appt.patientId)) || getPatientName(appt.patientId)}
                             </p>
                             {appt.notes && (
                               <p className="text-xs text-textSecondary truncate">{appt.notes}</p>
@@ -342,12 +403,16 @@ export const DoctorDashboardPage: React.FC = () => {
                 <Card
                   title="Critical Alerts"
                   subtitle="Patients with critical vitals"
-                  className={criticalAlerts.length > 0 ? 'border-danger/40' : ''}
+                  className={`shadow-md transition-shadow hover:shadow-lg ${criticalAlerts.length > 0 ? 'border-danger/40' : ''}`}
                 >
                   {alertsLoading ? (
                     <div className="flex items-center gap-2 py-4 text-textSecondary text-sm">
                       <Spinner size="sm" />
                       Checking vitals…
+                    </div>
+                  ) : alertsError ? (
+                    <div role="status" className="rounded-md border border-warning/20 bg-warning/10 p-3 text-xs text-textSecondary">
+                      {alertsError}
                     </div>
                   ) : criticalAlerts.length === 0 ? (
                     <div className="text-center py-8">
@@ -374,6 +439,47 @@ export const DoctorDashboardPage: React.FC = () => {
                   )}
                 </Card>
 
+                <Card
+                  title="Appointment overview"
+                  subtitle="Status distribution from your appointments"
+                >
+                  {appointmentStatusData.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-textSecondary">
+                      No appointment data available to chart.
+                    </p>
+                  ) : (
+                    <div
+                      className="doctor-dashboard-chart"
+                      role="group"
+                      aria-label="Appointment status distribution"
+                    >
+                      {appointmentStatusData.map(({ status, count, percentage }) => (
+                        <div key={status} className="doctor-dashboard-chart-row">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="truncate text-xs font-medium capitalize text-textPrimary">{status}</span>
+                            <span className="shrink-0 text-xs text-textSecondary">
+                              {count} <span className="text-textMuted">·</span> {percentage}%
+                            </span>
+                          </div>
+                          <div
+                            className="doctor-dashboard-chart-track"
+                            role="progressbar"
+                            aria-label={`${status} appointments`}
+                            aria-valuemin={0}
+                            aria-valuemax={allAppointments.length}
+                            aria-valuenow={count}
+                          >
+                            <span
+                              className={`doctor-dashboard-chart-fill ${statusVariant(status)}`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+
                 {/* Quick Actions */}
                 <Card title="Quick Actions">
                   <div className="flex flex-col gap-3">
@@ -394,6 +500,40 @@ export const DoctorDashboardPage: React.FC = () => {
 
               </div>
             </div>
+
+            <div className="mt-6">
+              <Card title="Recent Activity" subtitle="Recently completed or cancelled appointments">
+                {recentActivity.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-textSecondary">
+                    No recent appointment activity.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {recentActivity.map((appointment) => (
+                      <li
+                        key={appointment.appointmentId}
+                        className="flex flex-wrap items-center justify-between gap-3 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-textPrimary">
+                            {patientNames.get(getPatientRawId(appointment.patientId))
+                              || getPatientName(appointment.patientId)}
+                          </p>
+                          <p className="text-xs text-textSecondary">
+                            {new Date(appointment.appointmentDate).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge variant={statusVariant(appointment.status)} className="capitalize">
+                          {appointment.status}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </div>
+            </>
+            )}
           </>
         )}
       </div>

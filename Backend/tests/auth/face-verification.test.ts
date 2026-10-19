@@ -1,110 +1,217 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  DetectFacesCommand,
-  SearchFacesByImageCommand,
-  type RekognitionClient,
-} from '@aws-sdk/client-rekognition';
 import type { Request, Response } from 'express';
 import { AppError } from '../../src/domain/errors/AppError';
+import { FaceVerificationError } from '../../src/domain/errors/FaceVerificationError';
 import { JwtService } from '../../src/infrastructure/auth/JwtService';
 import * as ProfileLinker from '../../src/infrastructure/database/UserProfileLinker';
 import { UserModel } from '../../src/infrastructure/database/schemas/User.schema';
 import { env } from '../../src/infrastructure/config/env';
 import { FaceVerificationService } from '../../src/infrastructure/biometrics/FaceVerificationService';
 import { faceVerificationService } from '../../src/infrastructure/biometrics/FaceVerificationService';
+import { faceEmbeddingService } from '../../src/infrastructure/biometrics/FaceEmbeddingService';
+import { FaceTemplateCrypto } from '../../src/infrastructure/biometrics/FaceTemplateCrypto';
 import { AuthController } from '../../src/presentation/controllers/Auth.controller';
+import { errorMiddleware } from '../../src/presentation/middlewares/error.middleware';
 
 const configuration = {
   enabled: true,
-  region: 'us-east-1',
-  collectionId: 'test-face-collection',
+  encryptionKeyConfigured: true,
 };
 
-const mockClient = (send: ReturnType<typeof vi.fn>) =>
-  ({ send }) as unknown as RekognitionClient;
-
-const mockFaceUsersQuery = (users: unknown[]) => ({
+const mockFaceUsersQuery = (users: unknown[]) => Object.assign([...users], {
   select: vi.fn().mockResolvedValue(users),
 });
 
 const configuredEnrollmentFlag = env.FACE_ENROLLMENT_ENABLED;
-
+const configuredEncryptionKey = env.BIOMETRIC_ENCRYPTION_KEY;
+const configuredDevelopmentFlag = env.isDevelopment;
 afterEach(() => {
   env.FACE_ENROLLMENT_ENABLED = configuredEnrollmentFlag;
+  env.BIOMETRIC_ENCRYPTION_KEY = configuredEncryptionKey;
+  env.isDevelopment = configuredDevelopmentFlag;
   vi.restoreAllMocks();
 });
 
-describe('AWS Rekognition face verification', () => {
-  it('requires one detected face and searches the configured collection at the verification threshold', async () => {
-    const image = Buffer.from('camera image');
-    const send = vi.fn()
-      .mockResolvedValueOnce({ FaceDetails: [{ Confidence: 99 }] })
-      .mockResolvedValueOnce({
-        FaceMatches: [
-          { Face: { FaceId: 'face-match', ExternalImageId: 'account-id' }, Similarity: 98.5 },
-          { Face: { FaceId: 'below-threshold', ExternalImageId: 'account-id' }, Similarity: 94 },
-        ],
-      });
-    const service = new FaceVerificationService(configuration, mockClient(send));
+describe('face verification diagnostic responses', () => {
+  it('includes only the safe diagnostic code in development responses', () => {
+    env.isDevelopment = true;
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    await expect(service.findMatchingFaces(image)).resolves.toEqual([
-      { faceId: 'face-match', externalImageId: 'account-id' },
+    errorMiddleware(
+      new FaceVerificationError(401, 'Face mismatch.', 'FACE_MISMATCH'),
+      {} as Request,
+      { status, json } as unknown as Response,
+      vi.fn()
+    );
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      message: 'Face mismatch.',
+      diagnosticCode: 'FACE_MISMATCH',
+    });
+  });
+
+  it('does not expose diagnostic codes in production responses', () => {
+    env.isDevelopment = false;
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    errorMiddleware(
+      new FaceVerificationError(409, 'Enrollment missing.', 'FACE_TEMPLATE_MISSING'),
+      {} as Request,
+      { status, json } as unknown as Response,
+      vi.fn()
+    );
+
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      message: 'Enrollment missing.',
+    });
+  });
+});
+
+describe('local face verification', () => {
+  it('matches an encrypted enrolled embedding and rejects a different embedding', async () => {
+    env.BIOMETRIC_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
+    const vector = Buffer.alloc(128 * 4);
+    vector.writeFloatLE(1, 0);
+    const wrongVector = Buffer.alloc(128 * 4);
+    wrongVector.writeFloatLE(-1, 0);
+    const crypto = new FaceTemplateCrypto();
+    const accountId = 'patient-account-id';
+    const find = vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => accountId },
+      faceTemplateEncrypted: crypto.encrypt(vector, accountId),
+    }]) as never);
+    const extract = vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(vector);
+    const service = new FaceVerificationService(configuration);
+
+    await expect(service.findMatchingFaces(Buffer.from('camera frame'))).resolves.toEqual([
+      { userId: accountId, similarity: 1 },
     ]);
-    expect(send.mock.calls[0][0]).toBeInstanceOf(DetectFacesCommand);
-    expect(send.mock.calls[1][0]).toBeInstanceOf(SearchFacesByImageCommand);
-    expect(send.mock.calls[1][0].input).toMatchObject({
-      CollectionId: 'test-face-collection',
-      Image: { Bytes: image },
-      FaceMatchThreshold: 95,
-      MaxFaces: 10,
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({
+      role: { $in: ['patient', 'doctor'] },
+      status: 'active',
+      faceEnrollmentStatus: 'enrolled',
+      faceConsentAt: { $type: 'date' },
+    }));
+
+    extract.mockResolvedValueOnce(wrongVector);
+    await expect(service.findMatchingFaces(Buffer.from('wrong face'))).rejects.toMatchObject({
+      statusCode: 401,
+      message: expect.stringContaining('did not match an enrolled face'),
     });
   });
 
-  it('rejects frames with zero or multiple faces before searching', async () => {
-    const noFacesSend = vi.fn().mockResolvedValue({ FaceDetails: [] });
-    const noFacesService = new FaceVerificationService(configuration, mockClient(noFacesSend));
-    await expect(noFacesService.findMatchingFaces(Buffer.from('image'))).rejects.toMatchObject({
-      statusCode: 422,
-      message: expect.stringContaining('No clear face'),
-    });
-    expect(noFacesSend).toHaveBeenCalledTimes(1);
+  it('reports a missing template and asks the user to re-enroll', async () => {
+    env.BIOMETRIC_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(Buffer.alloc(128 * 4, 0));
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => 'account-without-template' },
+      faceTemplateEncrypted: undefined,
+    }]) as never);
 
-    const multipleFacesSend = vi.fn().mockResolvedValue({
-      FaceDetails: [{}, {}],
-    });
-    const multipleFacesService = new FaceVerificationService(
-      configuration,
-      mockClient(multipleFacesSend)
-    );
     await expect(
-      multipleFacesService.findMatchingFaces(Buffer.from('image'))
+      new FaceVerificationService(configuration).findMatchingFaces(Buffer.from('camera frame'))
     ).rejects.toMatchObject({
-      statusCode: 422,
-      message: expect.stringContaining('only one face'),
+      statusCode: 409,
+      message: expect.stringContaining('no saved template'),
+      diagnosticCode: 'FACE_TEMPLATE_MISSING',
     });
-    expect(multipleFacesSend).toHaveBeenCalledTimes(1);
+    expect(info).not.toHaveBeenCalled();
   });
 
-  it('fails closed when Rekognition is disabled or unavailable', async () => {
-    const disabledSend = vi.fn();
-    const disabledService = new FaceVerificationService(
-      { ...configuration, enabled: false },
-      mockClient(disabledSend)
-    );
-    await expect(disabledService.findMatchingFaces(Buffer.from('image'))).rejects.toMatchObject({
-      statusCode: 503,
-    });
-    expect(disabledSend).not.toHaveBeenCalled();
+  it('reports a corrupted or account-mismatched template as unreadable', async () => {
+    env.BIOMETRIC_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const template = Buffer.alloc(128 * 4);
+    template.writeFloatLE(1, 0);
+    const encrypted = new FaceTemplateCrypto().encrypt(template, 'different-account-id');
+    vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(template);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => 'account-id' },
+      faceTemplateEncrypted: encrypted,
+    }]) as never);
 
-    const unavailableService = new FaceVerificationService(
-      configuration,
-      mockClient(vi.fn().mockRejectedValue(Object.assign(new Error(), {
-        name: 'ServiceUnavailableException',
-      })))
-    );
-    await expect(unavailableService.findMatchingFaces(Buffer.from('image'))).rejects.toMatchObject({
+    await expect(
+      new FaceVerificationService(configuration).findMatchingFaces(Buffer.from('camera frame'))
+    ).rejects.toMatchObject({
       statusCode: 503,
+      message: expect.stringContaining('could not be decrypted'),
+      diagnosticCode: 'FACE_TEMPLATE_UNREADABLE',
     });
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it('reports a template whose authenticated ciphertext was corrupted as unreadable', async () => {
+    env.BIOMETRIC_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const crypto = new FaceTemplateCrypto();
+    const template = Buffer.alloc(128 * 4);
+    template.writeFloatLE(1, 0);
+    const encrypted = crypto.encrypt(template, 'account-id');
+    encrypted[encrypted.length - 1] ^= 1;
+    vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(template);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => 'account-id' },
+      faceTemplateEncrypted: encrypted,
+    }]) as never);
+
+    await expect(
+      new FaceVerificationService(configuration).findMatchingFaces(Buffer.from('camera frame'))
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      message: expect.stringContaining('could not be decrypted'),
+    });
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it('returns unauthorized only when readable templates do not meet the similarity threshold', async () => {
+    env.BIOMETRIC_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
+    const candidate = Buffer.alloc(128 * 4);
+    candidate.writeFloatLE(1, 0);
+    const differentFace = Buffer.alloc(128 * 4);
+    differentFace.writeFloatLE(-1, 0);
+    const accountId = 'patient-account-id';
+    const encrypted = new FaceTemplateCrypto().encrypt(differentFace, accountId);
+    vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(candidate);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => accountId },
+      faceTemplateEncrypted: encrypted,
+    }]) as never);
+
+    await expect(
+      new FaceVerificationService(configuration).findMatchingFaces(Buffer.from('different face'))
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: expect.stringContaining('did not match an enrolled face'),
+      diagnosticCode: 'FACE_MISMATCH',
+    });
+  });
+
+  it('reports when no active, consented face enrollment exists', async () => {
+    vi.spyOn(faceEmbeddingService, 'extract').mockResolvedValue(Buffer.alloc(128 * 4, 1));
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([]) as never);
+
+    await expect(
+      new FaceVerificationService(configuration).findMatchingFaces(Buffer.from('camera frame'))
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('No active, consented face enrollment'),
+      diagnosticCode: 'NO_ELIGIBLE_ENROLLMENT',
+    });
+  });
+
+  it('fails closed when local verification is disabled', async () => {
+    const extract = vi.spyOn(faceEmbeddingService, 'extract');
+    const service = new FaceVerificationService({ enabled: false, encryptionKeyConfigured: false });
+    await expect(service.findMatchingFaces(Buffer.from('image'))).rejects.toMatchObject({ statusCode: 503 });
+    expect(extract).not.toHaveBeenCalled();
   });
 });
 
@@ -124,13 +231,12 @@ describe('face verification account authentication', () => {
       status: 'active',
       doctorVerificationStatus: role === 'doctor' ? 'pending' : undefined,
       faceEnrollmentStatus: 'enrolled',
-      faceProviderFaceId: `${role}-face-id`,
       faceConsentAt: new Date(),
       save: vi.fn().mockResolvedValue(undefined),
     };
     vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([{
-      faceId: `${role}-face-id`,
-      externalImageId: id,
+      userId: id,
+      similarity: 1,
     }]);
     const userQuery = mockFaceUsersQuery([user]);
     const findUsers = vi.spyOn(UserModel, 'find').mockReturnValue(userQuery as never);
@@ -152,10 +258,12 @@ describe('face verification account authentication', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(findUsers).toHaveBeenCalledWith({
-      faceProviderFaceId: { $in: [`${role}-face-id`] },
+      _id: { $in: [id] },
+      role: { $in: ['patient', 'doctor'] },
+      status: 'active',
       faceEnrollmentStatus: 'enrolled',
+      faceConsentAt: { $type: 'date' },
     });
-    expect(userQuery.select).toHaveBeenCalledWith('+faceProviderFaceId');
     expect(ensureProfile).toHaveBeenCalledWith(user);
     expect(user.save).toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(200);
@@ -179,12 +287,12 @@ describe('face verification account authentication', () => {
   it('rejects an ambiguous match instead of authenticating either account', async () => {
     env.FACE_ENROLLMENT_ENABLED = true;
     vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([
-      { faceId: 'face-a', externalImageId: 'account-a' },
-      { faceId: 'face-b', externalImageId: 'account-b' },
+      { userId: 'account-a', similarity: 0.9 },
+      { userId: 'account-b', similarity: 0.8 },
     ]);
     vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([
-      { _id: { toString: () => 'account-a' }, faceProviderFaceId: 'face-a' },
-      { _id: { toString: () => 'account-b' }, faceProviderFaceId: 'face-b' },
+      { _id: { toString: () => 'account-a' }, role: 'patient', status: 'active', faceEnrollmentStatus: 'enrolled', faceConsentAt: new Date() },
+      { _id: { toString: () => 'account-b' }, role: 'doctor', status: 'active', faceEnrollmentStatus: 'enrolled', faceConsentAt: new Date() },
     ]) as never);
     const cookie = vi.fn();
     const next = vi.fn();
@@ -201,23 +309,16 @@ describe('face verification account authentication', () => {
     expect(cookie).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 401,
-      message: expect.stringContaining('No active enrolled account'),
+      message: expect.stringContaining('More than one enrolled account matched'),
     }));
   });
 
-  it('rejects a Rekognition result whose external user ID does not match its saved FaceId', async () => {
+  it('rejects a match when the associated account is no longer enrolled', async () => {
     env.FACE_ENROLLMENT_ENABLED = true;
     vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([
-      { faceId: 'stored-face-id', externalImageId: 'another-account-id' },
+      { userId: 'another-account-id', similarity: 1 },
     ]);
-    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
-      _id: { toString: () => 'account-id' },
-      faceProviderFaceId: 'stored-face-id',
-      faceEnrollmentStatus: 'enrolled',
-      role: 'patient',
-      status: 'active',
-      faceConsentAt: new Date(),
-    }]) as never);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([]) as never);
     const cookie = vi.fn();
     const next = vi.fn();
 
@@ -233,11 +334,11 @@ describe('face verification account authentication', () => {
     expect(cookie).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 401,
-      message: expect.stringContaining('No active enrolled account'),
+      message: expect.stringContaining('not linked to an active enrollment'),
     }));
   });
 
-  it('reports that no face is enrolled when Rekognition returns no matches', async () => {
+  it('returns a clear mismatch response when the matcher reports no matches', async () => {
     env.FACE_ENROLLMENT_ENABLED = true;
     vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([]);
     const findUsers = vi.spyOn(UserModel, 'find');
@@ -255,7 +356,7 @@ describe('face verification account authentication', () => {
     expect(findUsers).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 401,
-      message: expect.stringContaining('No enrolled face matched'),
+      message: expect.stringContaining('did not match an enrolled face'),
     }));
   });
 

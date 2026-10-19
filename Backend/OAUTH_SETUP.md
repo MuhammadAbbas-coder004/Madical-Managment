@@ -61,6 +61,6 @@ Use a test Google account and a provisioned Apple account after the external set
 
 ## Face authentication availability
 
-This repository does not currently include a server-side biometric verification or enrollment service. The `BIOMETRIC_PROVIDER` variable alone cannot enable face authentication, and the backend will never treat a client-side face match as proof of identity. The existing UI may request camera access after the user explicitly starts a preview, but the video and a temporary captured frame stay in the browser and are not sent to or stored by the server. No face enrollment or login succeeds without a real configured service. Use email/password login instead.
+Optional face enrollment and verification use the local OpenCV YuNet/SFace service described in `FACE_ENROLLMENT_SETUP.md`. It is disabled unless `FACE_ENROLLMENT_ENABLED=true` and a dedicated `BIOMETRIC_ENCRYPTION_KEY` is configured. No AWS account or paid face API is used. The backend, not the browser, computes and compares face embeddings. Email/password remains available.
 
-No HSM attestation requirement is implemented or configured by this application. If biometric support is added later, integrate a real server-side verifier with explicit security, consent, retention, and deployment requirements before enabling capture or enrollment.
+The matcher does not provide liveness or presentation-attack detection and is not a legal identity check. Follow the setup guide's real-camera test and privacy review before enabling it outside local development. Doctor approval and clinical route authorization are unchanged.

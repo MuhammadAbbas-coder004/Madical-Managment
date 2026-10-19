@@ -99,15 +99,17 @@ export const PrescriptionCreatePage: React.FC = () => {
     let cancelled = false;
     const fetchDoctors = async () => {
       try {
-        const response = await api.get('/doctors');
-        const doctorList = getList<Doctor>(response);
+        const response = await api.get(isDoctor ? '/doctors/me' : '/doctors');
+        const doctorList = isDoctor
+          ? getList<Doctor>(response && typeof response === 'object' && 'data' in response
+            ? [(response as { data: Doctor }).data]
+            : [])
+          : getList<Doctor>(response);
         if (cancelled) return;
         setDoctors(doctorList);
 
         if (isDoctor) {
-          const ownDoctor = doctorList.find(
-            (doctor) => doctor.email?.trim().toLowerCase() === user?.email.trim().toLowerCase()
-          );
+          const ownDoctor = doctorList[0];
           if (ownDoctor) {
             setMatchedDoctor(ownDoctor);
             setValue('doctorId', ownDoctor.doctorId);

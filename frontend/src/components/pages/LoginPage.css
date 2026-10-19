@@ -41,7 +41,7 @@ body:has(.medivanta-login) {
 
 .medivanta-login-glow-right {
   right: -13rem;
-  bottom: -14rem;
+  bottom: 0;
   background: #79d894;
 }
 

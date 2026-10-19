@@ -8,7 +8,11 @@ export class MedicalRecordController {
 
   public createRecord = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = (req as AuthenticatedRequest).user;
       const { patientId, doctorId, diagnosis, notes, allergies } = req.body;
+      if (user?.role === 'doctor' && (!user.linkedId || user.linkedId !== doctorId)) {
+        throw new AppError(403, 'Doctors can only create records under their own profile');
+      }
 
       const recordId = await this.medicalRecordService.createRecord({
         patientId,

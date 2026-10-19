@@ -1,5 +1,5 @@
 // Provides shared navigation and optional spoken critical alerts.
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import {
@@ -20,38 +20,105 @@ import {
   Receipt,
   Volume2,
   VolumeX,
+  ScanFace,
+  UserRound,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
+import { COOKIE_SESSION, useAuthStore, type User } from '../../store/authStore';
 import { useAlerts } from '../../shared/hooks/useAlerts';
 import { ANIMATION } from '../../shared/utils/constants';
 import { socket } from '../../shared/services/socket';
 import { useSpeech } from '../../shared/hooks/useSpeech';
 import { useVoiceStore } from '../../store/voiceStore';
+import api from '../../shared/services/api';
+import { AivoraLogo } from '../atoms/AivoraLogo';
+import './DoctorDashboard.css';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, login } = useAuthStore();
+  const isDoctorWorkspace = user?.role?.toLowerCase() === 'doctor';
+  const doctorVerificationStatus = user?.doctorVerificationStatus;
   const navigate = useNavigate();
   const location = useLocation();
   const contentRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const activeBarRef = useRef<HTMLDivElement>(null);
-  const mobileSidebarRef = useRef<HTMLElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.localStorage.getItem('doctor-sidebar-collapsed') === 'true'
+  );
+  const [verificationRefreshing, setVerificationRefreshing] = useState(false);
+  const [verificationRefreshError, setVerificationRefreshError] = useState<string | null>(null);
   const isInitialMount = useRef(true);
   const autoAlerts = useVoiceStore((state) => state.autoAlerts);
   const setAutoAlerts = useVoiceStore((state) => state.setAutoAlerts);
   const { speak, isSupported, message: speechMessage } = useSpeech();
 
+  useEffect(() => {
+    if (isDoctorWorkspace) {
+      window.localStorage.setItem('doctor-sidebar-collapsed', String(desktopCollapsed));
+    }
+  }, [desktopCollapsed, isDoctorWorkspace]);
+
   useAlerts();
 
-  // Speak only critical socket notifications and keep the alert message factual.
+  const refreshDoctorStatus = useCallback(async () => {
+    if (!isDoctorWorkspace) return;
+    setVerificationRefreshing(true);
+    setVerificationRefreshError(null);
+    try {
+      const response = await api.get('/auth/session', { skipToast: true }) as { user?: User };
+      if (!response.user) {
+        throw new Error('The server did not return your current account status.');
+      }
+      const current = useAuthStore.getState();
+      if (current.user?.id === response.user.id) {
+        login(response.user, current.token ?? COOKIE_SESSION);
+      }
+    } catch (error: unknown) {
+      setVerificationRefreshError(
+        error instanceof Error ? error.message : 'Unable to refresh verification status.'
+      );
+    } finally {
+      setVerificationRefreshing(false);
+    }
+  }, [isDoctorWorkspace, login]);
+
   useEffect(() => {
-    if (!autoAlerts) return;
+    if (!isDoctorWorkspace) return;
+    let active = true;
+    const loadCurrentDoctorStatus = async () => {
+      try {
+        const response = await api.get('/auth/session', { skipToast: true }) as { user?: User };
+        if (!response.user) {
+          throw new Error('The server did not return your current account status.');
+        }
+        const current = useAuthStore.getState();
+        if (active && current.user?.id === response.user.id) {
+          login(response.user, current.token ?? COOKIE_SESSION);
+        }
+      } catch (error: unknown) {
+        if (active) {
+          setVerificationRefreshError(
+            error instanceof Error ? error.message : 'Unable to refresh verification status.'
+          );
+        }
+      }
+    };
+    void loadCurrentDoctorStatus();
+    return () => {
+      active = false;
+    };
+  }, [isDoctorWorkspace, login]);
+
+  useEffect(() => {
+    if (!autoAlerts || isDoctorWorkspace) return;
     const handleVoiceNotification = (data: unknown) => {
       const notification = data && typeof data === 'object'
         ? data as Record<string, unknown>
@@ -99,7 +166,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     return () => {
       socket.off('notification', handleVoiceNotification);
     };
-  }, [autoAlerts, speak]);
+  }, [autoAlerts, isDoctorWorkspace, speak]);
 
   // Content fade-in on mount and route changes
   useEffect(() => {
@@ -163,7 +230,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
   // Mobile sidebar open/close animation
   useEffect(() => {
-    if (!mobileSidebarRef.current || !overlayRef.current) return;
+    if (!overlayRef.current) return;
 
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
@@ -173,14 +240,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       if (mobileOpen) {
         overlayRef.current!.style.display = 'block';
         if (prefersReducedMotion) {
-          gsap.set(mobileSidebarRef.current, { x: '0%' });
           gsap.set(overlayRef.current, { opacity: 1 });
         } else {
-          gsap.to(mobileSidebarRef.current, {
-            x: '0%',
-            duration: ANIMATION.SIDEBAR.DURATION,
-            ease: ANIMATION.EASING.GSAP,
-          });
           gsap.to(overlayRef.current, {
             opacity: 1,
             duration: ANIMATION.SIDEBAR.DURATION,
@@ -189,15 +250,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         }
       } else {
         if (prefersReducedMotion) {
-          gsap.set(mobileSidebarRef.current, { x: '-100%' });
           gsap.set(overlayRef.current, { opacity: 0 });
           overlayRef.current!.style.display = 'none';
         } else {
-          gsap.to(mobileSidebarRef.current, {
-            x: '-100%',
-            duration: ANIMATION.SIDEBAR.DURATION,
-            ease: ANIMATION.EASING.GSAP,
-          });
           gsap.to(overlayRef.current, {
             opacity: 0,
             duration: ANIMATION.SIDEBAR.DURATION,
@@ -226,6 +281,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         { label: 'Prescriptions',    path: '/prescriptions',  icon: FileText         },
         { label: 'Medical Records',  path: '/medical-records',icon: ClipboardList    },
         { label: 'Lab Reports',      path: '/lab-reports',    icon: FlaskConical     },
+        { label: 'Manage Face Scan', path: '/face-enrollment-prompt', icon: ScanFace },
       ];
     }
 
@@ -262,7 +318,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className={`${isDoctorWorkspace ? 'doctor-workspace h-dvh overflow-hidden' : 'min-h-screen'} flex bg-background`}>
       {/* Mobile sidebar overlay */}
       <div
         ref={overlayRef}
@@ -273,17 +329,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
       {/* Mobile sidebar */}
       <aside
-        ref={mobileSidebarRef}
-        className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-textPrimary/10 bg-surface md:hidden"
-        style={{ transform: 'translateX(-100%)' }}
+        id="mobile-sidebar"
+        className={`${isDoctorWorkspace ? 'doctor-sidebar ' : ''}fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-textPrimary/10 bg-surface transition-transform duration-300 ease-out md:hidden`}
+        style={{ transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)' }}
+        aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
       >
         <div className="flex h-16 items-center justify-between border-b border-textPrimary/10 px-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">
-              +
+          {isDoctorWorkspace ? (
+            <div className="doctor-brand"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">+</div>
+              <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
             </div>
-            <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
-          </div>
+          )}
           <button
             onClick={() => setMobileOpen(false)}
             className="p-1 rounded-md text-textSecondary hover:text-textPrimary"
@@ -314,27 +374,79 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             );
           })}
         </nav>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mx-4 mb-5 flex items-center justify-center gap-2 rounded-md border border-textPrimary/10 px-4 py-3 text-sm font-medium text-textPrimary hover:bg-background"
-        >
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          Log out
-        </button>
+        {isDoctorWorkspace ? (
+          <div className="space-y-2 border-t border-textPrimary/10 px-4 py-4">
+            <NavLink
+              to="/profile"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center rounded-md px-4 py-3 text-sm font-medium ${
+                  isActive ? 'active bg-primary/10 text-primary font-semibold' : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
+                }`
+              }
+            >
+              <UserRound className="mr-3 h-4 w-4 shrink-0" aria-hidden="true" />
+              Profile
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-textPrimary/10 px-4 py-3 text-sm font-medium text-textPrimary hover:bg-background"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Log out
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mx-4 mb-5 flex items-center justify-center gap-2 rounded-md border border-textPrimary/10 px-4 py-3 text-sm font-medium text-textPrimary hover:bg-background"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            Log out
+          </button>
+        )}
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-textPrimary/10 bg-surface md:flex">
-        <div className="flex h-16 items-center border-b border-textPrimary/10 px-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">
-              +
+      <aside className={`hidden shrink-0 flex-col border-r border-textPrimary/10 bg-surface transition-[width] duration-200 md:flex ${
+        isDoctorWorkspace ? 'fixed inset-y-0 left-0 z-30 h-dvh' : ''
+      } ${
+        isDoctorWorkspace ? `doctor-sidebar ${desktopCollapsed ? 'w-20' : 'w-64'}` : 'w-64'
+      }`}>
+        <div className={`flex h-16 items-center border-b border-textPrimary/10 ${
+          isDoctorWorkspace && desktopCollapsed ? 'justify-center px-2' : 'px-6'
+        }`}>
+          {isDoctorWorkspace ? (
+            <div className="doctor-brand min-w-0"><AivoraLogo className="h-8 w-8 shrink-0" /><span className={desktopCollapsed ? 'sr-only' : ''}>Medivanta</span></div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">+</div>
+              <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
             </div>
-            <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
-          </div>
+          )}
         </div>
-        <nav ref={navRef} className="relative flex-1 space-y-2 overflow-y-auto px-4 py-6">
+        {isDoctorWorkspace && (
+          <button
+            type="button"
+            onClick={() => setDesktopCollapsed((collapsed) => !collapsed)}
+            className="doctor-sidebar-toggle"
+            aria-label={desktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!desktopCollapsed}
+            title={desktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {desktopCollapsed
+              ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+              : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        )}
+        <nav
+          ref={navRef}
+          className={`relative flex-1 space-y-2 overflow-y-auto py-6 ${
+            isDoctorWorkspace && desktopCollapsed ? 'px-2' : 'px-4'
+          }`}
+        >
           {/* Active 2px indicator bar */}
           <div
             ref={activeBarRef}
@@ -347,53 +459,116 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               <NavLink
                 key={item.path}
                 to={item.path}
+                title={isDoctorWorkspace && desktopCollapsed ? item.label : undefined}
+                aria-label={isDoctorWorkspace && desktopCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${
+                  `flex items-center rounded-md py-3 text-sm font-medium transition-colors ${
+                    isDoctorWorkspace && desktopCollapsed ? 'justify-center px-0' : 'px-4'
+                  } ${
                     isActive
                       ? 'active bg-primary/10 text-primary font-semibold'
                       : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
                   }`
                 }
               >
-                <Icon className="w-4 h-4 mr-3 shrink-0" />
-                {item.label}
+                <Icon className={`h-4 w-4 shrink-0 ${
+                  isDoctorWorkspace && desktopCollapsed ? '' : 'mr-3'
+                }`} />
+                <span className={isDoctorWorkspace && desktopCollapsed ? 'sr-only' : ''}>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
+        {isDoctorWorkspace && (
+          <div className={`doctor-sidebar-bottom space-y-2 border-t border-textPrimary/10 py-4 ${
+            desktopCollapsed ? 'px-2' : 'px-4'
+          }`}>
+            <NavLink
+              to="/profile"
+              title={desktopCollapsed ? 'Profile' : undefined}
+              aria-label={desktopCollapsed ? 'Profile' : undefined}
+              className={({ isActive }) =>
+                `flex items-center rounded-md py-3 text-sm font-medium transition-colors ${
+                  desktopCollapsed ? 'justify-center px-0' : 'px-4'
+                } ${
+                  isActive ? 'active bg-primary/10 text-primary font-semibold' : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
+                }`
+              }
+            >
+              <UserRound className={`h-4 w-4 shrink-0 ${desktopCollapsed ? '' : 'mr-3'}`} aria-hidden="true" />
+              <span className={desktopCollapsed ? 'sr-only' : ''}>Profile</span>
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={desktopCollapsed ? 'Log out' : undefined}
+              aria-label="Log out"
+              className={`flex w-full items-center rounded-md border border-textPrimary/10 py-3 text-sm font-medium text-textSecondary hover:bg-background hover:text-textPrimary ${
+                desktopCollapsed ? 'justify-center px-0' : 'justify-start px-4'
+              }`}
+            >
+              <LogOut className={`h-4 w-4 shrink-0 ${desktopCollapsed ? '' : 'mr-3'}`} aria-hidden="true" />
+              <span className={desktopCollapsed ? 'sr-only' : ''}>Log out</span>
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex min-h-[72px] items-center justify-between border-b border-textPrimary/10 bg-surface px-4 sm:px-8">
+      <div className={`flex min-w-0 flex-1 flex-col ${
+        isDoctorWorkspace ? `h-dvh min-h-0 overflow-hidden ${desktopCollapsed ? 'md:ml-20' : 'md:ml-64'}` : ''
+      }`}>
+        <header className={`${isDoctorWorkspace ? 'doctor-header ' : ''}flex min-h-[72px] shrink-0 items-center justify-between border-b border-textPrimary/10 bg-surface px-4 sm:px-8 ${
+          isDoctorWorkspace ? 'shadow-sm' : ''
+        }`}>
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-lg font-bold text-surface">
-              +
-            </div>
-            <span className="truncate font-semibold text-textPrimary">MedSystem</span>
+            <button
+              type="button"
+              onClick={() => setMobileOpen((open) => !open)}
+              aria-controls="mobile-sidebar"
+              aria-expanded={mobileOpen}
+              aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              className={isDoctorWorkspace
+                ? 'doctor-mobile-menu md:hidden'
+                : 'legacy-mobile-menu flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90 md:hidden'}
+            >
+              {mobileOpen
+                ? <X className="h-4 w-4" aria-hidden="true" />
+                : <Menu className="h-4 w-4" aria-hidden="true" />}
+            </button>
+            {isDoctorWorkspace ? (
+              <div className="doctor-brand doctor-brand-header"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
+            ) : (
+              <>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-lg font-bold text-surface">+</div>
+                <span className="truncate font-semibold text-textPrimary">MedSystem</span>
+              </>
+            )}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-4">
-            <div className="flex flex-col items-start">
-              <button
-                type="button"
-                aria-pressed={autoAlerts}
-                disabled={!isSupported}
-                onClick={() => setAutoAlerts(!autoAlerts)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
-                  autoAlerts
-                    ? 'border-voicePrimary/20 bg-voicePrimary/10 text-voicePrimary'
-                    : 'border-textPrimary/10 bg-surface text-textPrimary'
-                } disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {autoAlerts ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-                Voice alerts {autoAlerts ? 'On' : 'Off'}
-              </button>
-              <span role="status" className="mt-0.5 max-w-44 text-[10px] text-textPrimary/70">
-                {speechMessage || (isSupported
-                  ? 'Off by default; critical notifications only.'
-                  : 'Speech output is not supported by this browser.')}
-              </span>
-            </div>
+            {!isDoctorWorkspace && (
+              <div className="flex flex-col items-start">
+                <button
+                  type="button"
+                  aria-pressed={autoAlerts}
+                  disabled={!isSupported}
+                  onClick={() => setAutoAlerts(!autoAlerts)}
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
+                    autoAlerts
+                      ? 'border-voicePrimary/20 bg-voicePrimary/10 text-voicePrimary'
+                      : 'border-textPrimary/10 bg-surface text-textPrimary'
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {autoAlerts ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                  Voice alerts {autoAlerts ? 'On' : 'Off'}
+                </button>
+                <span role="status" className="mt-0.5 max-w-44 text-[10px] text-textPrimary/70">
+                  {speechMessage || (isSupported
+                    ? 'Off by default; critical notifications only.'
+                    : 'Speech output is not supported by this browser.')}
+                </span>
+              </div>
+            )}
             <div className="flex items-center">
               <div className="max-w-32 text-right text-xs sm:max-w-48">
                 <p className="font-semibold text-textPrimary">
@@ -406,33 +581,97 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 </span>
               </div>
             </div>
+            {user && ['patient', 'doctor'].includes(user.role.toLowerCase()) && !isDoctorWorkspace && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/face-enrollment-prompt')}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-md border border-voicePrimary/40 px-3 text-xs font-semibold text-voicePrimary hover:bg-voicePrimary/10"
+                >
+                  <ScanFace className="h-4 w-4" aria-hidden="true" />
+                  Manage face sign-in
+                </button>
+              )}
+            {!isDoctorWorkspace && (
+              <button
+                type="button"
+                onClick={() => navigate(user?.role?.toLowerCase() === 'patient' ? '/portal' : '/dashboard')}
+                aria-label="Open profile"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90"
+              >
+                <UserIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+            {!isDoctorWorkspace && (
             <button
               type="button"
-              onClick={() => navigate(user?.role?.toLowerCase() === 'patient' ? '/portal' : '/dashboard')}
-              aria-label="Open profile"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90 md:flex"
             >
-              <UserIcon className="h-4 w-4" aria-hidden="true" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.matchMedia('(max-width: 767px)').matches) setMobileOpen(true);
-                else handleLogout();
-              }}
-              aria-label={typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
-                ? 'Open menu'
-                : 'Log out'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90"
-            >
-              <Menu className="h-4 w-4 md:hidden" aria-hidden="true" />
-              <LogOut className="hidden h-4 w-4 md:block" aria-hidden="true" />
-            </button>
+            )}
           </div>
         </header>
-        <main ref={contentRef} className="flex-1 overflow-y-auto p-4 sm:p-8">
-          <div className="mx-auto w-full max-w-[1100px]">
-            {children}
+        <main
+          ref={contentRef}
+          className={`${isDoctorWorkspace ? 'doctor-workspace-content ' : ''}min-w-0 flex-1 overflow-x-hidden p-4 sm:p-8 ${
+            isDoctorWorkspace
+              ? 'min-h-0 overflow-y-auto overscroll-y-contain'
+              : 'overflow-y-auto'
+          }`}
+        >
+          <div className={`mx-auto w-full max-w-[1100px] ${isDoctorWorkspace ? 'doctor-content-shell' : ''}`}>
+            {isDoctorWorkspace && (doctorVerificationStatus === 'pending' || doctorVerificationStatus === 'rejected') && (
+              <div
+                role="status"
+                className={`doctor-verification-card mb-6 flex items-start gap-3 rounded-xl border p-4 shadow-card ${
+                  doctorVerificationStatus === 'rejected'
+                    ? 'border-danger/20 bg-surface/95 text-danger'
+                    : 'border-warning/30 bg-surface/95 text-textPrimary'
+                }`}
+              >
+                <ScanFace
+                  className={`mt-0.5 h-5 w-5 shrink-0 ${
+                    doctorVerificationStatus === 'rejected' ? 'text-danger' : 'text-warning'
+                  }`}
+                  aria-hidden="true"
+                />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">
+                      {doctorVerificationStatus === 'rejected'
+                        ? 'Doctor verification was not approved'
+                        : 'Clinical access is pending verification'}
+                    </p>
+                    <span className={`doctor-status-badge ${doctorVerificationStatus}`}>
+                      {doctorVerificationStatus === 'rejected' ? 'Review required' : 'Pending verification'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-textSecondary">
+                    {doctorVerificationStatus === 'rejected'
+                      ? 'Patient records and clinical actions are restricted. Please contact an administrator about your credentials.'
+                      : 'Your credentials are awaiting administrator review. Patient records and clinical actions remain restricted until approval.'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void refreshDoctorStatus()}
+                      disabled={verificationRefreshing}
+                      className="doctor-status-refresh"
+                    >
+                      {verificationRefreshing ? 'Refreshing status…' : 'Refresh status'}
+                    </button>
+                    {verificationRefreshError && (
+                      <span role="alert" className="doctor-status-error">{verificationRefreshError}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div key={isDoctorWorkspace ? doctorVerificationStatus : 'non-doctor-page'}>
+              {children}
+            </div>
           </div>
         </main>
       </div>

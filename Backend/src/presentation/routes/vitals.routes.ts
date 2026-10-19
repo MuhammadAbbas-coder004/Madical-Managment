@@ -18,7 +18,13 @@ const vitalsService = new VitalsApplicationService(vitalsRepository);
 const vitalsController = new VitalsController(vitalsService);
 
 // Route definitions - Doctor/Nurse/Admin can record vitals; Patients can only view their own vitals
-vitalsRouter.post('/', requireRole('admin', 'doctor', 'nurse'), validate(recordVitalsSchema), vitalsController.recordVitals);
+vitalsRouter.post(
+  '/',
+  requireRole('admin', 'doctor', 'nurse'),
+  requirePatientSelfOrRole('patientId', 'doctor', 'nurse'),
+  validate(recordVitalsSchema),
+  vitalsController.recordVitals
+);
 vitalsRouter.get(
   '/patient/:patientId',
   requireRole('admin', 'doctor', 'nurse', 'patient'),
