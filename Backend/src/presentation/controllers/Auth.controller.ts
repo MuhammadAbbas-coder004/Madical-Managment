@@ -526,21 +526,34 @@ export class AuthController {
         throw new AppError(400, 'Consent is required before face sign-in.');
       }
 
-      const matchingFaceIds = await faceVerificationService.findMatchingFaces(req.file.buffer);
-      if (!matchingFaceIds.length) {
-        throw new AppError(401, 'Face was not recognized. Try again or sign in with your email and password.');
+      const matchingFaces = await faceVerificationService.findMatchingFaces(req.file.buffer);
+      if (!matchingFaces.length) {
+        throw new AppError(
+          401,
+          'No enrolled face matched this camera image. If you have not enrolled a face, sign in with your email and password.'
+        );
       }
 
       const matchingUsers = await UserModel.find({
-        faceProviderFaceId: { $in: matchingFaceIds },
+        faceProviderFaceId: { $in: matchingFaces.map(({ faceId }) => faceId) },
         faceEnrollmentStatus: 'enrolled',
-      });
-      const distinctUsers = new Map(matchingUsers.map((user) => [user._id.toString(), user]));
+      }).select('+faceProviderFaceId');
+      const correctlyMappedUsers = matchingUsers.filter((user) =>
+        matchingFaces.some(
+          ({ faceId, externalImageId }) =>
+            user.faceProviderFaceId === faceId &&
+            user._id.toString() === externalImageId
+        )
+      );
+      const distinctUsers = new Map(correctlyMappedUsers.map((user) => [user._id.toString(), user]));
       if (
-        matchingUsers.length !== matchingFaceIds.length ||
+        correctlyMappedUsers.length !== matchingFaces.length ||
         distinctUsers.size !== 1
       ) {
-        throw new AppError(401, 'Face was not recognized. Try again or sign in with your email and password.');
+        throw new AppError(
+          401,
+          'No active enrolled account is linked to the matched face. Sign in with your email and password or contact support.'
+        );
       }
 
       const user = distinctUsers.values().next().value;

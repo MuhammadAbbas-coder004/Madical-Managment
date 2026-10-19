@@ -12,6 +12,11 @@ import {
 const providerErrorName = (error: unknown) =>
   error instanceof Error ? error.name : 'UnknownProviderError';
 
+export interface FaceVerificationMatch {
+  faceId: string;
+  externalImageId: string;
+}
+
 export class FaceVerificationService {
   private readonly client: RekognitionClient;
 
@@ -22,7 +27,7 @@ export class FaceVerificationService {
     this.client = client ?? new RekognitionClient({ region: configuration.region || undefined });
   }
 
-  public async findMatchingFaces(image: Buffer): Promise<string[]> {
+  public async findMatchingFaces(image: Buffer): Promise<FaceVerificationMatch[]> {
     if (!isFaceEnrollmentConfigured(this.configuration)) {
       throw new AppError(
         503,
@@ -55,11 +60,19 @@ export class FaceVerificationService {
         })
       );
 
-      return [...new Set(
-        (result.FaceMatches ?? [])
-          .filter((match) => (match.Similarity ?? 0) >= 95)
-          .flatMap((match) => (match.Face?.FaceId ? [match.Face.FaceId] : []))
-      )];
+      const matches = new Map<string, FaceVerificationMatch>();
+      for (const match of result.FaceMatches ?? []) {
+        const faceId = match.Face?.FaceId;
+        const externalImageId = match.Face?.ExternalImageId;
+        if (
+          (match.Similarity ?? 0) >= 95 &&
+          faceId &&
+          externalImageId
+        ) {
+          matches.set(`${faceId}:${externalImageId}`, { faceId, externalImageId });
+        }
+      }
+      return [...matches.values()];
     } catch (error: unknown) {
       if (error instanceof AppError) throw error;
       const name = providerErrorName(error);

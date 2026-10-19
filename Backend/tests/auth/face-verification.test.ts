@@ -23,6 +23,10 @@ const configuration = {
 const mockClient = (send: ReturnType<typeof vi.fn>) =>
   ({ send }) as unknown as RekognitionClient;
 
+const mockFaceUsersQuery = (users: unknown[]) => ({
+  select: vi.fn().mockResolvedValue(users),
+});
+
 const configuredEnrollmentFlag = env.FACE_ENROLLMENT_ENABLED;
 
 afterEach(() => {
@@ -37,13 +41,15 @@ describe('AWS Rekognition face verification', () => {
       .mockResolvedValueOnce({ FaceDetails: [{ Confidence: 99 }] })
       .mockResolvedValueOnce({
         FaceMatches: [
-          { Face: { FaceId: 'face-match' }, Similarity: 98.5 },
-          { Face: { FaceId: 'below-threshold' }, Similarity: 94 },
+          { Face: { FaceId: 'face-match', ExternalImageId: 'account-id' }, Similarity: 98.5 },
+          { Face: { FaceId: 'below-threshold', ExternalImageId: 'account-id' }, Similarity: 94 },
         ],
       });
     const service = new FaceVerificationService(configuration, mockClient(send));
 
-    await expect(service.findMatchingFaces(image)).resolves.toEqual(['face-match']);
+    await expect(service.findMatchingFaces(image)).resolves.toEqual([
+      { faceId: 'face-match', externalImageId: 'account-id' },
+    ]);
     expect(send.mock.calls[0][0]).toBeInstanceOf(DetectFacesCommand);
     expect(send.mock.calls[1][0]).toBeInstanceOf(SearchFacesByImageCommand);
     expect(send.mock.calls[1][0].input).toMatchObject({
@@ -118,11 +124,16 @@ describe('face verification account authentication', () => {
       status: 'active',
       doctorVerificationStatus: role === 'doctor' ? 'pending' : undefined,
       faceEnrollmentStatus: 'enrolled',
+      faceProviderFaceId: `${role}-face-id`,
       faceConsentAt: new Date(),
       save: vi.fn().mockResolvedValue(undefined),
     };
-    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([`${role}-face-id`]);
-    const findUsers = vi.spyOn(UserModel, 'find').mockResolvedValue([user] as never);
+    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([{
+      faceId: `${role}-face-id`,
+      externalImageId: id,
+    }]);
+    const userQuery = mockFaceUsersQuery([user]);
+    const findUsers = vi.spyOn(UserModel, 'find').mockReturnValue(userQuery as never);
     const ensureProfile = vi.spyOn(ProfileLinker, 'ensureUserProfile').mockResolvedValue(linkedId);
     const status = vi.fn().mockReturnThis();
     const json = vi.fn();
@@ -144,6 +155,7 @@ describe('face verification account authentication', () => {
       faceProviderFaceId: { $in: [`${role}-face-id`] },
       faceEnrollmentStatus: 'enrolled',
     });
+    expect(userQuery.select).toHaveBeenCalledWith('+faceProviderFaceId');
     expect(ensureProfile).toHaveBeenCalledWith(user);
     expect(user.save).toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(200);
@@ -166,11 +178,14 @@ describe('face verification account authentication', () => {
 
   it('rejects an ambiguous match instead of authenticating either account', async () => {
     env.FACE_ENROLLMENT_ENABLED = true;
-    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue(['face-a', 'face-b']);
-    vi.spyOn(UserModel, 'find').mockResolvedValue([
-      { _id: { toString: () => 'account-a' } },
-      { _id: { toString: () => 'account-b' } },
-    ] as never);
+    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([
+      { faceId: 'face-a', externalImageId: 'account-a' },
+      { faceId: 'face-b', externalImageId: 'account-b' },
+    ]);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([
+      { _id: { toString: () => 'account-a' }, faceProviderFaceId: 'face-a' },
+      { _id: { toString: () => 'account-b' }, faceProviderFaceId: 'face-b' },
+    ]) as never);
     const cookie = vi.fn();
     const next = vi.fn();
 
@@ -186,7 +201,61 @@ describe('face verification account authentication', () => {
     expect(cookie).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({
       statusCode: 401,
-      message: expect.stringContaining('Face was not recognized'),
+      message: expect.stringContaining('No active enrolled account'),
+    }));
+  });
+
+  it('rejects a Rekognition result whose external user ID does not match its saved FaceId', async () => {
+    env.FACE_ENROLLMENT_ENABLED = true;
+    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([
+      { faceId: 'stored-face-id', externalImageId: 'another-account-id' },
+    ]);
+    vi.spyOn(UserModel, 'find').mockReturnValue(mockFaceUsersQuery([{
+      _id: { toString: () => 'account-id' },
+      faceProviderFaceId: 'stored-face-id',
+      faceEnrollmentStatus: 'enrolled',
+      role: 'patient',
+      status: 'active',
+      faceConsentAt: new Date(),
+    }]) as never);
+    const cookie = vi.fn();
+    const next = vi.fn();
+
+    await new AuthController().faceVerify(
+      {
+        file: { buffer: Buffer.from('camera image') },
+        body: { consent: 'true' },
+      } as Request,
+      { cookie } as unknown as Response,
+      next
+    );
+
+    expect(cookie).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 401,
+      message: expect.stringContaining('No active enrolled account'),
+    }));
+  });
+
+  it('reports that no face is enrolled when Rekognition returns no matches', async () => {
+    env.FACE_ENROLLMENT_ENABLED = true;
+    vi.spyOn(faceVerificationService, 'findMatchingFaces').mockResolvedValue([]);
+    const findUsers = vi.spyOn(UserModel, 'find');
+    const next = vi.fn();
+
+    await new AuthController().faceVerify(
+      {
+        file: { buffer: Buffer.from('wrong face image') },
+        body: { consent: 'true' },
+      } as Request,
+      {} as Response,
+      next
+    );
+
+    expect(findUsers).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 401,
+      message: expect.stringContaining('No enrolled face matched'),
     }));
   });
 
