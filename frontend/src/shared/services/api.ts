@@ -14,10 +14,14 @@ declare module 'axios' {
  */
 const resolveBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
-  const configuredUrl =
-    typeof envUrl === 'string' && envUrl.trim()
-      ? envUrl.trim()
-      : 'http://localhost:5000/api';
+  const configuredUrl = typeof envUrl === 'string' ? envUrl.trim() : '';
+  if (!configuredUrl && import.meta.env.DEV) {
+    return 'http://localhost:5000/api';
+  }
+  if (!configuredUrl) {
+    return '';
+  }
+
   const apiUrl = new URL(configuredUrl);
   const browserHost = typeof window === 'undefined' ? '' : window.location.hostname;
   const isLoopback = (host: string) => host === 'localhost' || host === '127.0.0.1';
@@ -46,6 +50,15 @@ export const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
+    if (!config.baseURL) {
+      const message =
+        'The API server is not configured for this deployment. Set VITE_API_URL to your public backend API URL.';
+      if (!config.skipToast) {
+        toast.error(message, { id: message });
+      }
+      return Promise.reject(new Error(message));
+    }
+
     const token = useAuthStore.getState().token;
     if (token && token !== COOKIE_SESSION) {
       if (config.headers && typeof config.headers.set === 'function') {
