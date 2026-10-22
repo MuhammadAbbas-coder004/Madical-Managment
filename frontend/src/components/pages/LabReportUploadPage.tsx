@@ -74,32 +74,37 @@ export const LabReportUploadPage: React.FC = () => {
         <div className="mx-auto max-w-2xl">
           <Link
             to="/lab-reports"
-            className="mb-4 inline-flex items-center text-xs font-semibold text-textSecondary hover:text-textPrimary"
+            className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold text-textSecondary hover:text-primary transition-colors group"
           >
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back to Lab Reports
           </Link>
 
-          <h1 className="mb-6 text-2xl font-bold text-textPrimary">Create Lab Report</h1>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">Create Lab Report</h1>
+            <p className="text-sm text-textSecondary mt-1">Upload and record diagnostic pathology notes and medical test results.</p>
+          </div>
 
           {loadingPatients ? (
-            <div className="flex items-center justify-center py-16 text-primary">
+            <div className="flex items-center justify-center py-20 text-primary">
               <Spinner size="lg" />
-              <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
+              <span className="ml-3 text-sm font-medium text-textSecondary">Loading patients...</span>
             </div>
           ) : (
-            <Card>
+            <Card className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-card hover:shadow-card-hover transition-all">
               {patients.length === 0 ? (
-                <p className="py-4 text-center text-sm text-textSecondary">No patients found.</p>
+                <p className="py-6 text-center text-sm font-medium text-textSecondary">No patients found.</p>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <Label htmlFor="labPatient" required>Select Patient</Label>
+                    <Label htmlFor="labPatient" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                      Select Patient
+                    </Label>
                     <select
                       id="labPatient"
                       value={selectedPatientId}
                       onChange={(event) => setSelectedPatientId(event.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-textPrimary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
                       required
                     >
                       {patients.map((patient) => (
@@ -112,36 +117,40 @@ export const LabReportUploadPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="testName" required>Test Name</Label>
+                    <Label htmlFor="testName" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                      Test Name
+                    </Label>
                     <input
                       id="testName"
                       value={testName}
                       onChange={(event) => setTestName(event.target.value)}
-                      placeholder="e.g., Blood Test, X-Ray"
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      placeholder="e.g., Complete Blood Count, Chest X-Ray, Lipid Panel"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-textPrimary placeholder:text-textMuted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="result" required>Result/Notes</Label>
+                    <Label htmlFor="result" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                      Findings & Diagnostic Notes
+                    </Label>
                     <textarea
                       id="result"
                       value={result}
                       onChange={(event) => setResult(event.target.value)}
                       rows={6}
-                      placeholder="Enter the test results and any relevant notes"
-                      className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+                      placeholder="Enter the test findings, observations, normal vs abnormal values, and doctor interpretations..."
+                      className="w-full resize-y rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-textPrimary placeholder:text-textMuted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
                       required
                     />
                   </div>
 
-                  <div className="flex justify-end gap-3 border-t border-border pt-4">
+                  <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
                     <Button type="button" variant="secondary" onClick={() => navigate('/lab-reports')}>
                       Cancel
                     </Button>
-                    <Button type="submit" variant="primary" isLoading={isSaving}>
-                      <ClipboardPlus className="mr-2 h-4 w-4" />
+                    <Button type="submit" variant="primary" isLoading={isSaving} className="gap-2">
+                      <ClipboardPlus className="h-4 w-4" />
                       Save Report
                     </Button>
                   </div>

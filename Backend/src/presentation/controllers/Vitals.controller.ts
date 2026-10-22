@@ -15,7 +15,11 @@ export class VitalsController {
     try {
       const userId = (req as AuthenticatedRequest).user?.userId;
       const user = userId ? await UserModel.findById(userId) : null;
-      if (!user || !['admin', 'doctor', 'nurse'].includes(user.role)) {
+      const isOpticalScan = Array.isArray(req.body.selectedMetrics);
+      if (
+        !user ||
+        (!['admin', 'doctor', 'nurse'].includes(user.role) && !(user.role === 'patient' && isOpticalScan))
+      ) {
         throw new AppError(403, 'Only Doctor, Nurse, or Admin can record vitals');
       }
 
@@ -31,17 +35,24 @@ export class VitalsController {
         wbcCount,
       } = req.body;
 
-      const authenticated = req as AuthenticatedRequest;
-      const doctorId = user.linkedId || (user.role === 'doctor' ? await ensureUserProfile(user) : undefined);
-      if (!doctorId) {
-        throw new AppError(403, 'The authenticated clinician profile could not be resolved');
-      }
+      const doctorId = user.role === 'patient'
+        ? undefined
+        : user.linkedId || (user.role === 'doctor' ? await ensureUserProfile(user) : undefined);
 
-      if (Array.isArray(req.body.selectedMetrics)) {
+      if (isOpticalScan) {
+        const patientScan = user.role === 'patient';
+        const patientScanId = patientScan ? await ensureUserProfile(user) : undefined;
+        if (patientScan && !patientScanId) {
+          throw new AppError(403, 'The authenticated patient profile could not be resolved');
+        }
+        if (!patientScan && !doctorId) {
+          throw new AppError(403, 'The authenticated clinician profile could not be resolved');
+        }
+
         const scan = await VitalsModel.create({
           vitalsId: randomUUID(),
-          ...(patientId ? { patientId: String(patientId) } : {}),
-          doctorId,
+          ...(patientScanId ? { patientId: patientScanId } : patientId ? { patientId: String(patientId) } : {}),
+          ...(doctorId ? { doctorId } : {}),
           selectedMetrics: req.body.selectedMetrics,
           heartRate: req.body.heartRate,
           breathingRate: req.body.breathingRate,
@@ -82,6 +93,9 @@ export class VitalsController {
         return;
       }
 
+      if (!doctorId) {
+        throw new AppError(403, 'The authenticated clinician profile could not be resolved');
+      }
       const analysisResult = await this.vitalsService.recordVitals({
         patientId,
         doctorId,
@@ -185,16 +199,27 @@ export class VitalsController {
     try {
       const userId = (req as AuthenticatedRequest).user?.userId;
       const user = userId ? await UserModel.findById(userId) : null;
-      if (!user || user.role !== 'doctor') throw new AppError(403, 'Only doctors can view their scan history');
-      const doctorId = user.linkedId || await ensureUserProfile(user);
-      if (!doctorId) throw new AppError(403, 'The authenticated doctor profile could not be resolved');
+      if (!user) throw new AppError(401, 'Unauthorized');
+      let query: Record<string, unknown>;
+      if (user.role === 'patient') {
+        const patientId = await ensureUserProfile(user);
+        if (!patientId) throw new AppError(403, 'The authenticated patient profile could not be resolved');
+        query = { patientId };
+      } else if (user.role === 'doctor') {
+        const doctorId = user.linkedId || await ensureUserProfile(user);
+        if (!doctorId) throw new AppError(403, 'The authenticated doctor profile could not be resolved');
+        query = { doctorId, patientId: { $exists: false } };
+      } else {
+        throw new AppError(403, 'Only patients and doctors can view their scan history');
+      }
 
-      const scans = await VitalsModel.find({ doctorId, patientId: { $exists: false } }).sort({ recordedAt: -1 }).lean();
+      const scans = await VitalsModel.find(query).sort({ recordedAt: -1 }).lean();
       res.status(200).json({
         success: true,
         data: scans.map((scan) => ({
           vitalsId: scan.vitalsId,
-          doctorId: scan.doctorId,
+          ...(scan.patientId ? { patientId: scan.patientId } : {}),
+          ...(scan.doctorId ? { doctorId: scan.doctorId } : {}),
           selectedMetrics: scan.selectedMetrics,
           heartRate: scan.heartRate,
           breathingRate: scan.breathingRate,

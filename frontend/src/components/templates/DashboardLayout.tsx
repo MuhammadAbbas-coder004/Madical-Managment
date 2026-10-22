@@ -60,8 +60,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const normalizedPath = location.pathname.replace(/\/$/, '') || '/';
   const routeTitles: Record<string, string> = {
     '/dashboard': 'Dashboard', '/patients': 'My Patients', '/appointments': 'My Appointments',
-    '/vitals': 'Vitals', '/prescriptions': 'Prescriptions', '/medical-records': 'Medical Records',
-    '/lab-reports': 'Lab Reports', '/billing': 'Billing', '/profile': 'Profile',
+    '/vitals': 'AI Vitals Scan', '/prescriptions': 'Prescriptions', '/medical-records': 'Medical Records',
+    '/lab-reports': 'Reports', '/billing': 'Billing', '/profile': 'Profile',
     '/portal': 'My Profile', '/doctors': 'Doctors', '/pharmacy': 'Pharmacy',
   };
   const currentRoute = Object.keys(routeTitles)
@@ -235,12 +235,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     if (role === 'doctor') {
       return [
         { label: 'Dashboard',        path: '/dashboard',      icon: LayoutDashboard },
-        { label: 'My Patients',      path: '/patients',       icon: Users            },
-        { label: 'My Appointments',  path: '/appointments',   icon: Calendar         },
-        { label: 'Vitals',           path: '/vitals',         icon: Activity         },
+        { label: 'Patients',         path: '/patients',       icon: Users            },
+        { label: 'Appointments',     path: '/appointments',   icon: Calendar         },
+        { label: 'AI Vitals Scan',   path: '/vitals',         icon: Activity         },
+        { label: 'Doctors',          path: '/doctors',        icon: Stethoscope      },
         { label: 'Prescriptions',    path: '/prescriptions',  icon: FileText         },
         { label: 'Medical Records',  path: '/medical-records',icon: ClipboardList    },
-        { label: 'Lab Reports',      path: '/lab-reports',    icon: FlaskConical     },
+        { label: 'Reports',          path: '/lab-reports',    icon: FlaskConical     },
         { label: 'Billing',          path: '/billing',        icon: CreditCard       },
         { label: 'Manage Face Scan', path: '/face-enrollment-prompt', icon: ScanFace },
       ];
@@ -250,10 +251,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       return [
         { label: 'My Profile',       path: '/portal',         icon: UserIcon         },
         { label: 'My Appointments',  path: '/appointments',   icon: Calendar         },
-        { label: 'Vitals',           path: '/vitals',         icon: Activity         },
+        { label: 'AI Vitals Scan',   path: '/vitals',         icon: Activity         },
         { label: 'My Prescriptions', path: '/prescriptions',  icon: FileText         },
         { label: 'My Medical Records', path: '/medical-records', icon: ClipboardList },
-        { label: 'My Lab Reports',   path: '/lab-reports',    icon: FlaskConical     },
+        { label: 'My Reports',       path: '/lab-reports',    icon: FlaskConical     },
         { label: 'My Bills',         path: '/billing',        icon: Receipt          },
         { label: 'Manage Face Scan', path: '/face-enrollment-prompt', icon: ScanFace },
       ];
@@ -263,11 +264,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     return [
       { label: 'Dashboard',      path: '/dashboard',       icon: LayoutDashboard },
       { label: 'Patients',       path: '/patients',        icon: Users            },
-      { label: 'Doctors',        path: '/doctors',         icon: Stethoscope      },
       { label: 'Appointments',   path: '/appointments',    icon: Calendar         },
+      { label: 'Doctors',        path: '/doctors',         icon: Stethoscope      },
       { label: 'Prescriptions',  path: '/prescriptions',   icon: FileText         },
       { label: 'Medical Records',path: '/medical-records', icon: ClipboardList    },
-      { label: 'Lab Reports',    path: '/lab-reports',     icon: FlaskConical     },
+      { label: 'Reports',        path: '/lab-reports',     icon: FlaskConical     },
       { label: 'Billing',        path: '/billing',         icon: CreditCard       },
       { label: 'Pharmacy',       path: '/pharmacy',        icon: Pill             },
     ];
@@ -299,14 +300,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         inert={!mobileOpen}
       >
         <div className="app-sidebar-top flex h-16 items-center justify-between border-b border-textPrimary/10 px-6">
-          {isDashboardWorkspace ? (
-            <div className="doctor-brand"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">+</div>
-              <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
-            </div>
-          )}
+          <div className="doctor-brand"><AivoraLogo className="h-8 w-8" /><span>Medivanta</span></div>
           <button
             onClick={() => setMobileOpen(false)}
             className="p-1 rounded-md text-textSecondary hover:text-textPrimary"
@@ -324,10 +318,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${
+                  `flex items-center px-3.5 py-2.5 text-sm font-medium rounded-xl transition-all ${
                     isActive
-                      ? 'active bg-primary/10 text-primary font-semibold'
-                      : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
+                      ? 'active bg-primary text-white font-semibold shadow-xs'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`
                 }
               >
@@ -371,14 +365,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       {/* Desktop sidebar */}
       <aside className={`app-sidebar doctor-sidebar hidden shrink-0 flex-col border-r border-textPrimary/10 bg-surface transition-[width] duration-200 md:flex ${desktopCollapsed ? 'is-collapsed' : ''}`}>
         <div className={`app-sidebar-top flex h-16 items-center justify-between border-b border-textPrimary/10 ${desktopCollapsed ? 'px-2' : 'px-4'}`}>
-          {isDashboardWorkspace ? (
-            <div className="doctor-brand min-w-0"><AivoraLogo className="h-8 w-8 shrink-0" /><span className={desktopCollapsed ? 'sr-only' : ''}>Medivanta</span></div>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-surface font-bold text-lg">+</div>
-              <span className="font-bold text-lg text-textPrimary tracking-tight">MedSystem</span>
-            </div>
-          )}
+          <div className="doctor-brand min-w-0"><AivoraLogo className="h-8 w-8 shrink-0" /><span className={desktopCollapsed ? 'sr-only' : ''}>Medivanta</span></div>
           {isDashboardWorkspace && (
           <button
             type="button"
@@ -415,14 +402,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 title={isDashboardWorkspace && desktopCollapsed ? item.label : undefined}
                 aria-label={isDashboardWorkspace && desktopCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center rounded-md py-3 text-sm font-medium transition-colors ${
-                    isDashboardWorkspace && desktopCollapsed ? 'justify-center px-0' : 'px-4'
+                  `flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
+                    isDashboardWorkspace && desktopCollapsed ? 'justify-center px-0' : 'px-3.5'
                   } ${
                     isActive
-                      ? 'active bg-primary/10 text-primary font-semibold'
-                      : 'text-textSecondary hover:bg-primary/5 hover:text-textPrimary'
+                      ? 'active bg-primary text-white font-semibold shadow-xs'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`
                 }
+                role="link"
               >
                 <Icon className={`h-4 w-4 shrink-0 ${
                   isDashboardWorkspace && desktopCollapsed ? '' : 'mr-3'
@@ -461,7 +449,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
       {/* Main Content Area */}
       <div className="app-main flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
-        <header className={`app-header doctor-header flex h-24 shrink-0 items-center justify-between border-b border-textPrimary/10 bg-surface px-8 ${isPatientWorkspace ? 'patient-header' : ''}`}>
+        <header className={`app-header doctor-header flex h-20 shrink-0 items-center justify-between border-b border-border/80 bg-surface/90 backdrop-blur-xl px-6 sm:px-8 ${isPatientWorkspace ? 'patient-header' : ''}`}>
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -469,17 +457,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               aria-controls="mobile-sidebar"
               aria-expanded={mobileOpen}
               aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              className={isDoctorWorkspace
-                ? 'doctor-mobile-menu md:hidden'
-                : 'legacy-mobile-menu flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90 md:hidden'}
+              className="doctor-mobile-menu md:hidden"
             >
               {mobileOpen
                 ? <X className="h-4 w-4" aria-hidden="true" />
                 : <Menu className="h-4 w-4" aria-hidden="true" />}
             </button>
             <div className="app-page-heading min-w-0">
-              <h1 className="truncate text-[28px] font-bold leading-tight text-textPrimary">{pageTitle}</h1>
-              <p className="mt-1 text-xs font-medium text-textSecondary">{isPatientWorkspace ? 'PATIENT WORKSPACE' : 'CLINICAL WORKSPACE'}</p>
+              <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-textPrimary">{pageTitle}</h1>
+              <p className="mt-0.5 text-[11px] font-semibold tracking-wider text-primary uppercase">{isPatientWorkspace ? 'Patient Portal' : 'Clinical Workspace'}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-4">
@@ -490,34 +476,34 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                   aria-pressed={autoAlerts}
                   disabled={!isSupported}
                   onClick={() => setAutoAlerts(!autoAlerts)}
-                  className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-all ${
                     autoAlerts
-                      ? 'border-voicePrimary/20 bg-voicePrimary/10 text-voicePrimary'
-                      : 'border-textPrimary/10 bg-surface text-textPrimary'
+                      ? 'border-primary/40 bg-primary/15 text-primary shadow-sm shadow-primary/20'
+                      : 'border-border bg-surfaceElevated text-textSecondary hover:text-textPrimary'
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
-                  {autoAlerts ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-                  Voice alerts {autoAlerts ? 'On' : 'Off'}
+                  {autoAlerts ? <Volume2 className="h-3.5 w-3.5 text-primary" /> : <VolumeX className="h-3.5 w-3.5 text-textMuted" />}
+                  <span>Voice alerts {autoAlerts ? 'On' : 'Off'}</span>
                 </button>
-                <span role="status" className="mt-0.5 max-w-44 text-[10px] text-textPrimary/70">
+                <span role="status" className="mt-0.5 max-w-44 text-[10px] text-textMuted">
                   {speechMessage || (isSupported
-                    ? 'Off by default; critical notifications only.'
-                    : 'Speech output is not supported by this browser.')}
+                    ? 'Critical notifications only'
+                    : 'Speech not supported')}
                 </span>
               </div>
             )}
             <div className="flex items-center gap-3">
               <div className="max-w-32 text-right text-xs sm:max-w-48">
-                <p className="font-semibold text-textPrimary">
+                <p className="font-bold text-textPrimary truncate">
                   {user?.name || user?.username || 'Staff Member'}
                 </p>
                 <span
-                  className="mt-0.5 inline-block rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-textSecondary"
+                  className="mt-0.5 inline-block rounded-full bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-800"
                 >
                   {user?.role || 'clinical'}
                 </span>
               </div>
-              <div className="app-user-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-white text-textPrimary" aria-hidden="true">
+              <div className="app-user-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surfaceElevated text-primary shadow-inner" aria-hidden="true">
                 <UserIcon className="h-5 w-5" />
               </div>
             </div>
@@ -525,10 +511,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 <button
                   type="button"
                   onClick={() => navigate('/face-enrollment-prompt')}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-md border border-voicePrimary/40 px-3 text-xs font-semibold text-voicePrimary hover:bg-voicePrimary/10"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
                 >
                   <ScanFace className="h-4 w-4" aria-hidden="true" />
-                  Manage face sign-in
+                  <span>Face sign-in</span>
                 </button>
               )}
             {!isDoctorWorkspace && (
@@ -536,7 +522,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 type="button"
                 onClick={() => navigate(user?.role?.toLowerCase() === 'patient' ? '/portal' : '/dashboard')}
                 aria-label="Open profile"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surfaceElevated text-textSecondary hover:text-textPrimary hover:border-primary/40 transition-colors"
               >
                 <UserIcon className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -546,7 +532,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               type="button"
               onClick={handleLogout}
               aria-label="Log out"
-              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md bg-textPrimary text-surface hover:bg-textPrimary/90 md:flex"
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surfaceElevated text-textSecondary hover:text-rose-400 hover:border-rose-500/40 transition-colors md:flex"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
             </button>

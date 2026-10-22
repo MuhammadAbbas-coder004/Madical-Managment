@@ -1,66 +1,105 @@
-// Design-system theme — blue primary · navy text · light-gray bg · white cards.
-// No pink or purple anywhere.
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
-      /* ── Typography ─────────────────────────────────── */
       fontFamily: {
-        sans: ['Manrope', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
-
-      /* ── Color palette ──────────────────────────────── */
       colors: {
-        // Primary — lime accent
+        // Unified charcoal clinical workspace
+        background: '#252728',
+        surface: '#2B2D2D',
+        surfaceElevated: '#333636',
+        surfaceCard: '#2B2D2D',
+        surfaceHover: '#393C3C',
+        surfaceSunken: '#1F2122',
+
+        border: 'rgba(226, 222, 204, 0.16)',
+        borderLight: 'rgba(226, 222, 204, 0.1)',
+        borderMuted: 'rgba(226, 222, 204, 0.24)',
+
+        // Teal-green brand accents
         primary: {
-          50: '#F7FFD9', 100: '#F1FFC2', 200: '#E8FF9E',
-          300: '#DFFF7A', 400: '#D9FF5B', 500: '#D9FF5B',
-          600: '#D9FF5B', DEFAULT: '#D9FF5B', 700: '#C5EA43',
-          hover: '#C5EA43', 800: '#A7C932', 900: '#829E25', 950: '#536519',
+          50: '#E5F7F0',
+          100: '#C7EBDD',
+          200: '#9DDBC2',
+          300: '#70CAA7',
+          400: '#42B88E',
+          500: '#18A77B',
+          DEFAULT: '#18A77B',
+          600: '#128B67',
+          hover: '#42B88E',
+          700: '#0F7055',
+          800: '#0C5542',
+          900: '#252728',
+          950: '#1D1D18',
+        },
+        accent: {
+          DEFAULT: '#18A77B',
+          glow: 'rgba(24, 167, 123, 0.25)',
         },
 
-        // Backgrounds
-        background: '#DEDEDE',
-        surface:    '#FFFFFF',   // white cards
+        darkBrand: '#252728',
+        darkSecond: '#252728',
+        mintGreen: '#18A77B',
+        logoGreen: '#42B88E',
+        greenAccent: '#18A77B',
+        textGreen: '#70CAA7',
 
-        // Borders
-        border: '#E6E6E6',
+        textPrimary: '#F0EEE6',
+        textSecondary: '#C0BEB5',
+        textMuted: '#96968F',
+        ink: '#F0EEE6',
+        'ink-muted': '#C0BEB5',
+        'ink-faint': '#96968F',
 
-        // Text — navy family
-        textPrimary:   '#111111',
-        textSecondary: '#6B6B6B',
-        textMuted:     '#6B6B6B',
+        // Clinical KPI and status tokens
+        kpi: {
+          patients: '#18A77B',
+          appointments: '#2563EB',
+          doctors: '#7C3AED',
+          alerts: '#DC2626',
+        },
+        success: '#059669',
+        warning: '#D97706',
+        danger: '#DC2626',
+        info: '#2563EB',
 
-        // Semantic states
-        success: '#15803D',
-        warning: '#B45309',
-        danger:  '#B91C1C',
-        info:    '#6B6B6B',
+        // Clinical range helpers
+        'range-out': '#DC2626',
+        'range-outSoft': '#FEF2F2',
+        'range-warning': '#D97706',
+        'range-warningSoft': '#FFFBEB',
+        'range-normal': '#059669',
+        'range-normalSoft': '#ECFDF5',
+        'paper-light': '#2D2B1D',
+        prescriptionPrimary: '#18A77B',
+        prescriptionPrimaryDark: '#128B67',
       },
-
-      /* ── Border-radius — large / soft ───────────────── */
       borderRadius: {
-        sm: '0.5rem',
-        DEFAULT: '0.75rem',
-        md: '0.75rem',
-        lg: '1rem',
-        xl: '1.25rem',
-        '2xl': '1.5rem',
+        sm: '0.375rem',
+        DEFAULT: '0.5rem',
+        md: '0.625rem',
+        lg: '0.75rem',
+        xl: '1rem',
+        '2xl': '1.25rem',
+        '3xl': '1.5rem',
+        full: '9999px',
       },
-
-      /* ── Box-shadow — soft, layered ─────────────────── */
       boxShadow: {
-        sm:   '0 1px 2px 0 rgb(15 23 42 / 0.04)',
-        DEFAULT: '0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06)',
-        md:   '0 4px 6px -1px rgb(15 23 42 / 0.06), 0 2px 4px -2px rgb(15 23 42 / 0.04)',
-        lg:   '0 10px 15px -3px rgb(15 23 42 / 0.06), 0 4px 6px -4px rgb(15 23 42 / 0.04)',
-        xl:   '0 20px 25px -5px rgb(15 23 42 / 0.06), 0 8px 10px -6px rgb(15 23 42 / 0.04)',
-        card: '0 1px 3px 0 rgb(15 23 42 / 0.04), 0 1px 2px -1px rgb(15 23 42 / 0.03)',
-        'card-hover': '0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.04)',
+        xs: '0 1px 2px 0 rgba(15, 23, 42, 0.05)',
+        sm: '0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.06)',
+        DEFAULT: '0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05)',
+        card: '0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04)',
+        'card-hover': '0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)',
+        glow: '0 0 20px rgba(24, 167, 123, 0.2)',
+        'glow-lg': '0 0 35px rgba(24, 167, 123, 0.25)',
       },
     },
   },

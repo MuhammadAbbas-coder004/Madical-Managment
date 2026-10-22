@@ -286,9 +286,9 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
           {canWritePrescription && (
             <Link
               to={`/prescriptions/new${selectedPatientId ? `?patientId=${encodeURIComponent(selectedPatientId)}` : ''}`}
-              className="inline-flex items-center justify-center rounded-md bg-prescriptionPrimary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-all hover:-translate-y-0.5 hover:bg-prescriptionPrimaryDark hover:shadow-md"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-hover px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all"
             >
-              <PlusCircle className="mr-2 h-4 w-4" />
+              <PlusCircle className="h-3.5 w-3.5" />
               New Prescription
             </Link>
           )}
@@ -298,32 +298,35 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
           <SearchBar
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by patient name or email"
+            placeholder="Search by diagnosis, patient name or email..."
           />
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-16 text-prescriptionPrimary">
+          <div className="flex items-center justify-center py-20 text-primary">
             <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textPrimary/70">Loading prescriptions...</span>
+            <span className="ml-3 text-sm font-medium text-textSecondary">Loading prescriptions...</span>
           </div>
         )}
 
         {!loading && error && (
-          <div role="alert" className="rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+          <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
             {error}
           </div>
         )}
 
         {!loading && !error && !isDoctor && !isPatient && !selectedPatientId && (
-          <Card className="rounded-md border-textPrimary/10 bg-surface shadow-sm">
-            <p className="py-4 text-center text-sm text-textPrimary/70">Choose a patient to view prescriptions.</p>
+          <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+            <p className="text-sm font-medium text-textSecondary">Choose a patient to view prescriptions.</p>
           </Card>
         )}
 
         {!loading && !error && (isDoctor || selectedPatientId) && displayedPrescriptions.length === 0 && (
-          <Card className="rounded-md border-textPrimary/10 bg-surface shadow-sm">
-            <p className="py-4 text-center text-sm text-textPrimary/70">
+          <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <FileText className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-semibold text-textPrimary">
               {isDoctor
                 ? normalizedSearch
                   ? 'No prescriptions found for this search'
@@ -342,62 +345,78 @@ const PrescriptionListContent: React.FC<{ routePatientId?: string }> = ({ routeP
             {displayedPrescriptions.map((prescription, index) => (
               <Card
                 key={prescription.prescriptionId || prescription._id || index}
-                className={`rounded-md border-textPrimary/10 bg-surface shadow-sm ${isDoctor ? 'transition-shadow hover:shadow-md' : ''}`}
+                className="rounded-2xl border border-border bg-surface p-6 sm:p-7 shadow-card hover:shadow-card-hover transition-all"
               >
-                <div className="flex items-start gap-3">
-                  <div className="shrink-0 rounded-md bg-prescriptionPrimary/10 p-2 text-prescriptionPrimary">
-                    <FileText className="h-5 w-5" />
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0 rounded-2xl bg-primary/10 border border-primary/20 p-3 text-primary">
+                    <FileText className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="text-sm font-semibold text-textPrimary">
-                        Diagnosis: {prescription.diagnosis}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+                      <h2 className="text-base font-bold tracking-tight text-textPrimary">
+                        Diagnosis: <span className="text-primary">{prescription.diagnosis}</span>
                       </h2>
-                      <time className="text-xs text-textPrimary/70">
+                      <time className="text-xs font-medium text-textSecondary bg-background px-3 py-1 rounded-full border border-border inline-flex items-center">
                         {formatPrescriptionDate(prescription.createdAt)}
                       </time>
                     </div>
-                    <p className="mt-1 text-xs text-textPrimary/70">
-                      Doctor: {prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable'}
-                    </p>
-                    {isDoctor && (
-                      <p className="mt-1 text-xs text-textPrimary/70">
-                        Patient: {prescription.patientName || prescription.patient?.fullName || patientNames.get(prescription.patientId) || prescription.patientId}
-                        {(prescription.patientEmail || prescription.patient?.email) && ` · ${prescription.patientEmail || prescription.patient?.email}`}
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-textSecondary mt-1">
+                      <p>
+                        Prescribing Physician: <span className="font-semibold text-textPrimary">{prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable'}</span>
                       </p>
-                    )}
-                    <ul className="mt-3 space-y-2">
-                      {prescription.medicines.map((medicine, medicineIndex) => (
-                        <li
-                          key={`${prescription.prescriptionId || prescription._id || index}-${medicineIndex}`}
-                          className="rounded-md border border-textPrimary/10 bg-background px-3 py-2 text-xs text-textPrimary"
-                        >
-                          <p className="font-semibold">{medicine.name}</p>
-                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-textPrimary/70">
-                            {medicine.dosage && <span>Dosage: {medicine.dosage}</span>}
-                            {medicine.frequency && <span>Frequency: {medicine.frequency}</span>}
-                            {medicine.duration && <span>Duration: {medicine.duration}</span>}
-                            {medicine.instructions && <span>Instructions: {medicine.instructions}</span>}
+                      {isDoctor && (
+                        <p>
+                          Patient: <span className="font-semibold text-textPrimary">{prescription.patientName || prescription.patient?.fullName || patientNames.get(prescription.patientId) || prescription.patientId}</span>
+                          {(prescription.patientEmail || prescription.patient?.email) && ` · ${prescription.patientEmail || prescription.patient?.email}`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-textMuted">Prescribed Medications</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {prescription.medicines.map((medicine, medicineIndex) => (
+                          <div
+                            key={`${prescription.prescriptionId || prescription._id || index}-${medicineIndex}`}
+                            className="rounded-xl border border-border bg-background p-3 text-xs text-textPrimary"
+                          >
+                            <p className="font-bold text-sm text-textPrimary flex items-center justify-between">
+                              <span>{medicine.name}</span>
+                              {medicine.dosage && (
+                                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                                  {medicine.dosage}
+                                </span>
+                              )}
+                            </p>
+                            <div className="mt-2 space-y-0.5 text-textSecondary text-[11.5px]">
+                              {medicine.frequency && <p>Frequency: <span className="text-textPrimary font-medium">{medicine.frequency}</span></p>}
+                              {medicine.duration && <p>Duration: <span className="text-textPrimary font-medium">{medicine.duration}</span></p>}
+                              {medicine.instructions && <p className="italic text-textMuted">“{medicine.instructions}”</p>}
+                            </div>
                           </div>
-                        </li>
-                      ))}
-                    </ul>
+                        ))}
+                      </div>
+                    </div>
+
                     {isPatient && (
-                      <button
-                        type="button"
-                        onClick={() => downloadPrescriptionPdf({
-                          patientName: selectedPatient?.fullName
-                            || [selectedPatient?.firstName, selectedPatient?.lastName].filter(Boolean).join(' '),
-                          doctorName: prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable',
-                          diagnosis: prescription.diagnosis,
-                          createdAt: prescription.createdAt || '',
-                          medicines: prescription.medicines,
-                        })}
-                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-textPrimary hover:bg-background"
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                        Download PDF
-                      </button>
+                      <div className="pt-4 mt-4 border-t border-border flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => downloadPrescriptionPdf({
+                            patientName: selectedPatient?.fullName
+                              || [selectedPatient?.firstName, selectedPatient?.lastName].filter(Boolean).join(' '),
+                            doctorName: prescription.doctorName || doctorNames.get(prescription.doctorId) || 'Doctor profile unavailable',
+                            diagnosis: prescription.diagnosis,
+                            createdAt: prescription.createdAt || '',
+                            medicines: prescription.medicines,
+                          })}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-all"
+                        >
+                          <Download className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          Download Official PDF
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

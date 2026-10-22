@@ -96,13 +96,13 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon, iconBg, valueCls }) => (
-  <Card className="border-primary/10 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+  <Card className="border-border hover:border-primary/40 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-textSecondary">{label}</p>
-        <p className={`text-3xl font-bold mt-1 ${valueCls ?? 'text-textPrimary'}`}>{value}</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className={`numeric text-3xl font-extrabold tracking-tight mt-1.5 ${valueCls ?? 'text-slate-900'}`}>{value}</p>
       </div>
-      <div className={`p-3 rounded-xl ${iconBg}`}>{icon}</div>
+      <div className={`p-3 rounded-2xl ${iconBg} shadow-xs`}>{icon}</div>
     </div>
   </Card>
 );
@@ -317,13 +317,13 @@ export const DoctorDashboardPage: React.FC = () => {
                 label="Today's Appointments"
                 value={todaysAppointments.length}
                 icon={<Calendar className="w-5 h-5" />}
-                iconBg="bg-primary/10 text-primary"
+                iconBg="bg-blue-50 text-blue-600 border border-blue-100"
               />
               <StatCard
                 label="Total Patients"
                 value={uniquePatientCount}
                 icon={<Users className="w-5 h-5" />}
-                iconBg="bg-primary/10 text-primary"
+                iconBg="bg-teal-50 text-teal-600 border border-teal-100"
               />
               <StatCard
                 label="Critical Alerts"
@@ -331,10 +331,10 @@ export const DoctorDashboardPage: React.FC = () => {
                 icon={<AlertTriangle className="w-5 h-5" />}
                 iconBg={
                   criticalAlerts.length > 0
-                    ? 'bg-danger/10 text-danger'
-                    : 'bg-textPrimary/5 text-textSecondary'
+                    ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                    : 'bg-slate-50 text-slate-500 border border-slate-100'
                 }
-                valueCls={criticalAlerts.length > 0 ? 'text-danger' : 'text-textPrimary'}
+                valueCls={criticalAlerts.length > 0 ? 'text-rose-600' : 'text-slate-900'}
               />
             </div>
 
@@ -484,6 +484,15 @@ export const DoctorDashboardPage: React.FC = () => {
                 {/* Quick Actions */}
                 <Card title="Quick Actions">
                   <div className="flex flex-col gap-3">
+                    <div className="rounded-xl border border-teal-200/80 bg-gradient-to-r from-teal-50 to-emerald-50 p-3.5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-teal-950">AI Vitals Facial Scan</p>
+                        <p className="text-[11px] text-teal-800">Contactless vital signs assessment</p>
+                      </div>
+                      <Link to="/vitals" className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-primary-hover transition-colors">
+                        Scan now
+                      </Link>
+                    </div>
                     <Link to="/prescriptions/new">
                       <Button variant="primary" className="w-full">
                         <FileText className="w-4 h-4 mr-2" />

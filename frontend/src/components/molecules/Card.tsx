@@ -16,18 +16,24 @@ export const Card: React.FC<CardProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`gsap-card bg-surface border border-textPrimary/10 rounded-xl shadow-card p-6 ${className}`}>
+    <div
+      className={`gsap-card relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-card transition-all duration-200 hover:border-primary/40 hover:shadow-card-hover ${className}`}
+    >
       {(title || action) && (
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             {title && (
-              <h3 className="text-base font-semibold text-textPrimary">{title}</h3>
+              <h3 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                {title}
+              </h3>
             )}
             {subtitle && (
-              <p className="text-xs text-textSecondary mt-0.5">{subtitle}</p>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                {subtitle}
+              </p>
             )}
           </div>
-          {action && <div>{action}</div>}
+          {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
       {children}

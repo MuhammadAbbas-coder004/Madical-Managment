@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Calendar, Download } from 'lucide-react';
 import api from '../../shared/services/api';
 import { DashboardLayout } from '../templates/DashboardLayout';
-import { Card } from '../molecules/Card';
 import { Spinner } from '../atoms/Spinner';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import type { LabReport } from '../../shared/types';
@@ -68,58 +67,97 @@ export const PatientLabReportsPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-textPrimary">My Lab Reports</h1>
+      <div ref={containerRef} className="space-y-6">
+        {/* Header */}
+        <div className="pb-2 border-b border-border/40">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary mb-2">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Diagnostic Portal</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-textPrimary">My Lab Reports</h1>
           <p className="mt-1 text-sm text-textSecondary">
-            View and download test results recorded for you.
+            Access, view, and securely download your laboratory test results and clinical findings.
           </p>
         </div>
 
+        {/* Loading state */}
         {loading && (
-          <div className="flex items-center justify-center py-16 text-primary">
+          <div className="flex flex-col items-center justify-center py-16 bg-surface border border-border/50 rounded-2xl">
             <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textSecondary">Loading your lab reports...</span>
+            <span className="mt-3 text-sm font-medium text-textSecondary">Retrieving your lab records...</span>
           </div>
         )}
 
+        {/* Error state */}
         {!loading && error && (
-          <div className="rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+          <div className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
             {error}
           </div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && reports.length === 0 && (
-          <Card>
-            <p className="py-4 text-center text-sm text-textSecondary">No lab reports yet.</p>
-          </Card>
+          <div className="py-16 text-center bg-surface border border-dashed border-border rounded-2xl">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+              <Download className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-textPrimary">No Lab Reports Available</h3>
+            <p className="text-xs text-textSecondary mt-1 max-w-sm mx-auto">
+              You do not have any published laboratory findings on record yet. Once your clinician uploads them, they will appear here.
+            </p>
+          </div>
         )}
 
+        {/* Reports Feed */}
         {!loading && !error && reports.length > 0 && (
           <div className="space-y-4">
             {reports.map((report) => (
-              <Card key={report._id}>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-textPrimary">{report.testName}</h2>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-textSecondary">
-                      {report.result}
-                    </p>
-                    <p className="mt-3 flex items-center gap-1 text-xs text-textSecondary">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {new Date(report.uploadedAt).toLocaleString()}
-                    </p>
+              <div
+                key={report._id}
+                className="bg-surface border border-border/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                        Laboratory Result
+                      </span>
+                      <span className="flex items-center gap-1 text-xs font-medium text-textSecondary">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {new Date(report.uploadedAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+
+                    <h2 className="text-lg font-bold text-textPrimary tracking-tight">
+                      {report.testName}
+                    </h2>
+
+                    <div className="mt-3 p-4 rounded-xl bg-background/80 border border-border/60">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-textSecondary mb-1.5">
+                        Clinical Result & Notes
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm text-textPrimary font-mono leading-relaxed">
+                        {report.result}
+                      </p>
+                    </div>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => downloadReport(report)}
-                    className="inline-flex shrink-0 items-center justify-center rounded-md border border-textPrimary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-background"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover text-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:shadow-md transition-all duration-200 active:scale-95"
                   >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
+                    <Download className="h-4 w-4" />
+                    <span>Download TXT</span>
                   </button>
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         )}

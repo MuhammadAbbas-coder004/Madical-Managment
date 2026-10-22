@@ -113,7 +113,7 @@ const GoogleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shr
 
 const ProviderSpinner: React.FC = () => (
   <svg
-    className="h-4 w-4 shrink-0 animate-spin text-[#D9FF5B]"
+    className="h-4 w-4 shrink-0 animate-spin text-[#396EF4]"
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
@@ -289,14 +289,14 @@ export const RegisterPage: React.FC = () => {
         <section className="gsap-card medivanta-register-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-5 lg:p-6">
           <Link
             to="/"
-            className="mb-4 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+            className="mb-4 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <AivoraLogo className="h-8 w-8" />
-            <span className="text-base font-semibold tracking-tight text-white">Medivanta</span>
+            <span className="text-base font-bold tracking-tight text-slate-900">Medivanta</span>
           </Link>
 
           <div className="mb-4">
-            <h1 className="register-heading text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl">
+            <h1 className="register-heading text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl">
               Your Journey to Better Health Starts Here
             </h1>
           </div>
@@ -305,8 +305,8 @@ export const RegisterPage: React.FC = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-2.5" noValidate>
               {/* Role Selection Cards */}
               <div>
-                <label className="mb-1 block text-[0.7rem] font-semibold uppercase tracking-wider text-white/80">
-                  Select Role <span className="text-[#D9FF5B]">*</span>
+                <label className="mb-1 block text-[0.7rem] font-semibold uppercase tracking-wider text-slate-700">
+                  Select Role <span className="text-primary">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Registration Role">
                   <button
@@ -316,20 +316,20 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => handleRoleSelect('patient')}
                     className={`group relative flex flex-col items-start rounded-xl border p-2.5 text-left transition-all duration-200 ${
                       selectedRole === 'patient'
-                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 shadow-[0_0_14px_rgba(217,255,91,0.15)] ring-1 ring-[#D9FF5B]'
-                        : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
+                        ? 'border-primary bg-teal-50/70 shadow-xs ring-1 ring-primary'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex w-full items-center justify-between mb-0.5">
-                      <User className={`h-3.5 w-3.5 ${selectedRole === 'patient' ? 'text-[#D9FF5B]' : 'text-white/60'}`} />
+                      <User className={`h-3.5 w-3.5 ${selectedRole === 'patient' ? 'text-primary' : 'text-slate-500'}`} />
                       {selectedRole === 'patient' && (
-                        <span className="rounded-full bg-[#D9FF5B] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
+                        <span className="rounded-full bg-primary px-2 py-0.5 text-[0.62rem] font-bold text-white">
                           Selected
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-white">Patient</span>
-                    <span className="hidden text-[0.62rem] leading-3 text-white/55">Health records & appointments</span>
+                    <span className="text-xs font-semibold text-slate-900">Patient</span>
+                    <span className="hidden text-[0.62rem] leading-3 text-slate-500">Health records & appointments</span>
                   </button>
 
                   <button
@@ -339,20 +339,20 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => handleRoleSelect('doctor')}
                     className={`group relative flex flex-col items-start rounded-xl border p-2.5 text-left transition-all duration-200 ${
                       selectedRole === 'doctor'
-                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 shadow-[0_0_14px_rgba(217,255,91,0.15)] ring-1 ring-[#D9FF5B]'
-                        : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
+                        ? 'border-primary bg-teal-50/70 shadow-xs ring-1 ring-primary'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex w-full items-center justify-between mb-0.5">
-                      <Stethoscope className={`h-3.5 w-3.5 ${selectedRole === 'doctor' ? 'text-[#D9FF5B]' : 'text-white/60'}`} />
+                      <Stethoscope className={`h-3.5 w-3.5 ${selectedRole === 'doctor' ? 'text-primary' : 'text-slate-500'}`} />
                       {selectedRole === 'doctor' && (
-                        <span className="rounded-full bg-[#D9FF5B] px-1.5 py-0.2 text-[0.58rem] font-bold text-[#171B1A]">
+                        <span className="rounded-full bg-primary px-2 py-0.5 text-[0.62rem] font-bold text-white">
                           Selected
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-white">Doctor</span>
-                    <span className="hidden text-[0.62rem] leading-3 text-white/55">Clinical practice & portal</span>
+                    <span className="text-xs font-semibold text-slate-900">Doctor</span>
+                    <span className="hidden text-[0.62rem] leading-3 text-slate-500">Clinical practice & portal</span>
                   </button>
                 </div>
               </div>
@@ -360,7 +360,7 @@ export const RegisterPage: React.FC = () => {
               {/* Doctor Specific Fields */}
               {selectedRole === 'doctor' && (
                 <div className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-2.5 animate-fade-in">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#D9FF5B]">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#396EF4]">
                     <Stethoscope className="h-3.5 w-3.5" />
                     <span>Doctor Credentials</span>
                   </div>
@@ -406,8 +406,8 @@ export const RegisterPage: React.FC = () => {
 
               {/* Phone Number with Country Calling Code Selector */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-white/80">
-                  Phone Number <span className="text-white/45">(optional)</span>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Phone Number <span className="text-slate-400">(optional)</span>
                 </label>
                 <div className="flex gap-2">
                   <select
@@ -416,11 +416,11 @@ export const RegisterPage: React.FC = () => {
                       setValue('countryCode', event.target.value, { shouldValidate: true })
                     }
                     aria-label="Country Calling Code"
-                    className="w-28 rounded-xl border border-white/15 bg-[#171d1a] px-2.5 text-xs text-white focus:border-[#c7ffbe] focus:outline-none"
+                    className="w-28 rounded-xl border border-slate-300 bg-white px-2.5 text-xs text-slate-900 focus:border-primary focus:outline-none"
                   >
-                    <option value="" className="bg-[#171B1A] text-white">Code</option>
+                    <option value="" className="bg-white text-slate-900">Code</option>
                     {COUNTRY_CALLING_CODES.map((item) => (
-                      <option key={`${item.code}-${item.country}`} value={item.code} className="bg-[#171B1A] text-white">
+                      <option key={`${item.code}-${item.country}`} value={item.code} className="bg-white text-slate-900">
                         {item.code} ({item.country})
                       </option>
                     ))}
@@ -430,8 +430,8 @@ export const RegisterPage: React.FC = () => {
                       type="tel"
                       placeholder="Phone number (optional)"
                       autoComplete="tel-national"
-                      className={`w-full rounded-xl border bg-[#171d1a] px-3 text-xs text-white placeholder-white/30 transition-colors focus:border-[#c7ffbe] focus:outline-none ${
-                        errors.phoneNumber ? 'border-red-500' : 'border-white/15'
+                      className={`w-full rounded-xl border bg-white px-3 text-xs text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none ${
+                        errors.phoneNumber ? 'border-red-500' : 'border-slate-300'
                       }`}
                       {...register('phoneNumber')}
                     />
@@ -501,13 +501,13 @@ export const RegisterPage: React.FC = () => {
 
               {authNotice && (
                 <div className="medivanta-register-notice" role="alert" aria-live="polite">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#D9FF5B]" aria-hidden="true" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#396EF4]" aria-hidden="true" />
                   <p>
                     {authNotice}
                     {authNotice === 'This user is already registered. Please log in.' && (
                       <>
                         {' '}
-                        <Link className="font-semibold text-[#D9FF5B] underline" to="/login">
+                        <Link className="font-semibold text-[#396EF4] underline" to="/login">
                           Log in
                         </Link>
                       </>
@@ -533,10 +533,10 @@ export const RegisterPage: React.FC = () => {
 
             <div className="relative my-3">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
+                <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-[#202725] px-3 text-white/45">Or continue with</span>
+                <span className="bg-white px-3 text-slate-500 font-medium">Or continue with</span>
               </div>
             </div>
 
@@ -556,16 +556,16 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             {providerLoading && (
-              <p className="mt-2 text-center text-xs text-white/55" role="status" aria-live="polite">
+              <p className="mt-2 text-center text-xs text-slate-500" role="status" aria-live="polite">
                 Connecting to Google…
               </p>
             )}
 
-            <p className="mt-3 text-center text-xs text-white/60">
+            <p className="mt-3 text-center text-xs text-slate-600">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-semibold text-[#D9FF5B] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                className="font-semibold text-primary transition-colors hover:text-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Login
               </Link>
@@ -613,13 +613,13 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => setGoogleSignupRole(role)}
                     className={`group relative flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border p-3.5 text-center transition-all duration-200 ${
                       selected
-                        ? 'border-[#D9FF5B] bg-[#D9FF5B]/10 text-[#D9FF5B] shadow-[0_0_18px_rgba(217,255,91,0.18)] ring-1 ring-[#D9FF5B]'
+                        ? 'border-[#396EF4] bg-[#396EF4]/10 text-[#396EF4] shadow-[0_0_18px_rgba(57,110,244,0.18)] ring-1 ring-[#396EF4]'
                         : 'border-white/10 bg-white/[0.03] text-white hover:border-white/25 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
-                        selected ? 'bg-[#D9FF5B]/20 text-[#D9FF5B]' : 'bg-white/5 text-white/70 group-hover:text-white'
+                        selected ? 'bg-[#396EF4]/20 text-[#396EF4]' : 'bg-white/5 text-white/70 group-hover:text-white'
                       }`}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />

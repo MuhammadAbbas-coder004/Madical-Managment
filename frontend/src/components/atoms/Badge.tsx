@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, CircleCheck } from 'lucide-react';
+import { AlertTriangle, Check, Diamond } from 'lucide-react';
 import gsap from 'gsap';
 import { ANIMATION } from '../../shared/utils/constants';
 
@@ -42,19 +42,27 @@ export const Badge: React.FC<BadgeProps> = ({
   }, [variant]);
 
   const variantStyles = {
-    success: 'bg-success/10 text-success border-success/20',
-    warning: 'bg-warning/10 text-warning border-warning/20',
-    danger: 'bg-danger/10 text-danger border-danger/20',
+    success: 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-medium',
+    warning: 'bg-amber-50 text-amber-800 border border-amber-200/80 font-medium',
+    danger: 'bg-rose-50 text-rose-800 border border-rose-200/80 font-medium',
   };
 
   return (
     <span
       ref={badgeRef}
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${variantStyles[variant]} ${className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-tight transition-all ${variantStyles[variant]} ${className}`}
     >
-      {variant === 'success'
-        ? <CircleCheck className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        : <AlertTriangle className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+      {variant === 'success' && (
+        <span className="mr-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-700 text-white">
+          <Check className="h-2 w-2 stroke-[3.5]" aria-hidden="true" />
+        </span>
+      )}
+      {variant === 'warning' && (
+        <AlertTriangle className="mr-1 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden="true" />
+      )}
+      {variant === 'danger' && (
+        <Diamond className="mr-1 h-3 w-3 shrink-0 fill-current text-rose-700" aria-hidden="true" />
+      )}
       {children}
     </span>
   );

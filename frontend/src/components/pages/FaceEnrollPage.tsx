@@ -131,97 +131,90 @@ export const FaceEnrollPage: React.FC = () => {
   const isEnrolled = enrollmentStatus === 'enrolled';
 
   return (
-    <main className="min-h-screen bg-[#171B1A] px-4 py-10 text-white sm:px-6">
-      <section className="mx-auto w-full max-w-xl rounded-3xl border border-[#C7FFBE]/20 bg-[#202725] p-6 shadow-2xl sm:p-8">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C7FFBE]/10 text-[#C7FFBE]">
+    <main className="face-enrollment-page min-h-screen bg-slate-950 px-4 py-12 text-slate-100 sm:px-6 flex items-center justify-center">
+      <section className="mx-auto w-full max-w-xl rounded-3xl border border-emerald-500/20 bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 shadow-2xl ring-1 ring-white/10">
+        <div className="mb-6 flex items-center gap-3.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/20 text-emerald-400 border border-emerald-500/30 shadow-inner">
             <ScanFace className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#C7FFBE]">Account security</p>
-            <h1 className="text-2xl font-bold">Face sign-in</h1>
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Account Security</p>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">Face Sign-in Setup</h1>
           </div>
         </div>
 
-        <p className="text-sm leading-6 text-white/70">
-          With your explicit consent, Medivanta sends one camera frame to its local face service.
-          The service creates an embedding in memory; the image is not saved. Only an encrypted
-          template linked to your account is stored. Face sign-in is optional and does not detect
-          presentation attacks.
+        <p className="text-sm leading-relaxed text-slate-300">
+          With your explicit consent, Medivanta captures one camera frame to generate a secure biometric embedding in memory. The raw image is immediately discarded—only an encrypted mathematical template linked to your account is retained.
         </p>
 
         {/* Step-by-step enrollment instructions */}
-        <div className="my-5 rounded-xl border border-[#C7FFBE]/20 bg-[#C7FFBE]/5 p-4">
-          <div className="mb-3 flex items-center gap-2 text-[#C7FFBE]">
+        <div className="my-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-5">
+          <div className="mb-3.5 flex items-center gap-2 text-emerald-400">
             <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="text-xs font-semibold uppercase tracking-wider">How to set up Face Sign-in</span>
+            <span className="text-xs font-bold uppercase tracking-wider">How to configure Face Sign-in</span>
           </div>
-          <ol className="space-y-2 text-sm text-white/75" aria-label="Face sign-in setup steps">
+          <ol className="space-y-3 text-xs sm:text-sm text-slate-300" aria-label="Face sign-in setup steps">
             <li className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7FFBE]/20 text-[0.65rem] font-bold text-[#C7FFBE]">1</span>
-              <span>Sign in with your <strong className="text-white">email and password</strong> to reach this page. (You must be logged in to enroll.)</span>
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">1</span>
+              <span>Ensure you are authenticated with your account password.</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7FFBE]/20 text-[0.65rem] font-bold text-[#C7FFBE]">2</span>
-              <span>Read and accept the <strong className="text-white">biometric consent</strong> shown in the face registration dialog. Your data is processed locally and only an encrypted template is stored.</span>
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">2</span>
+              <span>Read and acknowledge the biometric consent prompt when starting scan.</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7FFBE]/20 text-[0.65rem] font-bold text-[#C7FFBE]">3</span>
-              <span>Click <strong className="text-white">Start Camera Preview</strong> and allow your browser to access the camera when prompted.</span>
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">3</span>
+              <span>Grant browser webcam permission when prompted by your browser.</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7FFBE]/20 text-[0.65rem] font-bold text-[#C7FFBE]">4</span>
-              <span>Position your face inside the guide oval, then click <strong className="text-white">Enroll Face</strong> to capture and submit your face template.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7FFBE]/20 text-[0.65rem] font-bold text-[#C7FFBE]">5</span>
-              <span>A <strong className="text-[#C7FFBE]">confirmation message</strong> will appear here. From now on, use <strong className="text-white">Sign in with Face</strong> on the login page.</span>
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">4</span>
+              <span>Center your face within the biometric oval reticle and capture.</span>
             </li>
           </ol>
         </div>
 
-        <div className="my-6 rounded-xl border border-white/10 bg-black/20 p-4">
+        <div className="my-6 rounded-2xl border border-white/10 bg-slate-800/60 p-4">
           {isLoading ? (
-            <p role="status" className="flex items-center gap-2 text-sm text-white/70">
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Checking your enrollment…
+            <p role="status" className="flex items-center gap-2 text-sm text-slate-300">
+              <LoaderCircle className="h-4 w-4 animate-spin text-emerald-400" aria-hidden="true" />
+              Checking biometric enrollment status…
             </p>
           ) : isEnrolled && enrolledThisSession ? (
             // Just-enrolled success message
-            <div role="status" className="flex flex-col gap-2">
-              <p className="flex items-center gap-2 text-sm font-semibold text-[#C7FFBE]">
+            <div role="status" className="flex flex-col gap-1.5">
+              <p className="flex items-center gap-2 text-sm font-bold text-emerald-400">
                 <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                 Face registration successful!
               </p>
-              <p className="text-sm text-white/70">
-                Next time, choose <strong className="text-white">Face Login</strong> on the login page to sign in with your face.
+              <p className="text-xs text-slate-300">
+                Next time, simply choose <strong className="text-white">Face Login</strong> on the login page to sign in instantaneously.
               </p>
             </div>
           ) : isEnrolled ? (
-            <p role="status" className="flex items-center gap-2 text-sm font-semibold text-[#C7FFBE]">
+            <p role="status" className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
               <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-              Face sign-in is enrolled for this account.
+              Face sign-in is active and configured for this account.
             </p>
           ) : (
-            <p className="text-sm text-white/75">
-              No saved face enrollment is active for this account.
+            <p className="text-sm text-slate-300">
+              No active face enrollment found for this account.
             </p>
           )}
         </div>
 
         {!enrollmentAvailable && !isLoading && (
-          <p role="alert" className="mb-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">
-            Face enrollment is not available on this server. Password sign-in remains available.
+          <p role="alert" className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs sm:text-sm text-amber-200">
+            Face enrollment is not available on this server environment. Password sign-in remains active.
           </p>
         )}
         {error && (
-          <p role="alert" className="mb-4 flex gap-2 rounded-xl border border-red-300/30 bg-red-300/10 p-3 text-sm text-red-100">
+          <p role="alert" className="mb-4 flex gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs sm:text-sm text-red-200">
             <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
             {error}
           </p>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row pt-2">
           {!isEnrolled && (
             <button
               type="button"
@@ -230,10 +223,10 @@ export const FaceEnrollPage: React.FC = () => {
                 setIsEnrollmentOpen(true);
               }}
               disabled={isLoading}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#C7FFBE] px-4 text-sm font-semibold text-[#171B1A] hover:bg-[#d8ffd1] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-sm font-bold text-white shadow-lg hover:from-emerald-600 hover:to-teal-600 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ScanFace className="h-4 w-4" aria-hidden="true" />
-              {enrollmentAvailable ? 'Enroll my face' : 'Preview camera'}
+              {enrollmentAvailable ? 'Enroll My Face' : 'Preview Camera'}
             </button>
           )}
           {isEnrolled && (
@@ -241,20 +234,20 @@ export const FaceEnrollPage: React.FC = () => {
               type="button"
               onClick={deleteEnrollment}
               disabled={isDeleting}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-300/40 px-4 text-sm font-semibold text-red-100 hover:bg-red-300/10 disabled:opacity-50"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 text-sm font-semibold text-red-300 hover:bg-red-500/20 active:scale-95 transition-all disabled:opacity-50"
             >
               {isDeleting
                 ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                 : <Trash2 className="h-4 w-4" aria-hidden="true" />}
-              Withdraw consent and delete template
+              Withdraw Consent & Delete Template
             </button>
           )}
           <button
             type="button"
             onClick={finish}
-            className="min-h-11 rounded-xl border border-white/15 px-4 text-sm font-semibold text-white hover:bg-white/5"
+            className="min-h-11 rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white hover:bg-white/10 active:scale-95 transition-all"
           >
-            Return to account
+            Return to Account
           </button>
         </div>
       </section>

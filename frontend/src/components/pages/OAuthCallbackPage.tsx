@@ -107,11 +107,11 @@ export const OAuthCallbackPage = () => {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#171B1A] px-5 text-white">
       <section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#202725] p-8 text-center shadow-2xl">
-        <ShieldAlert className="mx-auto mb-4 h-9 w-9 text-[#C7FFBE]" aria-hidden="true" />
+        <ShieldAlert className="mx-auto mb-4 h-9 w-9 text-[#CFE0FF]" aria-hidden="true" />
         <h1 className="mb-3 text-2xl font-semibold">Sign-in could not be completed</h1>
         <p role="alert" className="mb-7 text-sm leading-6 text-white/65">{error}</p>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link className="rounded-xl bg-[#C7FFBE] px-5 py-3 text-sm font-semibold text-[#171B1A] hover:bg-[#d8ffd1]" to="/login">
+          <Link className="rounded-xl bg-[#CFE0FF] px-5 py-3 text-sm font-semibold text-[#171B1A] hover:bg-[#DCE7FF]" to="/login">
             Log in
           </Link>
           <Link className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/5" to="/register">

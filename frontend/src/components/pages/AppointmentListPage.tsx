@@ -50,29 +50,29 @@ export const AppointmentListPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-textPrimary">Appointments</h1>
           <p className="text-sm text-textSecondary mt-0.5">All patient appointments and booking statuses.</p>
         </div>
-        <Link to="/appointments/book" className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-colors shadow-sm">
-          <PlusCircle className="w-4 h-4 mr-2" />Book Appointment
+        <Link to="/appointments/book" className="inline-flex items-center justify-center text-xs font-semibold bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl transition-all shadow-xs">
+          <PlusCircle className="w-3.5 h-3.5 mr-1.5" />Book Appointment
         </Link>
       </div>
       {loading && <div className="flex items-center justify-center py-16 text-primary"><Spinner size="lg" /><span className="ml-3 text-sm text-textSecondary">Loading appointments...</span></div>}
-      {!loading && error && <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-md text-sm">{error}</div>}
+      {!loading && error && <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-xl text-sm">{error}</div>}
       {!loading && !error && (
-        <Card className="!p-0 overflow-hidden">
+        <Card className="!p-0 overflow-hidden shadow-card">
           {appointments.length === 0
             ? <div className="p-8 text-center text-textSecondary text-sm">No appointments scheduled yet.</div>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-background border-b border-textPrimary/10 text-xs uppercase font-semibold text-textSecondary">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-600">
                     <tr><th className="px-6 py-3">Patient ID</th><th className="px-6 py-3">Doctor ID</th><th className="px-6 py-3">Date &amp; Time</th><th className="px-6 py-3">Notes</th><th className="px-6 py-3">Status</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-border text-textPrimary">
+                  <tbody className="divide-y divide-slate-100 text-slate-800">
                     {appointments.map((a) => (
-                      <tr key={a.appointmentId} className="hover:bg-primary/5">
-                        <td className="px-6 py-4 font-medium">{a.patientId}</td>
-                        <td className="px-6 py-4 text-textSecondary">{a.doctorId}</td>
-                        <td className="px-6 py-4 text-textSecondary">{new Date(a.appointmentDate).toLocaleString()}</td>
-                        <td className="px-6 py-4 text-textSecondary">{a.notes || '—'}</td>
+                      <tr key={a.appointmentId} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs text-slate-800">{a.patientId}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-600">{a.doctorId}</td>
+                        <td className="px-6 py-4 text-slate-600">{new Date(a.appointmentDate).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-slate-600">{a.notes || '—'}</td>
                         <td className="px-6 py-4"><Badge variant={statusVariant(a.status)}>{a.status || 'scheduled'}</Badge></td>
                       </tr>
                     ))}

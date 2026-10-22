@@ -185,25 +185,30 @@ export const PrescriptionCreatePage: React.FC = () => {
   };
 
   const fieldClass =
-    'w-full rounded-md border border-textPrimary/10 bg-surface px-3 py-2 text-sm text-textPrimary placeholder:text-textPrimary/50 focus:border-prescriptionPrimary focus:outline-none focus:ring-2 focus:ring-prescriptionPrimary/20';
+    'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-textPrimary placeholder:text-textMuted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs';
   const containerRef = useRef<HTMLDivElement>(null);
   useFadeUp(containerRef);
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
+      <div ref={containerRef} className="py-2">
         <div className="mx-auto max-w-3xl">
           <Link
             to="/prescriptions"
-            className="mb-4 inline-flex items-center text-xs font-semibold text-textPrimary/70 hover:text-textPrimary"
+            className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold text-textSecondary hover:text-primary transition-colors group"
           >
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back to Prescriptions
           </Link>
-          <h1 className="mb-6 text-2xl font-bold text-textPrimary">Create New Prescription</h1>
+          
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">Create New Prescription</h1>
+            <p className="text-sm text-textSecondary mt-1">Issue validated medical prescriptions with precise dosage and schedule instructions.</p>
+          </div>
 
-          <form onSubmit={handleSubmit(submitPrescription)} className="space-y-5">
-            <Card title="Patient & Doctor" className="rounded-md border-textPrimary/10 bg-surface shadow-sm">
+          <form onSubmit={handleSubmit(submitPrescription)} className="space-y-6">
+            <Card className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-card hover:shadow-card-hover transition-all">
+              <h2 className="text-base font-bold text-textPrimary mb-4 pb-3 border-b border-border">Patient & Physician Information</h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <PatientSelect
@@ -218,26 +223,27 @@ export const PrescriptionCreatePage: React.FC = () => {
                   />
 
                   {selectedPatient && (
-                    <div className="rounded-md border border-textPrimary/10 bg-background p-3 text-sm">
-                      <p className="font-medium text-textPrimary">{getPatientName(selectedPatient)}</p>
-                      <p className="mt-1 text-xs text-textPrimary/70">
-                        Age: {getAge(selectedPatient.dateOfBirth)} · Phone: {selectedPatient.phone || 'Not provided'}
+                    <div className="rounded-xl border border-border bg-background p-3.5 text-sm">
+                      <p className="font-semibold text-textPrimary">{getPatientName(selectedPatient)}</p>
+                      <p className="mt-1 text-xs text-textSecondary">
+                        Age: <span className="font-medium text-textPrimary">{getAge(selectedPatient.dateOfBirth)}</span> · Phone: <span className="font-medium text-textPrimary">{selectedPatient.phone || 'Not provided'}</span>
                       </p>
                     </div>
                   )}
                 </div>
 
                 {!doctorLookupComplete && (
-                  <p className="text-sm text-textPrimary/70">Finding your doctor profile...</p>
+                  <p className="text-sm text-textSecondary font-medium">Finding your doctor profile...</p>
                 )}
                 {doctorLookupComplete && isDoctor && matchedDoctor && (
-                  <div className="rounded-md border border-textPrimary/10 bg-background px-3 py-2 text-sm text-textPrimary">
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs font-semibold text-primary inline-flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
                     Prescribing as {getDoctorName(matchedDoctor)}
                   </div>
                 )}
                 {doctorLookupComplete && (!isDoctor || !matchedDoctor) && (
                   <div>
-                    <Label htmlFor="doctorId" required>Select Doctor</Label>
+                    <Label htmlFor="doctorId" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">Select Doctor</Label>
                     <select
                       id="doctorId"
                       {...register('doctorId', { required: 'Please choose a doctor.' })}
@@ -252,113 +258,119 @@ export const PrescriptionCreatePage: React.FC = () => {
                       ))}
                     </select>
                     {errors.doctorId && (
-                      <p role="alert" className="mt-1 text-xs text-danger">{errors.doctorId.message}</p>
+                      <p role="alert" className="mt-1.5 text-xs font-medium text-danger">{errors.doctorId.message}</p>
                     )}
                   </div>
                 )}
 
                 <div>
-                  <Label htmlFor="diagnosis" required>Diagnosis</Label>
+                  <Label htmlFor="diagnosis" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">Diagnosis</Label>
                   <textarea
                     id="diagnosis"
                     rows={3}
                     {...register('diagnosis', { required: 'Diagnosis is required.' })}
                     className={fieldClass}
-                    placeholder="Primary diagnosis"
+                    placeholder="Enter primary clinical diagnosis and presenting conditions..."
                   />
                   {errors.diagnosis && (
-                    <p role="alert" className="mt-1 text-xs text-danger">{errors.diagnosis.message}</p>
+                    <p role="alert" className="mt-1.5 text-xs font-medium text-danger">{errors.diagnosis.message}</p>
                   )}
                 </div>
               </div>
             </Card>
 
-            <Card
-              title="Medicines"
-              className="rounded-md border-textPrimary/10 shadow-sm"
-              action={
+            <Card className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-card hover:shadow-card-hover transition-all">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+                <div>
+                  <h2 className="text-base font-bold text-textPrimary">Prescribed Medications</h2>
+                  <p className="text-xs text-textSecondary mt-0.5">Specify dosage, intervals, and patient instructions.</p>
+                </div>
                 <Button
                   type="button"
-                  variant="primary"
-                  className="!bg-prescriptionPrimary hover:!bg-prescriptionPrimaryDark"
+                  variant="secondary"
+                  className="gap-1.5 text-xs py-2 px-3.5"
                   onClick={() => append({ name: '', dosage: '', frequency: '', duration: '', instructions: '' })}
                 >
-                  <Plus className="mr-1 h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5 text-primary" />
                   Add Medicine
                 </Button>
-              }
-            >
+              </div>
+
               <div className="space-y-4">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="space-y-3 rounded-md border border-textPrimary/10 bg-background p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-textPrimary">Medicine {index + 1}</p>
+                  <div key={field.id} className="space-y-3.5 rounded-xl border border-border bg-background p-4 sm:p-5 transition-all">
+                    <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-primary">Medicine #{index + 1}</span>
                       {fields.length > 1 && (
                         <button
                           type="button"
                           onClick={() => remove(index)}
                           aria-label={`Remove medicine ${index + 1}`}
-                          className="rounded-md p-1 text-danger hover:bg-danger/10"
+                          className="rounded-lg p-1 text-textMuted hover:text-danger hover:bg-danger/10 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       <div>
-                        <Label htmlFor={`medicine-name-${index}`} required>Name</Label>
+                        <Label htmlFor={`medicine-name-${index}`} required className="block text-xs font-semibold text-textSecondary mb-1">Name</Label>
                         <Input
                           id={`medicine-name-${index}`}
+                          placeholder="e.g. Amoxicillin, Lisinopril"
                           {...register(`medicines.${index}.name`, { required: 'Medicine name is required.' })}
-                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                          className="rounded-xl !border-border bg-surface text-textPrimary focus:!border-primary focus:!ring-primary/20 text-sm shadow-xs"
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`medicine-dosage-${index}`} required>Dosage</Label>
+                        <Label htmlFor={`medicine-dosage-${index}`} required className="block text-xs font-semibold text-textSecondary mb-1">Dosage</Label>
                         <Input
                           id={`medicine-dosage-${index}`}
+                          placeholder="e.g. 500mg, 10ml"
                           {...register(`medicines.${index}.dosage`, { required: 'Dosage is required.' })}
-                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                          className="rounded-xl !border-border bg-surface text-textPrimary focus:!border-primary focus:!ring-primary/20 text-sm shadow-xs"
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`medicine-frequency-${index}`} required>Frequency</Label>
+                        <Label htmlFor={`medicine-frequency-${index}`} required className="block text-xs font-semibold text-textSecondary mb-1">Frequency</Label>
                         <Input
                           id={`medicine-frequency-${index}`}
                           {...register(`medicines.${index}.frequency`, { required: 'Frequency is required.' })}
-                          placeholder="e.g. Once daily, Twice daily, Every 8 hours"
-                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                          placeholder="e.g. Twice daily with meals"
+                          className="rounded-xl !border-border bg-surface text-textPrimary focus:!border-primary focus:!ring-primary/20 text-sm shadow-xs"
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`medicine-duration-${index}`}>Duration</Label>
+                        <Label htmlFor={`medicine-duration-${index}`} className="block text-xs font-semibold text-textSecondary mb-1">Duration</Label>
                         <Input
                           id={`medicine-duration-${index}`}
+                          placeholder="e.g. 7 days, 1 month"
                           {...register(`medicines.${index}.duration`)}
-                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                          className="rounded-xl !border-border bg-surface text-textPrimary focus:!border-primary focus:!ring-primary/20 text-sm shadow-xs"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor={`medicine-instructions-${index}`}>Instructions</Label>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor={`medicine-instructions-${index}`} className="block text-xs font-semibold text-textSecondary mb-1">Patient Instructions</Label>
                         <Input
                           id={`medicine-instructions-${index}`}
+                          placeholder="Special precautions, take after breakfast, etc."
                           {...register(`medicines.${index}.instructions`)}
-                          className="rounded-md !border-textPrimary/10 bg-surface text-textPrimary focus:!border-prescriptionPrimary focus:!ring-prescriptionPrimary/20"
+                          className="rounded-xl !border-border bg-surface text-textPrimary focus:!border-primary focus:!ring-primary/20 text-sm shadow-xs"
                         />
                       </div>
                     </div>
                     {errors.medicines?.[index]?.name && (
-                      <p role="alert" className="text-xs text-danger">
+                      <p role="alert" className="text-xs font-medium text-danger">
                         {errors.medicines[index]?.name?.message}
                       </p>
                     )}
                     {errors.medicines?.[index]?.dosage && (
-                      <p role="alert" className="text-xs text-danger">
+                      <p role="alert" className="text-xs font-medium text-danger">
                         {errors.medicines[index]?.dosage?.message}
                       </p>
                     )}
                     {errors.medicines?.[index]?.frequency && (
-                      <p role="alert" className="text-xs text-danger">
+                      <p role="alert" className="text-xs font-medium text-danger">
                         {errors.medicines[index]?.frequency?.message}
                       </p>
                     )}
@@ -367,17 +379,17 @@ export const PrescriptionCreatePage: React.FC = () => {
               </div>
             </Card>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <Link
                 to="/prescriptions"
-                className="inline-flex items-center justify-center rounded-md border border-textPrimary/10 bg-surface px-4 py-2 text-sm font-medium text-textPrimary hover:bg-background"
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition-all"
               >
                 Cancel
               </Link>
               <Button
                 type="submit"
+                variant="primary"
                 isLoading={isSubmitting || !doctorLookupComplete}
-                className="!bg-prescriptionPrimary hover:!bg-prescriptionPrimaryDark"
               >
                 Save Prescription
               </Button>

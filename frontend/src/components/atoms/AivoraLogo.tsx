@@ -5,18 +5,14 @@ interface AivoraLogoProps {
 }
 
 export const AivoraLogo: React.FC<AivoraLogoProps> = ({ className = 'h-8 w-8' }) => (
-  <svg className={className} viewBox="0 0 34 34" fill="none" aria-hidden="true">
-    <rect width="34" height="34" rx="9" fill="#0F3D36" />
+  <svg className={className} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path
-      d="M17 7.5C11.753 7.5 7.5 11.753 7.5 17C7.5 22.247 11.753 26.5 17 26.5C22.247 26.5 26.5 22.247 26.5 17"
-      stroke="#D9FF5B"
-      strokeWidth="2.5"
-      strokeLinecap="round"
+      d="M16 28S3 20 3 10.5C3 6.358 6.358 3 10.5 3C13.08 3 15.358 4.305 16.5 6.305C17.642 4.305 19.92 3 22.5 3C26.642 3 30 6.358 30 10.5C30 20 17 28 16 28Z"
+      fill="#0D9488"
     />
-    <circle cx="21" cy="12.5" r="3" fill="#D9FF5B" />
     <path
-      d="M12.5 17L15.5 20L21.5 13.5"
-      stroke="#D9FF5B"
+      d="M6.5 15.5H10.5L12.5 10L16.5 21L18.5 13.5L20.5 17.5L22 15.5H26.5"
+      stroke="#FFFFFF"
       strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"

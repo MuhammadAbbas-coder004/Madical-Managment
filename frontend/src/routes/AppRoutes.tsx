@@ -114,7 +114,7 @@ export const AppRoutes: React.FC = () => {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#171B1A]" role="status" aria-label="Loading page">
+        <div className="flex min-h-screen items-center justify-center bg-background text-primary" role="status" aria-label="Loading page">
           <Spinner size="lg" />
         </div>
       }

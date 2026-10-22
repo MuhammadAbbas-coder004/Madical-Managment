@@ -8,6 +8,7 @@ import {
   Clock,
   Download,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import api from '../../shared/services/api';
 import { parsePatientPortalList } from '../../shared/services/patientPortal';
@@ -218,6 +219,26 @@ export const PatientPortalPage: React.FC = () => {
               </div>
             </div>
           </Card>
+
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-[#18534C] p-6 text-white shadow-sm">
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent backdrop-blur-sm">
+                  Biometric AI Scan
+                </span>
+                <h3 className="mt-2 text-lg font-bold tracking-tight text-white">Need a quick vital signs checkup?</h3>
+                <p className="mt-1 text-xs text-white/80 max-w-xl">
+                  Use your device camera for a contactless optical scan of your heart rate, HRV, breathing rate, and wellness indicators.
+                </p>
+              </div>
+              <Link
+                to="/vitals"
+                className="inline-flex shrink-0 items-center justify-center rounded-full bg-accent px-5 py-2.5 text-xs font-semibold text-primary transition-all duration-200 hover:brightness-105 hover:shadow-md"
+              >
+                Scan Now
+              </Link>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="My Scheduled Appointments">

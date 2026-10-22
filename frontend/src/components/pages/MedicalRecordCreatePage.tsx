@@ -101,7 +101,7 @@ export const MedicalRecordCreatePage: React.FC = () => {
   }, [isDoctor, searchParams, setValue]);
 
   const fieldClass =
-    'w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary placeholder:text-textSecondary/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50';
+    'w-full px-3.5 py-2.5 text-sm bg-background border border-border rounded-xl text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 shadow-xs';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,25 +136,33 @@ export const MedicalRecordCreatePage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
+      <div ref={containerRef} className="py-2">
         <div className="max-w-2xl mx-auto">
           <Link
             to="/medical-records"
-            className="inline-flex items-center text-xs font-semibold text-textSecondary hover:text-textPrimary mb-4"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-textSecondary hover:text-primary transition-colors mb-6 group"
           >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back to Medical Records
           </Link>
-          <h1 className="text-2xl font-bold text-textPrimary mb-6">Create Medical Record</h1>
-          <Card>
-            <form onSubmit={handleSubmit} className="space-y-4">
+
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">Create Medical Record</h1>
+            <p className="text-sm text-textSecondary mt-1">Record official clinical diagnosis, known allergies, and treatment documentation.</p>
+          </div>
+
+          <Card className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-card hover:shadow-card-hover transition-all">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {directoryError && (
-                <p role="alert" className="rounded-md border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
+                <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
                   {directoryError}
-                </p>
+                </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                    Patient <span className="text-danger">*</span>
+                  </label>
                   <PatientSelect
                     control={control}
                     name="patientId"
@@ -163,67 +171,72 @@ export const MedicalRecordCreatePage: React.FC = () => {
                     patientsError={directoryError}
                   />
                 </div>
-                {!isDoctor && <div>
-                  <label className="block text-sm font-medium text-textPrimary mb-1.5">
-                    Select Doctor <span className="text-danger">*</span>
-                  </label>
-                  <select
-                    className={fieldClass}
-                    value={doctorId}
-                    onChange={(e) => setDoctorId(e.target.value)}
-                    disabled={loadingDirectory || doctors.length === 0 || isDoctor}
-                    required
-                  >
-                    {loadingDirectory ? (
-                      <option value="">Loading doctors...</option>
-                    ) : doctors.length === 0 ? (
-                      <option value="">No doctors available</option>
-                    ) : (
-                      doctors.map((d) => {
-                        const docName =
-                          d.fullName ||
-                          `Dr. ${d.firstName || ''} ${d.lastName || ''}`.trim() ||
-                          'Doctor';
-                        const spec = d.specialization ? ` (${d.specialization})` : '';
-                        return (
-                          <option key={d.doctorId} value={d.doctorId}>
-                            {docName}
-                            {spec}
-                          </option>
-                        );
-                      })
-                    )}
-                  </select>
-                </div>}
+                {!isDoctor && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                      Select Doctor <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className={fieldClass}
+                      value={doctorId}
+                      onChange={(e) => setDoctorId(e.target.value)}
+                      disabled={loadingDirectory || doctors.length === 0 || isDoctor}
+                      required
+                    >
+                      {loadingDirectory ? (
+                        <option value="">Loading doctors...</option>
+                      ) : doctors.length === 0 ? (
+                        <option value="">No doctors available</option>
+                      ) : (
+                        doctors.map((d) => {
+                          const docName =
+                            d.fullName ||
+                            `Dr. ${d.firstName || ''} ${d.lastName || ''}`.trim() ||
+                            'Doctor';
+                          const spec = d.specialization ? ` (${d.specialization})` : '';
+                          return (
+                            <option key={d.doctorId} value={d.doctorId}>
+                              {docName}
+                              {spec}
+                            </option>
+                          );
+                        })
+                      )}
+                    </select>
+                  </div>
+                )}
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-textPrimary mb-1.5">
-                  Diagnosis <span className="text-danger">*</span>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                  Primary Diagnosis <span className="text-danger">*</span>
                 </label>
                 <textarea
                   rows={2}
                   className={fieldClass}
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="Primary diagnosis..."
+                  placeholder="Enter primary clinical diagnosis..."
                   required
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-textPrimary mb-1.5">
-                  Clinical Notes
+                <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                  Clinical Examination & Treatment Notes
                 </label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   className={fieldClass}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Additional notes, treatment plan..."
+                  placeholder="Detailed observations, treatment regimen, clinical follow-up..."
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-textPrimary mb-1.5">
-                  Allergies <span className="text-textSecondary text-xs">(comma-separated)</span>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                  Known Allergies <span className="text-textMuted lowercase font-normal">(comma-separated)</span>
                 </label>
                 <input
                   className={fieldClass}
@@ -232,7 +245,8 @@ export const MedicalRecordCreatePage: React.FC = () => {
                   placeholder="e.g. Penicillin, Aspirin, Latex"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="secondary"
@@ -241,7 +255,7 @@ export const MedicalRecordCreatePage: React.FC = () => {
                   Cancel
                 </Button>
                 <Button type="submit" variant="primary" isLoading={isSubmitting}>
-                  Save Record
+                  Save Medical Record
                 </Button>
               </div>
             </form>

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ClipboardPlus, Calendar } from 'lucide-react';
 import api from '../../shared/services/api';
 import { parseAuthorizedPatients } from '../../shared/services/patients';
-import { useAuthStore } from '../../store/authStore';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
 import { Spinner } from '../atoms/Spinner';
@@ -20,8 +19,6 @@ interface PatientOption {
 export const LabReportListPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const requestedPatientId = searchParams.get('patientId') || '';
-  const user = useAuthStore((state) => state.user);
-  const isDoctor = user?.role.toLowerCase() === 'doctor';
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [reports, setReports] = useState<LabReport[]>([]);
@@ -88,23 +85,23 @@ export const LabReportListPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
+      <div ref={containerRef} className="py-2">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-textPrimary">Lab Reports</h1>
-            <p className="mt-0.5 text-sm text-textSecondary">Test results and clinical notes.</p>
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">Diagnostic Lab Reports</h1>
+            <p className="mt-1 text-sm text-textSecondary">Laboratory test analyses, diagnostic findings, and clinical pathology notes.</p>
           </div>
           <Link
             to="/lab-reports/upload"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-surface shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-md"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-hover px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all"
           >
-            <ClipboardPlus className="mr-2 h-4 w-4" />
-            Create Lab Report
+            <ClipboardPlus className="h-3.5 w-3.5" />
+            Upload Lab Report
           </Link>
         </div>
 
-        <div className={`mb-6 max-w-sm ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
-          <label htmlFor="reportPatient" className="mb-1.5 block text-xs font-semibold uppercase text-textSecondary">
+        <div className="mb-6 max-w-sm">
+          <label htmlFor="reportPatient" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-textSecondary">
             Select Patient
           </label>
           <select
@@ -112,7 +109,7 @@ export const LabReportListPage: React.FC = () => {
             value={selectedPatientId}
             onChange={(event) => setSelectedPatientId(event.target.value)}
             disabled={loadingPatients || patients.length === 0}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-textPrimary focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-textPrimary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-xs disabled:opacity-50"
           >
             {patients.map((patient) => (
               <option key={patient.patientId} value={patient.patientId}>
@@ -124,48 +121,54 @@ export const LabReportListPage: React.FC = () => {
         </div>
 
         {selectedPatientName && (
-          <p className="mb-4 text-sm text-textSecondary">Showing reports for {selectedPatientName}</p>
+          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/20 text-xs font-semibold text-primary">
+            <span>Patient:</span>
+            <span className="text-textPrimary">{selectedPatientName}</span>
+          </div>
         )}
         {!loadingPatients && error && (
-          <div role="alert" className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
+          <div role="alert" className="mb-6 rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
             {error}
           </div>
         )}
 
         {(loading || loadingPatients) && (
-          <div className="flex items-center justify-center py-16 text-primary">
+          <div className="flex items-center justify-center py-20 text-primary">
             <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textSecondary">Loading lab reports...</span>
+            <span className="ml-3 text-sm font-medium text-textSecondary">Loading lab reports...</span>
           </div>
         )}
 
         {!loading && !loadingPatients && !error && patients.length === 0 && (
-          <Card>
-            <p className="py-6 text-center text-sm text-textSecondary">No assigned patients are available.</p>
+          <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+            <p className="text-sm font-medium text-textSecondary">No assigned patients are available.</p>
           </Card>
         )}
 
         {!loading && !loadingPatients && !error && selectedPatientId && reports.length === 0 && (
-          <Card>
-            <p className="py-6 text-center text-sm text-textSecondary">
-              No lab reports yet for this patient.
-            </p>
+          <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+            <p className="text-sm font-semibold text-textPrimary">No lab reports yet for this patient</p>
+            <p className="text-xs text-textSecondary mt-1">Uploaded clinical lab results will appear here.</p>
           </Card>
         )}
 
         {!loading && !loadingPatients && !error && reports.length > 0 && (
           <div className="space-y-4">
             {reports.map((report) => (
-              <Card key={report._id} className={isDoctor ? 'shadow-md transition-shadow hover:shadow-lg' : ''}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-semibold text-textPrimary">{report.testName}</h2>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-textSecondary">{report.result}</p>
-                    <p className="mt-3 flex items-center gap-1 text-xs text-textSecondary">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {new Date(report.uploadedAt).toLocaleString()}
-                    </p>
+              <Card key={report._id} className="rounded-2xl border border-border bg-surface p-6 shadow-card hover:shadow-card-hover transition-all">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                    <h2 className="text-base font-bold text-textPrimary">{report.testName}</h2>
                   </div>
+                  <span className="text-xs font-medium text-textSecondary flex items-center gap-1.5 bg-background px-3 py-1 rounded-full border border-border">
+                    <Calendar className="h-3.5 w-3.5 text-textMuted" />
+                    {new Date(report.uploadedAt).toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-background p-4 rounded-xl border border-border">
+                  <p className="text-xs font-bold uppercase tracking-wider text-textSecondary mb-1.5">Diagnostic Findings & Results</p>
+                  <p className="whitespace-pre-wrap text-sm text-textPrimary leading-relaxed">{report.result}</p>
                 </div>
               </Card>
             ))}

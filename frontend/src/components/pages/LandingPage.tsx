@@ -8,6 +8,7 @@ import {
   Cpu,
   FileText,
   HeartPulse,
+  Info,
   Layers,
   Menu,
   Pill,
@@ -25,10 +26,6 @@ import './LandingPage.css';
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
-
-const FaceScanModel = React.lazy(() =>
-  import('./FaceScanModel').then(({ FaceScanModel: Model }) => ({ default: Model }))
-);
 
 const setupRepeatableReveal = (
   element: HTMLElement,
@@ -399,7 +396,7 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   return (
-    <div ref={mainContainerRef} id="top" className="min-h-screen bg-white text-[#111111] antialiased selection:bg-[#D9FF5B] selection:text-[#111111]">
+    <div ref={mainContainerRef} id="top" className="min-h-screen bg-white text-[#111111] antialiased selection:bg-[#396EF4] selection:text-[#111111]">
 
       {/* ── SECTION 1: NAVBAR — Floating pill at top → full-width on scroll ── */}
       <div
@@ -427,9 +424,9 @@ export const LandingPage: React.FC = () => {
               ref={logoRef}
               href="#top"
               aria-label="Medivanta Home"
-              className="group inline-flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+              className="group inline-flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] transition-transform duration-200 group-hover:scale-105 group-hover:border-[#D9FF5B]/40">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] transition-transform duration-200 group-hover:scale-105 group-hover:border-[#396EF4]/40">
                 <AivoraLogo className="h-7 w-7" />
               </div>
               <span className="text-[21px] font-bold tracking-[-0.03em] text-white">Medivanta</span>
@@ -442,10 +439,10 @@ export const LandingPage: React.FC = () => {
                   <a
                     key={item.label}
                     href={item.href}
-                    className="group relative py-2 text-[14.5px] font-medium tracking-[-0.015em] text-white/75 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                    className="group relative py-2 text-[14.5px] font-medium tracking-[-0.015em] text-white/75 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
                   >
                     {item.label}
-                    <span className="absolute inset-x-0 -bottom-0.5 h-[1.5px] origin-left scale-x-0 bg-[#D9FF5B] transition-transform duration-200 group-hover:scale-x-100" />
+                    <span className="absolute inset-x-0 -bottom-0.5 h-[1.5px] origin-left scale-x-0 bg-[#396EF4] transition-transform duration-200 group-hover:scale-x-100" />
                   </a>
                 ))}
               </div>
@@ -455,13 +452,13 @@ export const LandingPage: React.FC = () => {
             <div ref={navActionsRef} className="hidden items-center gap-5 md:flex">
               <Link
                 to="/login"
-                className="rounded-md px-2 py-1.5 text-[14px] font-medium text-white/80 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                className="rounded-md px-2 py-1.5 text-[14px] font-medium text-white/80 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
               >
                 Log in
               </Link>
               <Link
                 to="/register"
-                className="inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] bg-[#D9FF5B] px-5 text-[13.5px] font-semibold text-[#111111] transition-all duration-200 hover:bg-[#C5EA43] hover:shadow-[0_4px_16px_rgba(217,255,91,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                className="inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] bg-[#396EF4] px-5 text-[13.5px] font-semibold text-[#111111] transition-all duration-200 hover:bg-[#2858D8] hover:shadow-[0_4px_16px_rgba(57,110,244,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
               >
                 Request a demo
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
@@ -474,7 +471,7 @@ export const LandingPage: React.FC = () => {
               aria-label="Open navigation menu"
               aria-expanded={isMenuOpen}
               onClick={() => setIsMenuOpen(true)}
-              className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white transition-colors hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B] md:hidden"
+              className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white transition-colors hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4] md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -497,7 +494,7 @@ export const LandingPage: React.FC = () => {
               href="#top"
               aria-label="Medivanta Home"
               onClick={closeMenu}
-              className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+              className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
                 <AivoraLogo className="h-7 w-7" />
@@ -508,7 +505,7 @@ export const LandingPage: React.FC = () => {
               type="button"
               aria-label="Close navigation menu"
               onClick={closeMenu}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white transition-colors hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
             >
               <X className="h-5 w-5" />
             </button>
@@ -521,7 +518,7 @@ export const LandingPage: React.FC = () => {
                 key={item.label}
                 href={item.href}
                 onClick={closeMenu}
-                className="aivora-mobile-item flex items-center justify-between rounded-xl px-4 py-3.5 text-xl font-medium text-white/90 transition-colors hover:bg-white/[0.06] hover:text-[#D9FF5B]"
+                className="aivora-mobile-item flex items-center justify-between rounded-xl px-4 py-3.5 text-xl font-medium text-white/90 transition-colors hover:bg-white/[0.06] hover:text-[#396EF4]"
               >
                 <span>{item.label}</span>
                 <ArrowRight className="h-4 w-4 text-white/30" />
@@ -541,7 +538,7 @@ export const LandingPage: React.FC = () => {
             <Link
               to="/register"
               onClick={closeMenu}
-              className="aivora-mobile-item inline-flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#D9FF5B] text-sm font-semibold text-[#111111] transition-colors hover:bg-[#C5EA43]"
+              className="aivora-mobile-item inline-flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#396EF4] text-sm font-semibold text-[#111111] transition-colors hover:bg-[#2858D8]"
             >
               Request a demo
               <ArrowRight className="h-4 w-4" />
@@ -554,51 +551,53 @@ export const LandingPage: React.FC = () => {
       <section ref={heroSectionRef} id="hero-section" className="relative overflow-hidden bg-white pb-20 pt-24 text-[#111111] sm:pb-24 sm:pt-28 lg:pb-32 lg:pt-28">
         {/* Subtle Ambient Glow */}
         <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2">
-          <div className="h-[420px] w-[700px] rounded-full bg-[#D9FF5B]/20 blur-[130px]" />
+          <div className="h-[420px] w-[700px] rounded-full bg-[#396EF4]/20 blur-[130px]" />
         </div>
 
         <div className="relative mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
 
             {/* Left Column: Headline & CTAs */}
-            <div className="gsap-hero-content max-w-[640px]">
-              <p className="mb-2 text-[16px] font-medium tracking-[0.02em] text-[#6B6B6B]">Powered by</p>
-              <h1 className="gsap-hero-title whitespace-normal text-[clamp(44px,12vw,64px)] font-extrabold leading-none tracking-[-0.03em] text-[#111111] lg:whitespace-nowrap lg:text-[clamp(56px,8vw,104px)]">
-                Medivanta
-              </h1>
+            <div className="gsap-hero-content max-w-[680px]">
+              <div className="flex flex-col items-start">
+                <p className="mb-3 text-[13px] font-semibold tracking-[0.12em] text-[#6B6B6B]">AI-POWERED MEDICAL MANAGEMENT</p>
+                <h1 className="gsap-hero-title max-w-[680px] text-[clamp(38px,6vw,60px)] font-bold leading-[1.06] tracking-[-0.035em] text-[#172554]">
+                  Smarter Healthcare for a Healthier Tomorrow
+                </h1>
+              </div>
 
               <p className="gsap-hero-desc mt-5 text-base leading-relaxed text-[#6B6B6B] sm:text-[18px] sm:leading-[1.65]">
-                Discover a more intelligent approach to health technology with Medivanta. Turn innovative digital experiences into clearer, more accessible health insights.
+                Medivanta combines AI technology with modern healthcare to deliver faster, smarter, and more personalised care for every patient.
               </p>
 
               <div className="gsap-hero-actions mt-8 flex flex-wrap items-center gap-4 sm:mt-10">
                 <Link
                   to="/register"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#D9FF5B] px-7 text-sm font-semibold text-[#111111] transition-all duration-200 hover:bg-[#C5EA43] hover:shadow-[0_4px_20px_rgba(217,255,91,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#396EF4] px-7 text-sm font-semibold text-[#111111] transition-all duration-200 hover:bg-[#2858D8] hover:shadow-[0_4px_20px_rgba(57,110,244,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
                 >
                   Get Started
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   to="/login"
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[#E6E6E6] bg-white px-7 text-sm font-semibold text-[#111111] transition-all duration-200 hover:border-[#E6E6E6] hover:bg-[#F4F4F4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[#E5EAF2] bg-white px-7 text-sm font-semibold text-[#111111] transition-all duration-200 hover:border-[#E5EAF2] hover:bg-[#F5F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
                 >
                   Talk to Our Team
                 </Link>
               </div>
 
               {/* Verified Product Core Capabilities */}
-              <div className="gsap-hero-pills mt-12 grid grid-cols-3 gap-4 border-t border-[#E6E6E6] pt-8 text-xs text-[#6B6B6B] sm:text-[13px]">
+              <div className="gsap-hero-pills mt-12 grid grid-cols-3 gap-4 border-t border-[#E5EAF2] pt-8 text-xs text-[#6B6B6B] sm:text-[13px]">
                 <div className="flex items-center gap-2.5">
-                  <Activity className="h-4 w-4 text-[#D9FF5B]" />
+                  <Activity className="h-4 w-4 text-[#396EF4]" />
                   <span>Vitals Tracking</span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <CalendarDays className="h-4 w-4 text-[#D9FF5B]" />
+                  <CalendarDays className="h-4 w-4 text-[#396EF4]" />
                   <span>Appointments</span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <FileText className="h-4 w-4 text-[#D9FF5B]" />
+                  <FileText className="h-4 w-4 text-[#396EF4]" />
                   <span>Electronic Records</span>
                 </div>
               </div>
@@ -613,7 +612,7 @@ export const LandingPage: React.FC = () => {
                 ref={heroVisualRef}
                 style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
               >
-                <div className="relative overflow-hidden rounded-[24px] border border-[#E6E6E6] bg-[#F4F4F4] p-2 shadow-[0_24px_50px_-12px_rgba(15,23,42,0.18)] sm:rounded-[32px]">
+                <div className="relative overflow-hidden rounded-[24px] border border-[#E5EAF2] bg-[#F5F7FB] p-2 shadow-[0_24px_50px_-12px_rgba(15,23,42,0.18)] sm:rounded-[32px]">
                   <div className="relative aspect-[1.12/1] overflow-hidden rounded-[20px] sm:rounded-[26px]">
                     <img
                       src="/doctor-hero.jpg"
@@ -628,7 +627,7 @@ export const LandingPage: React.FC = () => {
                       className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/90 px-3.5 py-1.5 text-[11px] font-semibold text-[#111111] shadow-sm backdrop-blur-md"
                       style={{ transform: 'translateZ(20px)' }}
                     >
-                      <span className="h-2 w-2 rounded-full bg-[#D9FF5B]" />
+                      <span className="h-2 w-2 rounded-full bg-[#396EF4]" />
                       Real-time clinical stream
                     </div>
 
@@ -639,7 +638,7 @@ export const LandingPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D9FF5B]/15 text-[#D9FF5B]">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#396EF4]/15 text-[#396EF4]">
                             <HeartPulse className="h-5 w-5" />
                           </div>
                           <div>
@@ -647,7 +646,7 @@ export const LandingPage: React.FC = () => {
                             <p className="text-xs text-white/60">Automated vitals monitoring</p>
                           </div>
                         </div>
-                        <span className="rounded-md border border-[#D9FF5B]/30 bg-[#D9FF5B]/10 px-2.5 py-1 text-[11px] font-semibold text-[#D9FF5B]">
+                        <span className="rounded-md border border-[#396EF4]/30 bg-[#396EF4]/10 px-2.5 py-1 text-[11px] font-semibold text-[#396EF4]">
                           Stable
                         </span>
                       </div>
@@ -685,11 +684,11 @@ export const LandingPage: React.FC = () => {
           <div className="face-scan-visual-shell mx-auto w-full max-w-[600px]">
             <div className="face-scan-visual">
               <div className="face-scan-image-frame">
-                <React.Suspense
-                  fallback={<div className="face-scan-model" role="status" aria-label="Loading 3D face model" />}
-                >
-                  <FaceScanModel />
-                </React.Suspense>
+                <img
+                  className="absolute inset-0 h-full w-full object-cover object-[center_20%]"
+                  src="/doctor-face-scan.jpg"
+                  alt="Doctor portrait for facial mapping"
+                />
                 <div className="face-scan-grid" aria-hidden="true" />
                 <div className="face-scan-corners" aria-hidden="true" />
                 <div className="face-scan-beam" aria-hidden="true" />
@@ -705,7 +704,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="mx-auto max-w-[560px] lg:mx-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#D9FF5B]/25 bg-[#D9FF5B]/[0.08] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#D9FF5B]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#396EF4]/25 bg-[#396EF4]/[0.08] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#396EF4]">
               <Sparkles className="h-3.5 w-3.5" />
               AI Wellness Experience
             </span>
@@ -716,7 +715,7 @@ export const LandingPage: React.FC = () => {
               A guided facial analysis experience may estimate selected wellness indicators from visual cues. It is for general information only and is not a diagnosis or a substitute for professional medical advice.
             </p>
             <div className="mt-7 flex items-center gap-3 text-sm text-white/55">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-[#D9FF5B]" />
+              <Info className="h-4 w-4 shrink-0 text-[#396EF4]" />
               <span>Informational estimates only — no diagnosis or guaranteed health results.</span>
             </div>
           </div>
@@ -724,11 +723,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── SECTION 4: TRUST & VALUE INTRODUCTION ── */}
-      <section id="about" className="border-t border-[#E6E6E6] bg-white py-20 text-[#111111] sm:py-24 lg:py-28">
+      <section id="about" className="border-t border-[#E5EAF2] bg-white py-20 text-[#111111] sm:py-24 lg:py-28">
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
           <div className="section-header mx-auto max-w-[760px] text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#D9FF5B]">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#396EF4]">
               Value Foundation
             </p>
             <h2 className="mt-3 text-[clamp(1.9rem,3.8vw,2.9rem)] font-medium leading-[1.18] tracking-[-0.035em] text-[#111111]">
@@ -742,8 +741,8 @@ export const LandingPage: React.FC = () => {
           <div id="value-cards-container" className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
 
             {/* Value Point 1 */}
-            <div className="value-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-lg" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#D9FF5B]">
+            <div className="value-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-lg" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#396EF4]">
                 <Cpu className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -755,8 +754,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Value Point 2 */}
-            <div className="value-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-lg" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#D9FF5B]">
+            <div className="value-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-lg" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#396EF4]">
                 <Users className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -768,8 +767,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Value Point 3 */}
-            <div className="value-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-lg sm:col-span-2 lg:col-span-1" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#D9FF5B]">
+            <div className="value-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-lg sm:col-span-2 lg:col-span-1" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-[#111111] text-[#396EF4]">
                 <Sparkles className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -789,7 +788,7 @@ export const LandingPage: React.FC = () => {
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
           <div className="section-header mx-auto max-w-[720px] text-center">
-            <span className="inline-block rounded-full border border-[#D9FF5B]/30 bg-[#D9FF5B]/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#D9FF5B]">
+            <span className="inline-block rounded-full border border-[#396EF4]/30 bg-[#396EF4]/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#396EF4]">
               Platform Capabilities
             </span>
             <h2 className="mt-4 text-[clamp(2rem,4vw,3.1rem)] font-medium leading-[1.16] tracking-[-0.04em] text-white">
@@ -803,8 +802,8 @@ export const LandingPage: React.FC = () => {
           <div id="features-container" className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
             {/* Feature 1 */}
-            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#D9FF5B]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#D9FF5B] transition-transform duration-200 group-hover:scale-110">
+            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#396EF4]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#396EF4] transition-transform duration-200 group-hover:scale-110">
                 <Activity className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-lg font-semibold tracking-[-0.02em] text-white">
@@ -816,8 +815,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Feature 2 */}
-            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#D9FF5B]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#D9FF5B] transition-transform duration-200 group-hover:scale-110">
+            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#396EF4]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#396EF4] transition-transform duration-200 group-hover:scale-110">
                 <FileText className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-lg font-semibold tracking-[-0.02em] text-white">
@@ -829,8 +828,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Feature 3 */}
-            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#D9FF5B]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#D9FF5B] transition-transform duration-200 group-hover:scale-110">
+            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#396EF4]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#396EF4] transition-transform duration-200 group-hover:scale-110">
                 <CalendarDays className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-lg font-semibold tracking-[-0.02em] text-white">
@@ -842,8 +841,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Feature 4 */}
-            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#D9FF5B]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
-              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#D9FF5B] transition-transform duration-200 group-hover:scale-110">
+            <div className="gsap-feature-card group rounded-2xl border border-white/10 bg-[#111111] p-7 transition-colors duration-200 hover:border-[#396EF4]/50 hover:bg-[#111111] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]" style={{ transformStyle: 'preserve-3d' }}>
+              <div className="card-icon-inner flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] text-[#396EF4] transition-transform duration-200 group-hover:scale-110">
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <h3 className="mt-6 text-lg font-semibold tracking-[-0.02em] text-white">
@@ -859,11 +858,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── SECTION 5: HOW IT WORKS ── */}
-      <section id="how-it-works-section" className="border-t border-[#E6E6E6] bg-[#F4F4F4] py-20 text-[#111111] sm:py-24 lg:py-28">
+      <section id="how-it-works-section" className="border-t border-[#E5EAF2] bg-[#F5F7FB] py-20 text-[#111111] sm:py-24 lg:py-28">
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
           <div className="section-header mx-auto max-w-[700px] text-center">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#D9FF5B]">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#396EF4]">
               Simple Three-Step Progression
             </span>
             <h2 className="mt-3 text-[clamp(1.9rem,3.8vw,2.9rem)] font-medium leading-[1.18] tracking-[-0.035em] text-[#111111]">
@@ -877,8 +876,8 @@ export const LandingPage: React.FC = () => {
           <div id="steps-container" className="mt-16 grid gap-8 md:grid-cols-3">
 
             {/* Step 1 */}
-            <div className="gsap-step-item relative rounded-2xl border border-[#E6E6E6] bg-white p-8 shadow-sm">
-              <span className="text-3xl font-extrabold tracking-tight text-[#D9FF5B] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+            <div className="gsap-step-item relative rounded-2xl border border-[#E5EAF2] bg-white p-8 shadow-sm">
+              <span className="text-3xl font-extrabold tracking-tight text-[#396EF4] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
                 01
               </span>
               <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -888,14 +887,14 @@ export const LandingPage: React.FC = () => {
                 Onboard doctors, clinical teams, and patients into a secure workspace. Synchronize department schedules and patient profiles instantly.
               </p>
               <div className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#111111]">
-                <CheckCircle2 className="h-4 w-4 text-[#D9FF5B]" />
+                <CheckCircle2 className="h-4 w-4 text-[#396EF4]" />
                 Profile & Schedule Sync
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className="gsap-step-item relative rounded-2xl border border-[#E6E6E6] bg-white p-8 shadow-sm">
-              <span className="text-3xl font-extrabold tracking-tight text-[#D9FF5B] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+            <div className="gsap-step-item relative rounded-2xl border border-[#E5EAF2] bg-white p-8 shadow-sm">
+              <span className="text-3xl font-extrabold tracking-tight text-[#396EF4] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
                 02
               </span>
               <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -905,14 +904,14 @@ export const LandingPage: React.FC = () => {
                 Capture and visualize vital signs, historical records, and lab findings in real-time dashboards that highlight critical trends.
               </p>
               <div className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#111111]">
-                <CheckCircle2 className="h-4 w-4 text-[#D9FF5B]" />
+                <CheckCircle2 className="h-4 w-4 text-[#396EF4]" />
                 Unified Health History
               </div>
             </div>
 
             {/* Step 3 */}
-            <div className="gsap-step-item relative rounded-2xl border border-[#E6E6E6] bg-white p-8 shadow-sm">
-              <span className="text-3xl font-extrabold tracking-tight text-[#D9FF5B] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+            <div className="gsap-step-item relative rounded-2xl border border-[#E5EAF2] bg-white p-8 shadow-sm">
+              <span className="text-3xl font-extrabold tracking-tight text-[#396EF4] drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
                 03
               </span>
               <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -922,7 +921,7 @@ export const LandingPage: React.FC = () => {
                 Issue validated digital prescriptions, schedule follow-ups, and provide patients with transparent access through their dedicated portal.
               </p>
               <div className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#111111]">
-                <CheckCircle2 className="h-4 w-4 text-[#D9FF5B]" />
+                <CheckCircle2 className="h-4 w-4 text-[#396EF4]" />
                 Actionable Follow-up Care
               </div>
             </div>
@@ -934,12 +933,12 @@ export const LandingPage: React.FC = () => {
       {/* ── SECTION 6: FEATURED PLATFORM / PRODUCT SHOWCASE ── */}
       <section id="platform" className="relative overflow-hidden border-t border-white/[0.08] bg-[#111111] py-20 text-white sm:py-24 lg:py-28">
         {/* Subtle Ambient Parallax Glow */}
-        <div aria-hidden="true" className="cockpit-ambient-glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[800px] rounded-full bg-[#D9FF5B]/[0.08] blur-[140px]" />
+        <div aria-hidden="true" className="cockpit-ambient-glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[800px] rounded-full bg-[#396EF4]/[0.08] blur-[140px]" />
 
         <div className="relative mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
           <div className="section-header mx-auto max-w-[760px] text-center">
-            <span className="inline-block rounded-full border border-[#D9FF5B]/30 bg-[#D9FF5B]/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#D9FF5B]">
+            <span className="inline-block rounded-full border border-[#396EF4]/30 bg-[#396EF4]/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#396EF4]">
               Interactive Showcase
             </span>
             <h2 className="mt-4 text-[clamp(2rem,4vw,3.1rem)] font-medium leading-[1.16] tracking-[-0.04em] text-white">
@@ -968,7 +967,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab('vitals')}
                   className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition-all ${activeTab === 'vitals'
-                      ? 'bg-[#D9FF5B] text-[#111111]'
+                      ? 'bg-[#396EF4] text-[#111111]'
                       : 'text-white/70 hover:text-white'
                     }`}
                 >
@@ -978,7 +977,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab('records')}
                   className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition-all ${activeTab === 'records'
-                      ? 'bg-[#D9FF5B] text-[#111111]'
+                      ? 'bg-[#396EF4] text-[#111111]'
                       : 'text-white/70 hover:text-white'
                     }`}
                 >
@@ -988,7 +987,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab('appointments')}
                   className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition-all ${activeTab === 'appointments'
-                      ? 'bg-[#D9FF5B] text-[#111111]'
+                      ? 'bg-[#396EF4] text-[#111111]'
                       : 'text-white/70 hover:text-white'
                     }`}
                 >
@@ -1004,21 +1003,21 @@ export const LandingPage: React.FC = () => {
                   <div className="cockpit-card rounded-xl border border-white/10 bg-[#111111] p-5">
                     <p className="text-xs font-medium text-white/50">Resting Heart Rate</p>
                     <p className="mt-2 text-3xl font-semibold text-white">68 <span className="text-sm font-normal text-white/50">bpm</span></p>
-                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#D9FF5B]">
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#396EF4]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Optimal resting cadence
                     </p>
                   </div>
                   <div className="cockpit-card rounded-xl border border-white/10 bg-[#111111] p-5">
                     <p className="text-xs font-medium text-white/50">Blood Pressure</p>
                     <p className="mt-2 text-3xl font-semibold text-white">118/78 <span className="text-sm font-normal text-white/50">mmHg</span></p>
-                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#D9FF5B]">
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#396EF4]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Normotensive range
                     </p>
                   </div>
                   <div className="cockpit-card rounded-xl border border-white/10 bg-[#111111] p-5">
                     <p className="text-xs font-medium text-white/50">Oxygen Saturation</p>
                     <p className="mt-2 text-3xl font-semibold text-white">99% <span className="text-sm font-normal text-white/50">SpO2</span></p>
-                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#D9FF5B]">
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-[#396EF4]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Target saturation confirmed
                     </p>
                   </div>
@@ -1029,25 +1028,25 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#111111] p-4 text-sm">
                     <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-[#D9FF5B]" />
+                      <FileText className="h-5 w-5 text-[#396EF4]" />
                       <div>
                         <p className="font-semibold text-white">Comprehensive Metabolic Panel (CMP)</p>
                         <p className="text-xs text-white/50">Validated by Pathology Lab &bull; ID #LAB-9042</p>
                       </div>
                     </div>
-                    <span className="rounded-md bg-[#D9FF5B]/10 px-2.5 py-1 text-xs font-semibold text-[#D9FF5B]">
+                    <span className="rounded-md bg-[#396EF4]/10 px-2.5 py-1 text-xs font-semibold text-[#396EF4]">
                       Verified
                     </span>
                   </div>
                   <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#111111] p-4 text-sm">
                     <div className="flex items-center gap-3">
-                      <Pill className="h-5 w-5 text-[#D9FF5B]" />
+                      <Pill className="h-5 w-5 text-[#396EF4]" />
                       <div>
                         <p className="font-semibold text-white">Digital Prescription: Amoxicillin 500mg</p>
                         <p className="text-xs text-white/50">Routed to Hospital In-House Pharmacy</p>
                       </div>
                     </div>
-                    <span className="rounded-md bg-[#D9FF5B]/10 px-2.5 py-1 text-xs font-semibold text-[#D9FF5B]">
+                    <span className="rounded-md bg-[#396EF4]/10 px-2.5 py-1 text-xs font-semibold text-[#396EF4]">
                       Dispensed
                     </span>
                   </div>
@@ -1058,19 +1057,19 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#111111] p-4 text-sm">
                     <div className="flex items-center gap-3">
-                      <CalendarDays className="h-5 w-5 text-[#D9FF5B]" />
+                      <CalendarDays className="h-5 w-5 text-[#396EF4]" />
                       <div>
                         <p className="font-semibold text-white">Cardiology Consultation &bull; Dr. Sarah Jenkins</p>
                         <p className="text-xs text-white/50">Tomorrow at 10:30 AM &bull; Room 302</p>
                       </div>
                     </div>
-                    <span className="rounded-md bg-[#D9FF5B]/15 px-2.5 py-1 text-xs font-semibold text-[#D9FF5B]">
+                    <span className="rounded-md bg-[#396EF4]/15 px-2.5 py-1 text-xs font-semibold text-[#396EF4]">
                       Confirmed
                     </span>
                   </div>
                   <div className="cockpit-card flex items-center justify-between rounded-xl border border-white/10 bg-[#111111] p-4 text-sm">
                     <div className="flex items-center gap-3">
-                      <CalendarDays className="h-5 w-5 text-[#D9FF5B]" />
+                      <CalendarDays className="h-5 w-5 text-[#396EF4]" />
                       <div>
                         <p className="font-semibold text-white">Routine Vitals Check-in &bull; Telehealth Room</p>
                         <p className="text-xs text-white/50">Friday at 2:00 PM &bull; Patient Portal</p>
@@ -1085,10 +1084,10 @@ export const LandingPage: React.FC = () => {
 
               <div className="mt-8 flex flex-wrap items-center justify-between border-t border-white/10 pt-5 text-xs text-white/60">
                 <span className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-[#D9FF5B]" />
+                  <ShieldCheck className="h-4 w-4 text-[#396EF4]" />
                   Protected Health Information (PHI) &bull; End-to-End Encryption
                 </span>
-                <Link to="/register" className="font-semibold text-[#D9FF5B] hover:underline">
+                <Link to="/register" className="font-semibold text-[#396EF4] hover:underline">
                   Explore Full Workspace &rarr;
                 </Link>
               </div>
@@ -1099,11 +1098,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── SECTION 7: BENEFITS ── */}
-      <section id="benefits-section" className="border-t border-[#E6E6E6] bg-white py-20 text-[#111111] sm:py-24 lg:py-28">
+      <section id="benefits-section" className="border-t border-[#E5EAF2] bg-white py-20 text-[#111111] sm:py-24 lg:py-28">
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
 
           <div className="section-header mx-auto max-w-[720px] text-center">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#D9FF5B]">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#396EF4]">
               Measurable Advantages
             </span>
             <h2 className="mt-3 text-[clamp(1.9rem,3.8vw,2.9rem)] font-medium leading-[1.18] tracking-[-0.035em] text-[#111111]">
@@ -1114,8 +1113,8 @@ export const LandingPage: React.FC = () => {
           <div id="benefits-container" className="mt-16 grid gap-8 md:grid-cols-2">
 
             {/* Benefit 1 */}
-            <div className="benefit-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-md">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#D9FF5B]">
+            <div className="benefit-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#396EF4]">
                 <Layers className="h-5 w-5" />
               </div>
               <h3 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -1127,8 +1126,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Benefit 2 */}
-            <div className="benefit-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-md">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#D9FF5B]">
+            <div className="benefit-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#396EF4]">
                 <Sparkles className="h-5 w-5" />
               </div>
               <h3 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -1140,8 +1139,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Benefit 3 */}
-            <div className="benefit-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-md">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#D9FF5B]">
+            <div className="benefit-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#396EF4]">
                 <Workflow className="h-5 w-5" />
               </div>
               <h3 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -1153,8 +1152,8 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Benefit 4 */}
-            <div className="benefit-card rounded-2xl border border-[#E6E6E6] bg-[#F4F4F4] p-8 transition-shadow duration-200 hover:shadow-md">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#D9FF5B]">
+            <div className="benefit-card rounded-2xl border border-[#E5EAF2] bg-[#F5F7FB] p-8 transition-shadow duration-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#111111] text-[#396EF4]">
                 <HeartPulse className="h-5 w-5" />
               </div>
               <h3 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-[#111111]">
@@ -1172,14 +1171,14 @@ export const LandingPage: React.FC = () => {
       {/* ── SECTION 8: FINAL CTA ── */}
       <section className="relative overflow-hidden border-t border-white/[0.08] bg-[#111111] py-20 text-white sm:py-28">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-[360px] w-[600px] rounded-full bg-[#D9FF5B]/[0.08] blur-[100px]" />
+          <div className="h-[360px] w-[600px] rounded-full bg-[#396EF4]/[0.08] blur-[100px]" />
         </div>
 
         <div className="relative mx-auto max-w-[1360px] px-4 text-center sm:px-6 lg:px-8">
           <div id="final-cta-content" className="mx-auto max-w-[740px]">
             <h2 className="text-[clamp(2.2rem,4.8vw,3.6rem)] font-medium leading-[1.12] tracking-[-0.04em] text-white">
               Let's shape a smarter <br />
-              <span className="text-[#D9FF5B]">health experience.</span>
+              <span className="text-[#396EF4]">health experience.</span>
             </h2>
             <p className="mt-6 text-base text-white/70 sm:text-lg">
               Explore how Medivanta can support your next step in healthcare technology.
@@ -1187,14 +1186,14 @@ export const LandingPage: React.FC = () => {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
                 to="/register"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#D9FF5B] px-8 text-sm font-semibold text-[#111111] transition-all duration-200 hover:bg-[#C5EA43] hover:shadow-[0_4px_20px_rgba(217,255,91,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#396EF4] px-8 text-sm font-semibold text-[#111111] transition-all duration-200 hover:bg-[#2858D8] hover:shadow-[0_4px_20px_rgba(57,110,244,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
               >
                 Talk to Our Team
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/login"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/[0.04] px-8 text-sm font-semibold text-white transition-all duration-200 hover:border-white/40 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/20 bg-white/[0.04] px-8 text-sm font-semibold text-white transition-all duration-200 hover:border-white/40 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#396EF4]"
               >
                 Log In
               </Link>
@@ -1231,10 +1230,10 @@ export const LandingPage: React.FC = () => {
                 Navigation
               </p>
               <ul className="mt-4 space-y-2.5 text-sm text-white/65">
-                <li><a href="#top" className="transition-colors hover:text-[#D9FF5B]">Home</a></li>
-                <li><a href="#platform" className="transition-colors hover:text-[#D9FF5B]">Platform</a></li>
-                <li><a href="#solutions" className="transition-colors hover:text-[#D9FF5B]">Solutions</a></li>
-                <li><a href="#about" className="transition-colors hover:text-[#D9FF5B]">About</a></li>
+                <li><a href="#top" className="transition-colors hover:text-[#396EF4]">Home</a></li>
+                <li><a href="#platform" className="transition-colors hover:text-[#396EF4]">Platform</a></li>
+                <li><a href="#solutions" className="transition-colors hover:text-[#396EF4]">Solutions</a></li>
+                <li><a href="#about" className="transition-colors hover:text-[#396EF4]">About</a></li>
               </ul>
             </div>
 
@@ -1244,9 +1243,9 @@ export const LandingPage: React.FC = () => {
                 Clinical Portals
               </p>
               <ul className="mt-4 space-y-2.5 text-sm text-white/65">
-                <li><Link to="/login" className="transition-colors hover:text-[#D9FF5B]">Doctor Workspace</Link></li>
-                <li><Link to="/login" className="transition-colors hover:text-[#D9FF5B]">Patient Portal</Link></li>
-                <li><Link to="/register" className="transition-colors hover:text-[#D9FF5B]">Request Access</Link></li>
+                <li><Link to="/login" className="transition-colors hover:text-[#396EF4]">Doctor Workspace</Link></li>
+                <li><Link to="/login" className="transition-colors hover:text-[#396EF4]">Patient Portal</Link></li>
+                <li><Link to="/register" className="transition-colors hover:text-[#396EF4]">Request Access</Link></li>
               </ul>
             </div>
 

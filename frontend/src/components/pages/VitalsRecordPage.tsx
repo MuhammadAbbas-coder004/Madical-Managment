@@ -6,7 +6,6 @@ import type { VitalsRecord } from '../../shared/services/vitals';
 import api from '../../shared/services/api';
 import { useFadeUp } from '../../shared/hooks/useFadeUp';
 import { DashboardLayout } from '../templates/DashboardLayout';
-import { Card } from '../molecules/Card';
 import { useAuthStore } from '../../store/authStore';
 import './FaceVitals.css';
 
@@ -26,6 +25,7 @@ type ScanHistoryRecord = Omit<VitalsRecord, 'patientId'> & { patientId?: string 
 interface RgbSample { time: number; cameraTimestamp: number; red: number; green: number; blue: number; motion: number; brightness: number; }
 
 const scanDurationSeconds = 30;
+const minimumCaptureFps = 10;
 const storedMetrics = ['heartRate', 'breathingRate', 'hrv', 'stressLevel'];
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
 
@@ -213,7 +213,7 @@ const analyzeRppg = (samples: RgbSample[]): ScanResult => {
     blueRawRange: samples.length ? rawChannelRange('blue') : null,
     bandPassedPulseSignal: signalRange(pulse),
   });
-  if (!Number.isFinite(averageFps) || averageFps < 15) return unavailable(`Only ${Number.isFinite(averageFps) ? averageFps.toFixed(1) : '0.0'} fps captured. Close other tabs and retry; at least 15 fps is required.`);
+  if (!Number.isFinite(averageFps) || averageFps < minimumCaptureFps) return unavailable(`Only ${Number.isFinite(averageFps) ? averageFps.toFixed(1) : '0.0'} fps captured. Close other tabs and retry; at least ${minimumCaptureFps} fps is required.`);
   if (!Number.isFinite(usableSeconds) || usableSeconds < minimumDataSeconds || usableSamples.length < minimumSampleCount) {
     const collectedSeconds = Math.min(Math.max(usableSeconds, 0), usableSamples.length / 30);
     return unavailable(`Only ${collectedSeconds.toFixed(1)} seconds of usable signal were captured. At least 20 seconds are required; keep your face in view and retry.`);
@@ -615,94 +615,325 @@ export const VitalsRecordPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef} className="face-vitals-page">
+      <div ref={containerRef} className="face-vitals-page space-y-6">
         <div className="face-vitals-shell">
-          <header className="face-vitals-header">
+          <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/40 mb-6">
             <div>
-              <span className="face-vitals-eyebrow"><ShieldCheck aria-hidden="true" /> SECURE CLINICAL WORKFLOW</span>
-              <h1>Vitals</h1>
-              <p>Patient wellness scan and recorded vitals history.</p>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Secure Clinical Workflow</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-textPrimary">AI Optical Vitals Scan</h1>
+              <p className="text-sm text-textSecondary mt-1">Real-time rPPG camera telemetry analysis and recorded history.</p>
             </div>
-            <span className="face-vitals-status"><span /> Camera scan</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-surface border border-border text-textPrimary shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span>Camera Sensor Ready</span>
+            </span>
           </header>
 
-          <Card className="mb-6">
-            <h2 className="text-lg font-semibold text-textPrimary">Before you start</h2>
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-textSecondary">
-              <li>Ensure good lighting.</li><li>Hold the device at eye level.</li><li>Avoid talking or moving your head.</li>
+          {/* Pre-scan advisory card */}
+          <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm mb-6">
+            <h2 className="text-base font-bold text-textPrimary flex items-center gap-2">
+              <Info className="w-4 h-4 text-primary" />
+              <span>Before You Start</span>
+            </h2>
+            <ul className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm text-textSecondary font-medium">
+              <li className="flex items-center gap-2 bg-background/60 p-3 rounded-xl border border-border/40">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <span>Ensure bright, uniform face lighting.</span>
+              </li>
+              <li className="flex items-center gap-2 bg-background/60 p-3 rounded-xl border border-border/40">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <span>Position device directly at eye level.</span>
+              </li>
+              <li className="flex items-center gap-2 bg-background/60 p-3 rounded-xl border border-border/40">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <span>Remain calm and minimize head motion.</span>
+              </li>
             </ul>
-            <p className="mt-4 text-sm text-textSecondary">Camera analysis runs locally. Video frames are never uploaded or stored.</p>
-            {!scanPanelOpen && <button type="button" onClick={() => { setScanError(null); setResult(null); setSaved(false); setConsent(false); setScanPanelOpen(true); }} disabled={scanRunning || cameraStarting} className="face-vitals-primary-action mt-5 disabled:opacity-50"><ScanLine aria-hidden="true" /> START</button>}
-          </Card>
+            <p className="mt-4 text-xs text-textSecondary leading-relaxed">
+              * Biometric analysis executes entirely inside your local browser runtime. Video frames never leave this workstation.
+            </p>
+            {!scanPanelOpen && (
+              <button
+                type="button"
+                onClick={() => { setScanError(null); setResult(null); setSaved(false); setConsent(false); setScanPanelOpen(true); }}
+                disabled={scanRunning || cameraStarting}
+                className="mt-5 inline-flex items-center gap-2 bg-gradient-to-r from-primary to-teal-600 hover:from-primary-hover hover:to-teal-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              >
+                <ScanLine className="w-4 h-4" aria-hidden="true" />
+                <span>Initialize Camera Scan</span>
+              </button>
+            )}
+          </div>
 
-          {scanPanelOpen && !result && <Card title="Camera scan" className="mb-6">
-            <div className="border-t border-border pt-5">
-              <label className="mb-4 flex items-start gap-2 text-sm text-textPrimary">
-                <input type="checkbox" checked={consent} onChange={(event) => { const checked = event.target.checked; setConsent(checked); if (checked) void runScan(true); }} disabled={scanRunning || cameraActive || cameraStarting} className="mt-1" />
-                <span>I agree to a camera scan. Camera frames stay on this device and are not uploaded or stored.</span>
-              </label>
-              <div className="relative mb-3 overflow-hidden rounded-lg bg-black">
-                <video ref={videoRef} autoPlay muted playsInline aria-label="Live face scan preview" className={`aspect-video max-h-80 w-full object-cover ${cameraActive ? '' : 'hidden'}`} />
-                {!cameraActive && <div className="flex aspect-video max-h-80 items-center justify-center text-sm text-white/70">Camera is off</div>}
+          {/* Active scan preview viewport */}
+          {scanPanelOpen && !result && (
+            <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm mb-6">
+              <div className="mb-4">
+                <h3 className="text-base font-bold text-textPrimary">Biometric Telemetry HUD</h3>
+                <p className="text-xs text-textSecondary mt-0.5">Maintain steady focus while the neural landmark detector measures blood flow micro-shifts.</p>
               </div>
-              {(modelLoading || scanStatus) && <p role="status" className="mb-3 text-sm text-textSecondary">{scanStatus}</p>}
-              {scanRunning && <div className="mb-3" role="status"><div className="mb-1 flex justify-between text-xs text-textSecondary"><span>{scanStatus || 'Analyzing locally'}</span><span>{Math.floor(progress * scanDurationSeconds / 100)}s / {scanDurationSeconds}s</span></div><progress className="w-full" max={100} value={progress} /></div>}
-              {scanNotice && <p role="status" className="mb-3 text-sm text-warning">{scanNotice}</p>}
-              {scanError && <p role="alert" className="mb-3 text-sm text-danger">{scanError}</p>}
-              <div className="flex flex-wrap gap-2">
-                {!consent && <p className="text-sm text-textSecondary">Consent is required before the camera can start.</p>}
-                {scanError && consent && !scanRunning && <button type="button" onClick={() => void runScan(true)} className="face-vitals-primary-action"><Video aria-hidden="true" /> Retry scan</button>}
-                {cameraStarting && <span role="status" className="text-sm text-textSecondary">Opening camera…</span>}
-                <button type="button" onClick={stopCamera} disabled={!scanRunning && !cameraActive && !cameraStarting} className="face-vitals-secondary-action disabled:opacity-50"><VideoOff aria-hidden="true" /> Stop</button>
-                <button type="button" onClick={() => { stopCamera(); setScanPanelOpen(false); }} disabled={scanRunning} className="face-vitals-secondary-action disabled:opacity-50">Cancel</button>
-              </div>
-            </div>
-          </Card>}
 
-          {result && <Card title="Scan results" className="mb-6">
-            <p className="mb-4 text-sm text-textSecondary">{new Date(result.timestamp).toLocaleString()}</p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { key: 'heartRate', title: 'Heart rate', value: result.heartRate === undefined ? 'Could not measure' : `${result.heartRate} bpm` },
-                { key: 'breathingRate', title: 'Breathing rate', value: result.breathingRate === undefined ? 'Could not measure' : `${result.breathingRate} breaths/min` },
-                { key: 'hrv', title: 'HRV (RMSSD)', value: result.hrv === undefined ? 'Could not measure' : `${result.hrv} ms` },
-                { key: 'stressLevel', title: 'Stress · Experimental', value: result.stressLevel === undefined ? 'Could not measure' : `${result.stressLevel}/100` },
-              ].filter(({ key }) => (key !== 'hrv' && key !== 'stressLevel') || result.qualityLabel === 'Good').map(({ key, title, value }) => <div key={key} className="rounded-lg border border-border p-4"><p className="text-sm text-textSecondary">{title}</p><p className="mt-1 text-xl font-semibold text-textPrimary">{value}</p>{result.reasons[key as keyof ScanResult['reasons']] && <p className="mt-2 text-xs text-textSecondary">{result.reasons[key as keyof ScanResult['reasons']]}</p>}</div>)}
-            </div>
-            {isPatient && <p className="mt-3 text-xs text-textSecondary">Wellness estimate, not medical advice.</p>}
-            <p className="mt-3 text-sm text-textSecondary">Quality: <strong>{result.qualityLabel}</strong>{result.quality === null ? '' : ` (${Math.round(result.quality * 100)}%)`}{result.qualityLabel === 'Low' && <span className="ml-2 font-semibold text-warning">Low confidence</span>}</p>
-            {result.qualityReason && <p className="mt-1 text-sm text-textSecondary">{result.qualityReason}</p>}
-            <p className="mt-4 text-sm text-textSecondary">Estimated values for general wellness. Not a medical diagnosis.</p>
-            <p className="mt-1 text-xs text-textSecondary">Stress is an experimental inverse-RMSSD proxy and is not clinically validated.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!saved && <button type="button" onClick={() => void saveResult()} disabled={saving} className="face-vitals-primary-action disabled:opacity-50">{saving ? 'Saving…' : 'Save result'}</button>}
-              {saved && <span className="inline-flex items-center gap-2 text-sm text-success"><CheckCircle2 aria-hidden="true" /> Saved to your scan history</span>}
-              {result.qualityLabel === 'Unavailable' && <button type="button" onClick={() => { setResult(null); setScanError(null); setScanNotice(null); setSaved(false); setProgress(0); setConsent(false); setScanPanelOpen(true); }} className="face-vitals-secondary-action">Retry</button>}
-              <button type="button" onClick={() => { setResult(null); setScanError(null); setScanNotice(null); setSaved(false); setProgress(0); setConsent(false); setScanPanelOpen(true); }} className="face-vitals-secondary-action">Scan again</button>
-              <button type="button" onClick={() => document.getElementById('vitals-history')?.scrollIntoView({ behavior: 'smooth' })} className="face-vitals-secondary-action">View history</button>
-            </div>
-          </Card>}
-          <section id="vitals-history" className="face-vitals-history">
-            <div className="face-vitals-history-header">
-              <div><h2>My scan history</h2><p>Saved scans linked to your doctor account.</p></div>
-              <button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={historyLoading} aria-label="Refresh scan history" className="face-vitals-refresh"><RefreshCw className={historyLoading ? 'animate-spin' : ''} aria-hidden="true" /> Refresh</button>
-            </div>
-            {historyLoading && <div className="face-vitals-history-state" role="status">Loading your scan history…</div>}
-            {!historyLoading && historyError && <div className="face-vitals-alert error" role="alert">{historyError}</div>}
-            {!historyLoading && !historyError && history.length === 0 && <Card className="face-vitals-empty"><p>{isPatient ? 'No vitals recorded yet.' : 'No saved scans yet.'}</p></Card>}
-            {!historyLoading && !historyError && history.length > 0 && <div className="face-vitals-history-list">{history.map((record) => (
-              <Card key={record.vitalsId} className="face-vitals-history-card">
-                <div className="face-vitals-record-heading"><span><Clock3 aria-hidden="true" /> {new Date(record.recordedAt).toLocaleString()}</span><span className="face-vitals-record-status">{record.quality !== undefined ? `${Math.round(record.quality * 100)}% quality` : 'Scan'}</span></div>
-                <div className="face-vitals-record-grid">
-                  {record.selectedMetrics?.includes('heartRate') && <p>Heart rate <strong>{record.heartRate !== undefined ? `${record.heartRate} bpm` : 'Could not measure'}</strong></p>}
-                  {record.selectedMetrics?.includes('breathingRate') && <p>Breathing rate <strong>{record.breathingRate !== undefined ? `${record.breathingRate} breaths/min` : 'Could not measure'}</strong></p>}
-                  {record.selectedMetrics?.includes('hrv') && <p>HRV (RMSSD) <strong>{record.hrv !== undefined ? `${record.hrv} ms` : 'Could not measure'}</strong></p>}
-                  {record.selectedMetrics?.includes('stressLevel') && <p>Stress · Experimental <strong>{record.stressLevel !== undefined ? `${record.stressLevel}/100` : 'Could not measure'}</strong></p>}
+              <div className="border-t border-border/60 pt-4">
+                <label className="mb-4 flex items-start gap-3 text-xs sm:text-sm text-textPrimary cursor-pointer bg-background/60 p-3 rounded-xl border border-border/40">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(event) => { const checked = event.target.checked; setConsent(checked); if (checked) void runScan(true); }}
+                    disabled={scanRunning || cameraActive || cameraStarting}
+                    className="mt-0.5 rounded text-primary focus:ring-primary"
+                  />
+                  <span>I agree to a local camera scan. Raw frames are processed in-memory and are never transmitted to external servers.</span>
+                </label>
+
+                <div className="relative mb-4 overflow-hidden rounded-2xl bg-slate-950 border border-slate-800 shadow-inner">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    aria-label="Live face scan preview"
+                    className={`aspect-video max-h-96 w-full object-cover ${cameraActive ? '' : 'hidden'}`}
+                  />
+                  {!cameraActive && (
+                    <div className="flex aspect-video max-h-96 items-center justify-center text-sm font-semibold text-slate-400">
+                      Sensor Standby — Check consent above to start camera
+                    </div>
+                  )}
                 </div>
-                {record.analysis?.message && <p className="face-vitals-record-message">{record.analysis.message}</p>}
-              </Card>
-            ))}</div>}
-            <p className="face-vitals-history-note"><Info aria-hidden="true" /> Camera estimates are wellness information only, not a diagnosis.</p>
+
+                {(modelLoading || scanStatus) && (
+                  <p role="status" className="mb-3 text-xs font-semibold text-textSecondary animate-pulse">
+                    {scanStatus}
+                  </p>
+                )}
+
+                {scanRunning && (
+                  <div className="mb-4 bg-background/80 p-3.5 rounded-xl border border-border/60" role="status">
+                    <div className="mb-2 flex justify-between text-xs font-bold text-textPrimary">
+                      <span>{scanStatus || 'Analyzing optical telemetry locally…'}</span>
+                      <span className="text-primary font-mono">{Math.floor(progress * scanDurationSeconds / 100)}s / {scanDurationSeconds}s</span>
+                    </div>
+                    <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary to-teal-500 rounded-full transition-all duration-200"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {scanNotice && (
+                  <div role="status" className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-semibold flex items-center gap-2">
+                    <Info className="w-4 h-4 shrink-0" />
+                    <span>{scanNotice}</span>
+                  </div>
+                )}
+
+                {scanError && (
+                  <div role="alert" className="mb-4 p-3 bg-danger/10 border border-danger/20 text-danger rounded-xl text-xs font-semibold">
+                    {scanError}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {!consent && (
+                    <p className="text-xs text-textSecondary font-medium">Consent is required to activate the camera sensor.</p>
+                  )}
+                  {scanError && consent && !scanRunning && (
+                    <button
+                      type="button"
+                      onClick={() => void runScan(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all"
+                    >
+                      <Video className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Retry Scan</span>
+                    </button>
+                  )}
+                  {cameraStarting && (
+                    <span role="status" className="text-xs font-semibold text-textSecondary">
+                      Calibrating camera sensor…
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    disabled={!scanRunning && !cameraActive && !cameraStarting}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-textPrimary bg-background border border-border hover:bg-surface rounded-xl shadow-sm transition-all disabled:opacity-50"
+                  >
+                    <VideoOff className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Stop</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { stopCamera(); setScanPanelOpen(false); }}
+                    disabled={scanRunning}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-textSecondary hover:text-textPrimary bg-transparent rounded-xl transition-all disabled:opacity-50"
+                  >
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Telemetry Result Overview */}
+          {result && (
+            <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-border/40">
+                <h3 className="text-lg font-bold text-textPrimary">Biometric Telemetry Results</h3>
+                <span className="text-xs font-medium text-textSecondary font-mono">
+                  {new Date(result.timestamp).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { key: 'heartRate', title: 'Heart Rate', value: result.heartRate === undefined ? 'Could not measure' : `${result.heartRate} bpm` },
+                  { key: 'breathingRate', title: 'Breathing Rate', value: result.breathingRate === undefined ? 'Could not measure' : `${result.breathingRate} br/min` },
+                  { key: 'hrv', title: 'HRV (RMSSD)', value: result.hrv === undefined ? 'Could not measure' : `${result.hrv} ms` },
+                  { key: 'stressLevel', title: 'Stress Index', value: result.stressLevel === undefined ? 'Could not measure' : `${result.stressLevel} / 100` },
+                ].filter(({ key }) => (key !== 'hrv' && key !== 'stressLevel') || result.qualityLabel === 'Good').map(({ key, title, value }) => (
+                  <div key={key} className="rounded-xl border border-border/80 bg-background/70 p-4 shadow-sm">
+                    <p className="text-xs font-bold uppercase tracking-wider text-textSecondary">{title}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-textPrimary tracking-tight">{value}</p>
+                    {result.reasons[key as keyof ScanResult['reasons']] && (
+                      <p className="mt-2 text-[11px] text-textSecondary font-medium">{result.reasons[key as keyof ScanResult['reasons']]}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 p-3.5 rounded-xl bg-background/50 border border-border/50 text-xs text-textSecondary space-y-1">
+                <p>
+                  Measurement Quality: <strong className="text-textPrimary">{result.qualityLabel}</strong>
+                  {result.quality !== null && ` (${Math.round(result.quality * 100)}% accuracy score)`}
+                  {result.qualityLabel === 'Low' && <span className="ml-2 font-bold text-warning">Low Confidence</span>}
+                </p>
+                {result.qualityReason && <p>{result.qualityReason}</p>}
+                <p className="text-[11px] text-textSecondary/70 pt-1">* Values are estimated for wellness tracking and do not constitute formal diagnostic confirmation.</p>
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {!saved && (
+                  <button
+                    type="button"
+                    onClick={() => void saveResult()}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-teal-600 hover:from-primary-hover hover:to-teal-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving…' : 'Save To Scan History'}
+                  </button>
+                )}
+                {saved && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                    <span>Saved To Clinical Scan History</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setResult(null); setScanError(null); setScanNotice(null); setSaved(false); setProgress(0); setConsent(false); setScanPanelOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-textPrimary bg-background border border-border hover:bg-surface rounded-xl shadow-sm transition-all"
+                >
+                  <span>Scan Again</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('vitals-history')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-textSecondary hover:text-textPrimary rounded-xl transition-all"
+                >
+                  <span>View History</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Historical scans section */}
+          <section id="vitals-history" className="face-vitals-history mt-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-2 border-b border-border/40">
+              <div>
+                <h2 className="text-xl font-extrabold text-textPrimary tracking-tight">Recent Optical Scans</h2>
+                <p className="text-xs text-textSecondary mt-0.5">Historical wellness and telemetry recordings.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRefreshKey((key) => key + 1)}
+                disabled={historyLoading}
+                aria-label="Refresh scan history"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-textPrimary bg-surface border border-border hover:bg-background rounded-xl shadow-sm transition-all disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-primary ${historyLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span>Refresh Feed</span>
+              </button>
+            </div>
+
+            {historyLoading && (
+              <div className="py-12 text-center bg-surface border border-border/50 rounded-2xl text-xs text-textSecondary font-medium">
+                Loading telemetry logs…
+              </div>
+            )}
+            {!historyLoading && historyError && (
+              <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-xl text-xs font-medium">
+                {historyError}
+              </div>
+            )}
+            {!historyLoading && !historyError && history.length === 0 && (
+              <div className="py-12 text-center bg-surface border border-dashed border-border rounded-2xl text-xs text-textSecondary">
+                {isPatient ? 'No personal vitals recorded yet.' : 'No scans on record yet.'}
+              </div>
+            )}
+
+            {!historyLoading && !historyError && history.length > 0 && (
+              <div className="space-y-3">
+                {history.map((record) => (
+                  <div key={record.vitalsId} className="bg-surface border border-border/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between pb-2 border-b border-border/40 text-xs mb-3">
+                      <span className="flex items-center gap-1.5 font-medium text-textSecondary">
+                        <Clock3 className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                        {new Date(record.recordedAt).toLocaleString()}
+                      </span>
+                      <span className="font-bold px-2 py-0.5 rounded-full text-[11px] bg-primary/10 text-primary">
+                        {record.quality !== undefined ? `${Math.round(record.quality * 100)}% quality` : 'Telemetry Log'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      {record.selectedMetrics?.includes('heartRate') && (
+                        <div className="bg-background/80 p-2.5 rounded-xl border border-border/50">
+                          <span className="text-[10px] uppercase font-bold text-textSecondary block">Heart Rate</span>
+                          <strong className="text-sm font-extrabold text-textPrimary mt-0.5 block">{record.heartRate !== undefined ? `${record.heartRate} bpm` : '—'}</strong>
+                        </div>
+                      )}
+                      {record.selectedMetrics?.includes('breathingRate') && (
+                        <div className="bg-background/80 p-2.5 rounded-xl border border-border/50">
+                          <span className="text-[10px] uppercase font-bold text-textSecondary block">Breathing Rate</span>
+                          <strong className="text-sm font-extrabold text-textPrimary mt-0.5 block">{record.breathingRate !== undefined ? `${record.breathingRate} br/min` : '—'}</strong>
+                        </div>
+                      )}
+                      {record.selectedMetrics?.includes('hrv') && (
+                        <div className="bg-background/80 p-2.5 rounded-xl border border-border/50">
+                          <span className="text-[10px] uppercase font-bold text-textSecondary block">HRV RMSSD</span>
+                          <strong className="text-sm font-extrabold text-textPrimary mt-0.5 block">{record.hrv !== undefined ? `${record.hrv} ms` : '—'}</strong>
+                        </div>
+                      )}
+                      {record.selectedMetrics?.includes('stressLevel') && (
+                        <div className="bg-background/80 p-2.5 rounded-xl border border-border/50">
+                          <span className="text-[10px] uppercase font-bold text-textSecondary block">Stress Score</span>
+                          <strong className="text-sm font-extrabold text-textPrimary mt-0.5 block">{record.stressLevel !== undefined ? `${record.stressLevel}/100` : '—'}</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    {record.analysis?.message && (
+                      <p className="mt-2.5 text-xs text-textSecondary font-medium">{record.analysis.message}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>

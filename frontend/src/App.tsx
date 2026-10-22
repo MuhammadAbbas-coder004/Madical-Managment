@@ -9,7 +9,7 @@ export default function App() {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#1D2220',
+            background: '#1F2937',
             color: '#fff',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: '0.85rem',
@@ -17,7 +17,7 @@ export default function App() {
           },
           success: {
             iconTheme: {
-              primary: '#C7FFBE',
+              primary: '#396EF4',
               secondary: '#171B1A',
             },
           },

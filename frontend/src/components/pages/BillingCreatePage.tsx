@@ -128,158 +128,167 @@ export const BillingCreatePage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
-      <div className="max-w-2xl mx-auto">
-        <Link
-          to="/billing"
-          className="inline-flex items-center text-xs font-semibold text-textSecondary hover:text-textPrimary mb-4"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-          Back to Invoices
-        </Link>
+      <div ref={containerRef} className="py-2">
+        <div className="max-w-2xl mx-auto">
+          <Link
+            to="/billing"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-textSecondary hover:text-primary transition-colors mb-6 group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+            Back to Invoices
+          </Link>
 
-        <h1 className="text-2xl font-bold text-textPrimary mb-6">
-          Generate New Patient Invoice
-        </h1>
-
-        {loadingData ? (
-          <div className="flex items-center justify-center py-16 text-primary">
-            <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">
+              Generate New Patient Invoice
+            </h1>
+            <p className="text-sm text-textSecondary mt-1">Issue a statement of fees for medical services rendered.</p>
           </div>
-        ) : (
-          <Card>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <Label htmlFor="billingPatient" required>
-                  Select Patient
-                </Label>
-                <select
-                  id="billingPatient"
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
-                  required
-                >
-                  {patients.map((p) => (
-                    <option key={p.patientId} value={p.patientId}>
-                      {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div>
-                <Label htmlFor="billingAppt">Related Appointment (Optional)</Label>
-                <select
-                  id="billingAppt"
-                  value={appointmentId}
-                  onChange={(e) => setAppointmentId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
-                >
-                  <option value="">-- No specific appointment --</option>
-                  {appointments.map((a) => (
-                    <option key={a.appointmentId} value={a.appointmentId}>
-                      {new Date(a.appointmentDate).toLocaleDateString()} - ID: {a.appointmentId}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label required>Billing Items & Services</Label>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          {loadingData ? (
+            <div className="flex items-center justify-center py-20 text-primary">
+              <Spinner size="lg" />
+              <span className="ml-3 text-sm font-medium text-textSecondary">Loading patients...</span>
+            </div>
+          ) : (
+            <Card className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-card hover:shadow-card-hover transition-all">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <Label htmlFor="billingPatient" required className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                    Select Patient
+                  </Label>
+                  <select
+                    id="billingPatient"
+                    value={patientId}
+                    onChange={(e) => setPatientId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-background border border-border rounded-xl text-textPrimary font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
+                    required
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add Line Item
-                  </button>
+                    {patients.map((p) => (
+                      <option key={p.patientId} value={p.patientId}>
+                        {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 rounded-md border border-textPrimary/10 bg-background p-3"
-                    >
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          placeholder="Service description (e.g. Blood Test, X-Ray)"
-                          value={item.description}
-                          onChange={(e) =>
-                            handleItemChange(index, 'description', e.target.value)
-                          }
-                          className="w-full px-3 py-1.5 text-sm bg-surface border border-border rounded-md text-textPrimary focus:outline-none focus:border-primary"
-                          required
-                        />
-                      </div>
+                <div>
+                  <Label htmlFor="billingAppt" className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                    Related Appointment <span className="text-textMuted lowercase font-normal">(optional)</span>
+                  </Label>
+                  <select
+                    id="billingAppt"
+                    value={appointmentId}
+                    onChange={(e) => setAppointmentId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-background border border-border rounded-xl text-textPrimary font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-xs"
+                  >
+                    <option value="">-- No specific appointment --</option>
+                    {appointments.map((a) => (
+                      <option key={a.appointmentId} value={a.appointmentId}>
+                        {new Date(a.appointmentDate).toLocaleDateString()} - ID: {a.appointmentId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                      <div className="w-32">
-                        <div className="relative">
-                          <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-textSecondary text-xs">
-                            $
-                          </span>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label required className="text-xs font-semibold uppercase tracking-wider text-textSecondary">
+                      Billing Items & Services
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg border border-primary/20 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Line Item
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 transition-all"
+                      >
+                        <div className="flex-1">
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={item.amount || ''}
+                            type="text"
+                            placeholder="Service description (e.g. Consultation, Blood Panel)"
+                            value={item.description}
                             onChange={(e) =>
-                              handleItemChange(index, 'amount', e.target.value)
+                              handleItemChange(index, 'description', e.target.value)
                             }
-                            className="w-full pl-6 pr-3 py-1.5 text-sm bg-surface border border-border rounded-md text-textPrimary focus:outline-none focus:border-primary"
+                            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                             required
                           />
                         </div>
+
+                        <div className="w-32">
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-textMuted text-xs font-semibold">
+                              $
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={item.amount || ''}
+                              onChange={(e) =>
+                                handleItemChange(index, 'amount', e.target.value)
+                              }
+                              className="w-full pl-7 pr-3 py-2 text-sm font-mono bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="text-textMuted hover:text-danger p-2 rounded-lg hover:bg-danger/10 transition-colors"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-textSecondary hover:text-danger p-1"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex justify-between items-center p-4 bg-primary/5 border border-primary/20 rounded-xl">
-                <span className="text-sm font-semibold text-textPrimary">
-                  Total Billable Amount:
-                </span>
-                <span className="text-xl font-bold text-primary font-mono">
-                  ${totalAmount.toFixed(2)}
-                </span>
-              </div>
+                <div className="flex justify-between items-center p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-textMuted">
+                      Total Billable Amount
+                    </span>
+                    <p className="text-2xl font-bold tracking-tight text-primary font-mono mt-0.5">
+                      ${totalAmount.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => navigate('/billing')}
-                >
-                  Cancel
-                </Button>
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => navigate('/billing')}
+                  >
+                    Cancel
+                  </Button>
 
-                <Button type="submit" variant="primary" isLoading={isSubmitting}>
-                  <Receipt className="w-4 h-4 mr-2" />
-                  Generate Invoice
-                </Button>
-              </div>
-            </form>
-          </Card>
-        )}
+                  <Button type="submit" variant="primary" isLoading={isSubmitting} className="gap-2">
+                    <Receipt className="w-4 h-4" />
+                    Generate Invoice
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          )}
+        </div>
       </div>
-          </div>
     </DashboardLayout>
   );
 };

@@ -123,68 +123,68 @@ const MyAppointmentList: React.FC<{ role: AppointmentRole }> = ({ role }) => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
+      <div ref={containerRef} className="py-2">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-textPrimary">My Appointments</h1>
-          <p className="text-sm text-textSecondary mt-0.5">
+          <h1 className="text-2xl font-bold tracking-tight text-textPrimary">My Appointments</h1>
+          <p className="text-sm text-textSecondary mt-1">
             {role === 'patient'
-              ? 'View appointments booked for your patient profile.'
-              : 'View appointments where you are the treating doctor.'}
+              ? 'View and manage consultations booked for your patient profile.'
+              : 'Consultation calendar for scheduled clinical patient appointments.'}
           </p>
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-16 text-primary">
+          <div className="flex items-center justify-center py-20 text-primary">
             <Spinner size="lg" />
-            <span className="ml-3 text-sm text-textSecondary">Loading appointments...</span>
+            <span className="ml-3 text-sm font-medium text-textSecondary">Loading appointments...</span>
           </div>
         )}
         {!loading && error && (
-          <div className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-md text-sm">{error}</div>
+          <div role="alert" className="p-4 bg-danger/10 border border-danger/20 text-danger rounded-xl text-sm font-medium mb-6">{error}</div>
         )}
         {!loading && patientNamesError && (
-          <div role="status" className="mb-4 rounded-md border border-warning/20 bg-warning/10 p-4 text-sm text-textSecondary">
+          <div role="status" className="mb-4 rounded-xl border border-warning/20 bg-warning/10 p-4 text-xs font-medium text-textSecondary">
             Appointment patient names could not be loaded: {patientNamesError}
           </div>
         )}
         {!loading && !error && (
-          <Card className={`!p-0 overflow-hidden ${role === 'doctor' ? 'shadow-md' : ''}`}>
+          <Card className="rounded-2xl border border-border bg-surface !p-0 shadow-card hover:shadow-card-hover transition-all overflow-hidden">
             {appointments.length === 0 ? (
-              <div className="p-8 text-center text-textSecondary text-sm">No appointments scheduled yet.</div>
+              <div className="p-12 text-center text-textSecondary text-sm font-medium">No appointments scheduled yet.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-background border-b border-textPrimary/10 text-xs uppercase font-semibold text-textSecondary">
+                  <thead className="bg-background/80 border-b border-border text-xs uppercase font-bold tracking-wider text-textSecondary">
                     <tr>
-                      <th className="px-6 py-3">{counterpartLabel}</th>
-                      <th className="px-6 py-3">Date &amp; Time</th>
-                      <th className="px-6 py-3">Notes</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3">Actions</th>
+                      <th className="px-6 py-4">{counterpartLabel}</th>
+                      <th className="px-6 py-4">Date &amp; Time</th>
+                      <th className="px-6 py-4">Reason / Notes</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-textPrimary">
                     {appointments.map((appointment) => (
-                      <tr key={appointment.appointmentId} className="transition-colors hover:bg-primary/5">
-                        <td className="px-6 py-4 font-medium">
+                      <tr key={appointment.appointmentId} className="transition-colors hover:bg-slate-50/80">
+                        <td className="px-6 py-4 font-semibold text-textPrimary">
                           {role === 'patient'
                             ? appointment.doctorId
                             : patientNames.get(appointment.patientId) || appointment.patientId}
                         </td>
-                        <td className="px-6 py-4 text-textSecondary">
+                        <td className="px-6 py-4 text-xs font-medium text-textSecondary">
                           {new Date(appointment.appointmentDate).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 text-textSecondary">{appointment.notes || '—'}</td>
+                        <td className="px-6 py-4 text-xs text-textSecondary max-w-xs truncate">{appointment.notes || '—'}</td>
                         <td className="px-6 py-4">
-                          <Badge variant={statusVariant(appointment.status)}>{appointment.status || 'scheduled'}</Badge>
+                          <Badge variant={statusVariant(appointment.status)} className="capitalize font-semibold">{appointment.status || 'scheduled'}</Badge>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-right">
                           {!['cancelled', 'completed', 'done', 'missed'].includes(appointment.status.toLowerCase()) && (
                             <button
                               type="button"
                               onClick={() => void cancelAppointment(appointment.appointmentId)}
                               disabled={cancellingAppointmentId === appointment.appointmentId}
-                              className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex items-center text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition-all disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {cancellingAppointmentId === appointment.appointmentId ? 'Cancelling…' : 'Cancel'}
                             </button>

@@ -23,7 +23,7 @@
   pointer-events: none;
   background:
     radial-gradient(ellipse at 50% 40%, transparent 40%, rgb(6 10 8 / 0.42) 100%),
-    linear-gradient(180deg, rgb(199 255 190 / 0.025), transparent 45%, rgb(0 0 0 / 0.12));
+    linear-gradient(180deg, rgb(207 224 255 / 0.025), transparent 45%, rgb(0 0 0 / 0.12));
   content: '';
 }
 

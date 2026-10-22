@@ -1,440 +1,154 @@
+/* ── Medivanta Professional Register Styling ────────────────────────── */
+
 .medivanta-register {
-  box-sizing: border-box;
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: clip;
-  background:
-    radial-gradient(ellipse at 50% 45%, rgb(35 48 42 / 0.72), transparent 58%),
-    #171b1a;
-}
-
-html:has(.medivanta-register),
-body:has(.medivanta-register) {
-  overflow-x: clip;
-  overflow-y: visible;
-}
-
-.medivanta-register > .relative.z-10 {
-  min-width: 0;
-}
-
-.medivanta-register-panel,
-.medivanta-register-card {
-  min-width: 0;
 }
 
 .medivanta-register-glow {
   position: absolute;
-  width: 28rem;
-  height: 28rem;
-  border-radius: 50%;
+  border-radius: 9999px;
+  filter: blur(140px);
   pointer-events: none;
-  filter: blur(90px);
-  opacity: 0.12;
+  opacity: 0.15;
 }
 
 .medivanta-register-glow-left {
-  top: -12rem;
-  left: -11rem;
-  background: #c7ffbe;
+  top: -8rem;
+  left: -6rem;
+  width: 32rem;
+  height: 32rem;
+  background: #0D9488;
 }
 
 .medivanta-register-glow-right {
-  right: -13rem;
-  bottom: 0;
-  background: #79d894;
+  bottom: -8rem;
+  right: -6rem;
+  width: 30rem;
+  height: 30rem;
+  background: #2563EB;
 }
 
-.medivanta-register .medivanta-register-panel {
-  border: 1px solid rgb(255 255 255 / 0.08);
-  background: rgb(23 27 26 / 0.84);
-  backdrop-filter: blur(20px);
+.medivanta-register-panel {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 24px;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.03);
 }
 
-.medivanta-register .medivanta-register-card {
-  border-color: rgb(255 255 255 / 0.1);
-  background: #202725;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 0.18);
-}
-
-.medivanta-register .medivanta-register-card:hover,
-.medivanta-register .medivanta-register-card:focus-within,
-.medivanta-register .medivanta-register-panel:hover,
-.medivanta-register .medivanta-register-panel:focus-within,
-.medivanta-register .medivanta-register-face:hover,
-.medivanta-register .medivanta-register-face:focus-within {
-  scale: none;
-  border-color: rgb(255 255 255 / 0.1);
-  box-shadow: none;
+.medivanta-register-panel a > span {
+  color: #0D9488 !important;
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
 }
 
 .medivanta-register .register-heading {
-  font-size: clamp(1.8rem, 3vw, 2.3rem) !important;
-  font-weight: 600 !important;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0F172A !important;
 }
 
-.medivanta-register .register-heading::before {
-  display: none !important;
+.medivanta-register-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .medivanta-register-card label {
-  color: rgb(255 255 255 / 0.82);
+  color: #0F172A;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .medivanta-register-card input,
 .medivanta-register-card select {
-  min-height: 2.5rem;
-  border-color: rgb(255 255 255 / 0.12);
-  background: #171d1a;
-  color: #fff;
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  border-radius: 10px !important;
+  font-size: 0.875rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.medivanta-register-card input:focus,
+.medivanta-register-card select:focus {
+  border-color: #0D9488 !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
+}
+
+/* Role Selector Buttons */
+.medivanta-register-role-btn {
+  border-radius: 12px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  transition: all 0.15s ease;
+  color: #475569;
+}
+
+.medivanta-register-role-btn:hover {
+  background: #F8FAFC;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.medivanta-register-role-btn.active {
+  background: #F0FDFA;
+  border-color: #0D9488;
+  color: #0F766E;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px #0D9488;
+}
+
+.medivanta-register {
+  background: var(--color-bg) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.medivanta-register-panel,
+.medivanta-register-card {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+.medivanta-register-panel a > span {
+  color: #42B88E !important;
+}
+
+.medivanta-register .register-heading {
+  color: var(--color-text-primary) !important;
+}
+
+.medivanta-register-card label {
+  color: var(--color-text-secondary) !important;
+}
+
+.medivanta-register-card input,
+.medivanta-register-card select {
+  background: var(--color-surface-elevated) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .medivanta-register-card input::placeholder {
-  color: rgb(255 255 255 / 0.32);
+  color: var(--color-text-muted) !important;
 }
 
-.medivanta-register-card input:focus,
-.medivanta-register-card select:focus {
-  border-color: #c7ffbe;
-  --tw-ring-color: rgb(199 255 190 / 0.18);
-  outline: none;
+.medivanta-register-role-btn {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
-.medivanta-register-password-toggle {
-  color: #aab6ae;
-  transition: color 180ms ease, background-color 180ms ease;
+.medivanta-register-role-btn:hover,
+.medivanta-register-role-btn.active {
+  background: rgba(24, 167, 123, 0.14);
+  border-color: var(--color-primary);
+  color: #70CAA7;
 }
-
-.medivanta-register-password-toggle:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.1);
-}
-
-.medivanta-register-password-toggle:focus-visible,
-.medivanta-register-provider:focus-visible {
-  outline: 2px solid #c7ffbe;
-  outline-offset: 2px;
-}
-
-.medivanta-register .medivanta-register-submit {
-  color: #171b1a;
-  background: #c7ffbe;
-  box-shadow: 0 8px 24px rgb(199 255 190 / 0.14);
-}
-
-.medivanta-register .medivanta-register-submit:hover {
-  background: #d8ffd1;
-  box-shadow: 0 12px 30px rgb(199 255 190 / 0.22);
-}
-
-.medivanta-register .medivanta-register-submit:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
-}
-
-.medivanta-register .medivanta-register-provider {
-  border-color: rgb(255 255 255 / 0.12);
-  color: rgb(255 255 255 / 0.86);
-  background: rgb(255 255 255 / 0.035);
-}
-
-.medivanta-register .medivanta-register-provider:hover {
-  border-color: rgb(199 255 190 / 0.45);
-  background: rgb(199 255 190 / 0.07);
-}
-
-.medivanta-password-strength {
-  margin-top: -0.55rem;
-  color: rgb(255 255 255 / 0.45);
-  font-size: 0.65rem;
-}
-
-.medivanta-password-strength > div:first-child > span:last-child {
-  color: #ffc58e;
-}
-
-.medivanta-password-strength > div:first-child > span:last-child.is-strong {
-  color: #c7ffbe;
-}
-
-.medivanta-strength-meter {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.25rem;
-  margin-top: 0.4rem;
-}
-
-.medivanta-strength-meter span {
-  height: 3px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.12);
-  transition: background-color 180ms ease;
-}
-
-.medivanta-strength-meter span.is-filled {
-  background: #c7ffbe;
-}
-
-.medivanta-register-notice {
-  display: flex;
-  gap: 0.6rem;
-  border: 1px solid rgb(199 255 190 / 0.2);
-  border-radius: 0.85rem;
-  background: rgb(199 255 190 / 0.06);
-  padding: 0.8rem;
-  color: rgb(255 255 255 / 0.76);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.medivanta-register-face {
-  isolation: isolate;
-  background:
-    radial-gradient(ellipse at 50% 45%, rgb(199 255 190 / 0.13), transparent 52%),
-    linear-gradient(145deg, #222a26, #111614 72%);
-}
-
-.medivanta-register-face-model {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-.medivanta-register-face-loading {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 46%, rgb(199 255 190 / 0.11), transparent 45%),
-    linear-gradient(145deg, #222a26, #111614 72%);
-}
-
-.medivanta-register-face::before {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgb(13 17 15 / 0.62), transparent 35%, transparent 64%, rgb(13 17 15 / 0.7));
-  content: '';
-}
-
-.medivanta-register .face-scan-model-canvas {
-  touch-action: none;
-}
-
-@media (max-width: 1023px) {
-  .medivanta-register-face {
-    min-height: 280px;
-  }
-}
-
-@media (max-width: 639px) {
-  .medivanta-register .medivanta-register-face {
-    min-height: 160px;
-  }
-}
-
-@media (max-height: 760px) and (min-width: 1024px) {
-  .medivanta-register {
-    padding-block: 1rem;
-  }
-
-  .medivanta-register-panel {
-    padding: 1.25rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .medivanta-register *,
-  .medivanta-register *::before,
-  .medivanta-register *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Registration pages keep their existing composition and receive color/font updates only. */
-.medivanta-register { background: #DEDEDE; color: #111111; font-family: 'Manrope', system-ui, sans-serif; }
-.medivanta-register-glow-left,
-.medivanta-register-glow-right { background: #D9FF5B; }
-.medivanta-register .medivanta-register-panel { border-color: #E6E6E6; background: #F4F4F4; }
-.medivanta-register .medivanta-register-card { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
-.medivanta-register-card label,
-.medivanta-register-card h1,
-.medivanta-register-card h2,
-.medivanta-register-card p { color: #111111; }
-.medivanta-register-card input,
-.medivanta-register-card select { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
-.medivanta-register-card input::placeholder { color: #6B6B6B; }
-.medivanta-register-card input:focus,
-.medivanta-register-card select:focus { border-color: #D9FF5B; --tw-ring-color: #D9FF5B; }
-.medivanta-register .medivanta-register-submit { background: #111111; color: #FFFFFF; }
-.medivanta-register .medivanta-register-submit:hover { background: #111111; color: #FFFFFF; }
-.medivanta-register .medivanta-register-provider { border-color: #E6E6E6; background: #FFFFFF; color: #111111; }
-.medivanta-register .medivanta-register-provider:hover { border-color: #D9FF5B; background: #F4F4F4; }
-.medivanta-register .medivanta-register-password-toggle { color: #6B6B6B; }
-.medivanta-register .medivanta-register-notice { border-color: #E6E6E6; background: #F4F4F4; color: #6B6B6B; }
-.medivanta-register .medivanta-password-strength { color: #6B6B6B; }
-.medivanta-register .medivanta-password-strength > div:first-child > span:last-child { color: #6B6B6B; }
-.medivanta-register .medivanta-password-strength > div:first-child > span:last-child.is-strong { color: #15803D; }
-.medivanta-register .medivanta-strength-meter span { background: #E6E6E6; }
-.medivanta-register .medivanta-strength-meter span.is-filled { background: #D9FF5B; }
-.medivanta-register .medivanta-register-face,
-.medivanta-register .medivanta-register-face-loading { background: #111111; }
-.medivanta-register .medivanta-register-panel:hover,
-.medivanta-register .medivanta-register-panel:focus-within,
-.medivanta-register .medivanta-register-card:hover,
-.medivanta-register .medivanta-register-card:focus-within { border-color: #E6E6E6; }
-
-/* Light registration form color contrast. The adjacent face panel stays dark. */
-.medivanta-register-panel > a > span { color: #111111 !important; }
-.medivanta-register-panel .register-heading { color: #111111 !important; }
-.medivanta-register-panel .register-heading + p { color: #6B6B6B !important; }
-.medivanta-register-card { color: #111111 !important; }
-.medivanta-register-card :is(label, h1, h2, p, span, div) { color: #111111 !important; }
-.medivanta-register-card > p,
-.medivanta-register-card .medivanta-register-submit + p,
-.medivanta-register-card p[role="status"] { color: #6B6B6B !important; }
-.medivanta-register-card label .text-danger,
-.medivanta-register-card .text-danger,
-.medivanta-register-card p.text-red-400 { color: #B42318 !important; }
-.medivanta-register-card label span:not(.text-danger) { color: #6B6B6B !important; }
-.medivanta-register-card input,
-.medivanta-register-card select {
-  border-color: #E6E6E6 !important;
-  background-color: #FFFFFF !important;
-  color: #111111 !important;
-}
-.medivanta-register-card input::placeholder { color: #9A9A9A !important; }
-.medivanta-register-card input:focus,
-.medivanta-register-card select:focus { border-color: #111111 !important; --tw-ring-color: #111111 !important; }
-.medivanta-register-card input.border-danger { border-color: #B42318 !important; }
-.medivanta-register-card input:-webkit-autofill,
-.medivanta-register-card select:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-  -webkit-text-fill-color: #111111 !important;
-}
-.medivanta-register-card button[role="radio"] {
-  border-color: #E6E6E6 !important;
-  background-color: #FFFFFF !important;
-}
-.medivanta-register-card button[role="radio"][aria-checked="true"] { background-color: #D9FF5B !important; }
-.medivanta-register-card button[role="radio"] > span:last-child { color: #6B6B6B !important; }
-.medivanta-register-card button[role="radio"][aria-checked="true"] > span:last-child { color: #111111 !important; }
-.medivanta-register-card button[role="radio"] svg { color: #6B6B6B !important; }
-.medivanta-register-card button[role="radio"][aria-checked="true"] svg { color: #0F3D36 !important; }
-.medivanta-register-card .animate-fade-in > div:first-child,
-.medivanta-register-card .animate-fade-in > div:first-child svg { color: #111111 !important; }
-.medivanta-register-card .animate-fade-in .rounded-lg,
-.medivanta-register-card .animate-fade-in .rounded-lg span,
-.medivanta-register-card .medivanta-password-strength,
-.medivanta-register-card .medivanta-password-strength span:last-child { color: #6B6B6B !important; }
-.medivanta-register-card .medivanta-password-strength span:last-child.is-strong { color: #0B5F58 !important; }
-.medivanta-register-card .medivanta-register-password-toggle,
-.medivanta-register-card .medivanta-register-password-toggle:hover { color: #6B6B6B !important; }
-.medivanta-register-card .medivanta-register-password-toggle:hover { background-color: #F4F4F4 !important; }
-.medivanta-register-card a { color: #0F3D36 !important; }
-.medivanta-register-card a:hover { color: #111111 !important; }
-.medivanta-register-card .relative.flex.justify-center > span {
-  background-color: transparent !important;
-  color: #6B6B6B !important;
-}
-.medivanta-register-card .border-t { border-color: #E6E6E6 !important; }
-.medivanta-register-card .medivanta-register-provider {
-  border-color: #E6E6E6 !important;
-  background-color: #FFFFFF !important;
-  color: #111111 !important;
-}
-.medivanta-register-card .medivanta-register-provider:hover { border-color: #E6E6E6 !important; background-color: #F4F4F4 !important; }
-.medivanta-register-card .medivanta-register-notice {
-  border-color: #F2B8B5 !important;
-  background-color: #FDE8E7 !important;
-  color: #B42318 !important;
-}
-.medivanta-register-card .medivanta-register-notice p { color: #B42318 !important; }
-.medivanta-register-card .medivanta-register-notice a { color: #0F3D36 !important; }
-.medivanta-register-card .medivanta-register-notice svg { color: #B42318 !important; }
-.medivanta-register-card option { background-color: #FFFFFF !important; color: #111111 !important; }
-
-/* Register page visual polish: preserve its existing fields and composition. */
-.medivanta-register {
-  background: #DEDEDE !important;
-  background-image: none !important;
-  color: #111111;
-  font-family: 'Manrope', system-ui, sans-serif;
-}
-.medivanta-register-glow { display: none; }
-.medivanta-register .medivanta-register-panel {
-  border: 1px solid #E6E6E6;
-  border-radius: 28px;
-  background: #F4F4F4;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-.medivanta-register .medivanta-register-card {
-  border: 1px solid #E6E6E6 !important;
-  border-radius: 28px !important;
-  background: #FFFFFF !important;
-  box-shadow: 0 2px 12px rgb(17 17 17 / 0.05) !important;
-  color: #111111 !important;
-}
-.medivanta-register .register-heading {
-  color: #111111 !important;
-  font-size: 32px !important;
-  font-weight: 800 !important;
-}
-.medivanta-register .register-heading + p {
-  color: #6B6B6B !important;
-  font-size: 15px !important;
-}
-.medivanta-register-card form > :not([hidden]) ~ :not([hidden]) { margin-top: 16px !important; }
-.medivanta-register-card form > div:last-child { margin-top: 24px !important; }
-.medivanta-register-card input,
-.medivanta-register-card select {
-  box-sizing: border-box;
-  height: 52px !important;
-  min-height: 52px !important;
-  border: 1px solid #E6E6E6 !important;
-  border-radius: 16px !important;
-  background: #FFFFFF !important;
-  color: #111111 !important;
-}
-.medivanta-register-card input::placeholder { color: #9A9A9A !important; }
-.medivanta-register-card input:focus,
-.medivanta-register-card select:focus {
-  border-color: #111111 !important;
-  box-shadow: 0 0 0 3px rgb(217 255 91 / 0.4) !important;
-  outline: none;
-}
-.medivanta-register-card input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
-  -webkit-text-fill-color: #111111 !important;
-}
-.medivanta-register .medivanta-register-submit {
-  box-sizing: border-box;
-  height: 52px !important;
-  min-height: 52px !important;
-  margin-top: 0 !important;
-  border: 0;
-  border-radius: 999px !important;
-  background: #111111 !important;
-  box-shadow: none !important;
-  color: #FFFFFF !important;
-  font-weight: 700;
-  transition: background-color 150ms ease;
-}
-.medivanta-register .medivanta-register-submit:hover { background: #2A2A2A !important; }
-.medivanta-register .medivanta-register-provider {
-  border: 1px solid #E6E6E6 !important;
-  border-radius: 999px !important;
-  background: #FFFFFF !important;
-  color: #111111 !important;
-}
-.medivanta-register .medivanta-register-provider:hover { background: #F4F4F4 !important; }
-.medivanta-register-card a { color: #0F3D36 !important; }
-.medivanta-register-card a:hover { color: #111111 !important; }
-.medivanta-register .medivanta-register-face,
-.medivanta-register .medivanta-register-face-loading {
-  background: #111111 !important;
-  background-image: none !important;
-}
-.medivanta-register .medivanta-register-face::before { background: none !important; }

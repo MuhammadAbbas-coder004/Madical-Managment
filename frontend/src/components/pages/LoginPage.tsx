@@ -36,7 +36,7 @@ const GoogleLogo: React.FC<{ className?: string }> = ({ className = 'h-4 w-4 shr
 
 const ProviderSpinner: React.FC = () => (
   <svg
-    className="h-4 w-4 shrink-0 animate-spin text-[#D9FF5B]"
+    className="h-4 w-4 shrink-0 animate-spin text-[#396EF4]"
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
@@ -203,13 +203,13 @@ export const LoginPage: React.FC = () => {
 
       <div className="relative z-10 my-auto grid w-full max-w-5xl min-w-0 items-stretch gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:gap-7">
         <section className="gsap-card medivanta-login-panel flex flex-col justify-center rounded-[1.5rem] p-4 shadow-2xl sm:p-6 lg:p-7">
-          <Link to="/" className="mb-4 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]">
+          <Link to="/" className="mb-4 inline-flex w-fit items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <AivoraLogo className="h-8 w-8" />
-            <span className="text-base font-semibold tracking-tight text-white">Medivanta</span>
+            <span className="text-base font-bold tracking-tight text-slate-900">Medivanta</span>
           </Link>
 
           <div className="mb-4">
-            <h1 className="login-heading text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl">
+            <h1 className="login-heading text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl">
               Welcome Back
             </h1>
           </div>
@@ -248,7 +248,7 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end pt-0.5">
-                <Link to="/forgot-password" className="rounded-sm text-xs font-semibold text-[#D9FF5B] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]">
+                <Link to="/forgot-password" className="rounded-sm text-xs font-semibold text-primary transition-colors hover:text-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   Forgot password?
                 </Link>
               </div>
@@ -268,10 +268,10 @@ export const LoginPage: React.FC = () => {
 
             <div className="relative my-3.5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
+                <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-[#202725] px-3 text-white/45">Or continue with</span>
+                <span className="bg-white px-3 text-slate-500 font-medium">Or continue with</span>
               </div>
             </div>
 
@@ -296,7 +296,7 @@ export const LoginPage: React.FC = () => {
                 onClick={() => setIsFaceModalOpen(true)}
                 disabled={Boolean(providerLoading) || isSubmitting}
               >
-                <ScanFace className="h-4 w-4 text-[#D9FF5B]" aria-hidden="true" />
+                <ScanFace className="h-4 w-4 text-primary" aria-hidden="true" />
                 <span>Sign in with Face</span>
               </Button>
             </div>
@@ -309,14 +309,14 @@ export const LoginPage: React.FC = () => {
 
             {signInNotice && (
               <div className="medivanta-auth-notice mt-3" role="status" aria-live="polite">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#D9FF5B]" aria-hidden="true" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#396EF4]" aria-hidden="true" />
                 <p>{signInNotice}</p>
               </div>
             )}
 
-            <p className="mt-3.5 text-center text-xs text-white/60">
+            <p className="mt-3.5 text-center text-xs text-slate-600">
               New to Medivanta?{' '}
-              <Link to="/register" className="font-semibold text-[#D9FF5B] transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9FF5B]">
+              <Link to="/register" className="font-semibold text-primary transition-colors hover:text-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 Create your account
               </Link>
             </p>

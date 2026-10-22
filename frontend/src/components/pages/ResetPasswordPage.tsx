@@ -1,7 +1,9 @@
-import React, { useRef,  useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Lock, ArrowLeft } from 'lucide-react';
 import api from '../../shared/services/api';
+import { AivoraLogo } from '../atoms/AivoraLogo';
 import { Card } from '../molecules/Card';
 import { FormField } from '../molecules/FormField';
 import { Button } from '../atoms/Button';
@@ -19,8 +21,14 @@ export const ResetPasswordPage: React.FC = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
-    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await api.post('/auth/reset-password', { email, otp, newPassword }) as { message?: string };
@@ -38,24 +46,71 @@ export const ResetPasswordPage: React.FC = () => {
   useFadeUp(containerRef);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md">
-        <Card>
-          <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-textPrimary">Set New Password</h1>
-            <p className="text-sm text-textSecondary mt-1">Create a secure new password for your account.</p>
+    <div
+      ref={containerRef}
+      className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center bg-background px-4 py-8"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-primary/10 blur-[100px]"
+      />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-6 text-center">
+          <Link to="/" className="inline-flex items-center gap-2.5 focus-visible:outline-none">
+            <AivoraLogo className="h-9 w-9" />
+            <span className="text-xl font-bold tracking-tight text-textPrimary">Medivanta</span>
+          </Link>
+        </div>
+
+        <Card className="border-border/80 bg-surface/90 shadow-2xl backdrop-blur-2xl">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
+              <Lock className="h-6 w-6" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-textPrimary sm:text-2xl">
+              Set New Password
+            </h1>
+            <p className="mt-1.5 text-xs font-medium text-textSecondary sm:text-sm">
+              Create a secure new password for your account.
+            </p>
           </div>
+
           <form onSubmit={handleReset} className="space-y-4">
-            <FormField label="New Password" type="password" placeholder="••••••••" required
-              value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-            <FormField label="Confirm New Password" type="password" placeholder="••••••••" required
-              value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-            <Button type="submit" variant="primary" className="w-full py-2.5 mt-2" isLoading={isLoading}>
+            <FormField
+              label="New Password"
+              type="password"
+              placeholder="••••••••"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <FormField
+              label="Confirm New Password"
+              type="password"
+              placeholder="••••••••"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              className="mt-3 w-full py-3"
+              isLoading={isLoading}
+            >
               Reset Password
             </Button>
           </form>
-          <p className="text-xs text-center text-textSecondary mt-6">
-            <Link to="/login" className="text-primary font-medium hover:underline">Back to Login</Link>
+
+          <p className="mt-6 text-center text-xs text-textSecondary">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1.5 font-semibold text-primary hover:text-primary-dark hover:underline"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Login
+            </Link>
           </p>
         </Card>
       </div>

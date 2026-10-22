@@ -40,7 +40,7 @@ const createStudioEnvironment = () => {
     context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   };
   addSoftbox(132, 74, 94, 'rgb(238 255 239 / 0.94)');
-  addSoftbox(404, 88, 88, 'rgb(199 255 190 / 0.78)');
+  addSoftbox(404, 88, 88, 'rgb(207 224 255 / 0.78)');
   addSoftbox(252, 18, 42, 'rgb(255 255 255 / 0.72)');
 
   const environment = new THREE.CanvasTexture(canvas);
@@ -134,7 +134,7 @@ export const FaceScanModel = ({ followPointer = false, normalizeSize = false }: 
     const trackingMaterial = trackingTexture
       ? new THREE.SpriteMaterial({
           map: trackingTexture,
-          color: '#C7FFBE',
+          color: '#CFE0FF',
           transparent: true,
           depthWrite: false,
           blending: THREE.AdditiveBlending,

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowUpRight, Calendar, CircleAlert, Users } from 'lucide-react';
+import { ArrowUpRight, Calendar, CircleAlert, Users } from 'lucide-react';
 import api from '../../shared/services/api';
 import { DashboardLayout } from '../templates/DashboardLayout';
 import { Card } from '../molecules/Card';
@@ -106,114 +106,30 @@ export const DashboardPage: React.FC = () => {
         )}
 
         {!loading && stats && (
-          <div className="dashboard-card-grid grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Card className="dashboard-card md:row-span-2">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-primary">
-                  <Calendar className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-sm font-medium">Clinic overview</span>
-                </div>
-                <h2 className="text-2xl font-medium text-textPrimary">Your care team, at a glance</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-textSecondary">
-                  A simple snapshot of patient activity and the work scheduled for today.
-                </p>
-              </div>
-
-              <div className="mt-8 grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
-                <div className="min-h-[112px] rounded-xl border border-textPrimary/10 bg-background p-4">
-                  <div className="flex items-center gap-2 text-textPrimary">
-                    <Users className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span className="text-xs font-medium">Patients</span>
-                  </div>
-                  <p className="mt-4 text-3xl font-medium text-textPrimary">
-                    <AnimatedNumber value={stats.totalPatients} />
-                  </p>
-                </div>
-                <div className="min-h-[112px] rounded-xl border border-textPrimary/10 bg-background p-4">
-                  <div className="flex items-center gap-2 text-textPrimary">
-                    <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span className="text-xs font-medium">Appointments today</span>
-                  </div>
-                  <p className="mt-4 text-3xl font-medium text-textPrimary">
-                    <AnimatedNumber value={stats.appointmentsToday} />
-                  </p>
-                </div>
-                <div className={`min-h-[112px] rounded-xl border p-4 ${
-                  stats.criticalVitalsCount > 0
-                    ? 'border-danger/40 bg-danger/10'
-                    : 'border-textPrimary/10 bg-background'
-                }`}>
-                  <div className="flex items-center gap-2 text-textPrimary">
-                    <AlertTriangle
-                      className={`h-4 w-4 ${stats.criticalVitalsCount > 0 ? 'text-danger' : 'text-primary'}`}
-                      aria-hidden="true"
-                    />
-                    <span className="text-xs font-medium">Critical vitals</span>
-                  </div>
-                  <p className={`mt-4 text-3xl font-medium ${
-                    stats.criticalVitalsCount > 0 ? 'text-danger' : 'text-textPrimary'
-                  }`}>
-                    <AnimatedNumber value={stats.criticalVitalsCount} />
-                  </p>
-                </div>
-              </div>
-
-              <ArrowLink to="/patients" label="Open patients" />
+          <div className="dashboard-card-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <Card className="dashboard-card dashboard-stat-card border-border hover:border-primary/20">
+              <div className="dashboard-stat-icon bg-[#E6F4F1] text-[#0F4A44]"><Users className="h-5 w-5" aria-hidden="true" /></div>
+              <p className="dashboard-stat-label">Total Patients</p>
+              <p className="dashboard-stat-value"><AnimatedNumber value={stats.totalPatients} /></p>
+              <ArrowLink to="/patients" label="View patients" />
             </Card>
-
-            <Card className="dashboard-card">
-              <div className="mb-4 flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
-                  <CircleAlert className="h-6 w-6" aria-hidden="true" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-medium text-textPrimary">Critical alerts</h2>
-                  <p className="mt-2 text-4xl font-medium text-danger">
-                    <AnimatedNumber value={stats.criticalVitalsCount} />
-                  </p>
-                  <p className="mt-1 text-sm text-textSecondary">
-                    {stats.criticalVitalsCount} {stats.criticalVitalsCount === 1 ? 'patient needs' : 'patients need'} a doctor now
-                  </p>
-                </div>
-              </div>
-              <ArrowLink to="/vitals" label="Review critical vitals" />
+            <Card className="dashboard-card dashboard-stat-card border-border hover:border-primary/20">
+              <div className="dashboard-stat-icon bg-[#EAF3FA] text-[#0284C7]"><Calendar className="h-5 w-5" aria-hidden="true" /></div>
+              <p className="dashboard-stat-label">Appointments Today</p>
+              <p className="dashboard-stat-value"><AnimatedNumber value={stats.appointmentsToday} /></p>
+              <ArrowLink to="/appointments" label="View appointments" />
             </Card>
-
-            <Card className="dashboard-card">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" aria-hidden="true" />
-                    <h2 className="text-lg font-medium text-textPrimary">Appointments</h2>
-                  </div>
-                  <p className="mt-2 text-sm text-textSecondary">
-                    {stats.appointmentsToday} scheduled today
-                  </p>
-                </div>
-                <p className="text-3xl font-medium text-textPrimary">
-                  <AnimatedNumber value={stats.appointmentsToday} />
-                </p>
-              </div>
-
-              <div
-                className="relative my-6 flex items-center justify-between before:absolute before:left-2 before:right-2 before:top-1/2 before:h-px before:bg-textPrimary/10"
-                role="img"
-                aria-label="Appointment timeline"
-              >
-                {Array.from({ length: 7 }, (_, index) => (
-                  <span
-                    key={index}
-                    className={`relative z-10 block rounded-full ${
-                      index < 2
-                        ? 'h-2 w-2 bg-textPrimary/40'
-                        : index === 2
-                          ? 'h-4 w-4 bg-primary ring-4 ring-primary/10'
-                          : 'h-2.5 w-2.5 bg-primary'
-                    }`}
-                  />
-                ))}
-              </div>
-              <ArrowLink to="/appointments" label="Open appointments" />
+            <Card className="dashboard-card dashboard-stat-card border-border hover:border-primary/20">
+              <div className="dashboard-stat-icon bg-[#F4FDE0] text-[#0F4A44]"><Users className="h-5 w-5" aria-hidden="true" /></div>
+              <p className="dashboard-stat-label">Doctors</p>
+              <p className="dashboard-stat-value"><AnimatedNumber value={stats.totalDoctors} /></p>
+              <ArrowLink to="/doctors" label="View doctors" />
+            </Card>
+            <Card className="dashboard-card dashboard-stat-card border-border hover:border-primary/20">
+              <div className="dashboard-stat-icon bg-[#FDF0EE] text-[#D9534F]"><CircleAlert className="h-5 w-5" aria-hidden="true" /></div>
+              <p className="dashboard-stat-label">Critical Alerts</p>
+              <p className={`dashboard-stat-value ${stats.criticalVitalsCount > 0 ? 'text-range-out' : ''}`}><AnimatedNumber value={stats.criticalVitalsCount} /></p>
+              <ArrowLink to="/vitals" label="Review alerts" />
             </Card>
           </div>
         )}

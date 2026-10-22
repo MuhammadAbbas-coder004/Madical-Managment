@@ -140,131 +140,132 @@ export const MedicalRecordListPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div ref={containerRef}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-textPrimary">Medical Records (EMR)</h1>
-          <p className="text-sm text-textSecondary mt-0.5">
-            Electronic health histories, diagnoses, allergies, and physician notes.
-          </p>
-        </div>
+      <div ref={containerRef} className="py-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-textPrimary">Medical Records (EMR)</h1>
+            <p className="text-sm text-textSecondary mt-1">
+              Electronic health histories, diagnoses, allergies, and physician notes.
+            </p>
+          </div>
 
-        {isDoctor && (
-          <Link
-            to="/medical-records/new"
-            className="inline-flex items-center justify-center text-sm font-medium bg-primary hover:bg-primary-hover text-surface px-4 py-2 rounded-md transition-all shadow-sm hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <FilePlus className="w-4 h-4 mr-2" />
-            Add Medical Record
-          </Link>
-        )}
-      </div>
-
-      <div className={`mb-6 max-w-sm ${isDoctor ? 'rounded-xl border border-border bg-surface p-4 shadow-card' : ''}`}>
-        <label className="block text-xs font-semibold uppercase text-textSecondary mb-1.5">
-          Select Patient
-        </label>
-        <select
-          value={selectedPatientId}
-          onChange={(e) => setSelectedPatientId(e.target.value)}
-          disabled={loadingPatients || patients.length === 0}
-          className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-textPrimary focus:outline-none focus:border-primary"
-        >
-          {patients.length === 0 ? (
-            <option value="">
-              {loadingPatients ? 'Loading authorized patients...' : error ? 'Patients unavailable' : 'No assigned patients'}
-            </option>
-          ) : patients.map((p) => (
-              <option key={p.patientId} value={p.patientId}>
-                {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
-              </option>
-            ))}
-        </select>
-      </div>
-
-      {loadingPatients && (
-        <div className="flex items-center justify-center py-10 text-primary">
-          <Spinner size="lg" />
-          <span className="ml-3 text-sm text-textSecondary">Loading patients...</span>
-        </div>
-      )}
-      {!loadingPatients && error && (
-        <div role="alert" className="mb-6 rounded-md border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
-          {error}
-        </div>
-      )}
-      {!loadingPatients && !error && doctorNamesError && (
-        <div role="status" className="mb-6 rounded-md border border-warning/20 bg-warning/10 p-4 text-sm text-textSecondary">
-          Medical records are available, but doctor names could not be loaded: {doctorNamesError}
-        </div>
-      )}
-      {loading && (
-        <div className="flex items-center justify-center py-16 text-primary">
-          <Spinner size="lg" />
-          <span className="ml-3 text-sm text-textSecondary">Loading medical history...</span>
-        </div>
-      )}
-
-      {!loading && !loadingPatients && !error && patients.length === 0 && (
-        <Card><p className="py-4 text-center text-sm text-textSecondary">No assigned patients are available.</p></Card>
-      )}
-
-      {!loading && !loadingPatients && !error && selectedPatientId && (
-        <div className="space-y-4">
-          {records.length === 0 ? (
-            <Card>
-              <p className="text-center text-textSecondary text-sm py-4">
-                No medical records found for this patient.
-              </p>
-            </Card>
-          ) : (
-            records.map((rec) => (
-              <Card key={rec.recordId} className={`space-y-3 ${isDoctor ? 'shadow-md' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
-                  <div>
-                    <h3 className="text-base font-bold text-textPrimary">
-                      {rec.diagnosis}
-                    </h3>
-                    <p className="text-xs text-textSecondary flex items-center gap-1.5 mt-0.5">
-                      <User className="w-3.5 h-3.5" /> Doctor: {rec.doctorName || doctorMap.get(rec.doctorId) || rec.doctorId}
-                    </p>
-                  </div>
-                  <span className="text-xs text-textSecondary flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {new Date(rec.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                {rec.allergies && rec.allergies.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-danger flex items-center gap-1">
-                      <AlertOctagon className="w-3.5 h-3.5" /> Allergies:
-                    </span>
-                    {rec.allergies.map((allergy, i) => (
-                      <span
-                        key={i}
-                        className="text-xs bg-danger/10 text-danger border border-danger/20 px-2 py-0.5 rounded-full font-medium"
-                      >
-                        {allergy}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="bg-background p-3 rounded-md border border-textPrimary/10">
-                  <p className="text-xs font-semibold text-textSecondary uppercase tracking-wider mb-1">
-                    Doctor's Notes
-                  </p>
-                  <p className="text-sm text-textPrimary whitespace-pre-line">
-                    {rec.notes || 'No additional notes provided.'}
-                  </p>
-                </div>
-              </Card>
-            ))
+          {isDoctor && (
+            <Link
+              to="/medical-records/new"
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary hover:bg-primary-hover text-white px-4 py-2.5 rounded-xl transition-all shadow-xs"
+            >
+              <FilePlus className="w-3.5 h-3.5" />
+              Add Medical Record
+            </Link>
           )}
         </div>
-      )}
+
+        <div className="mb-6 max-w-sm">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+            Select Patient
+          </label>
+          <select
+            value={selectedPatientId}
+            onChange={(e) => setSelectedPatientId(e.target.value)}
+            disabled={loadingPatients || patients.length === 0}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface border border-border rounded-xl text-textPrimary font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 shadow-xs"
+          >
+            {patients.length === 0 ? (
+              <option value="">
+                {loadingPatients ? 'Loading authorized patients...' : error ? 'Patients unavailable' : 'No assigned patients'}
+              </option>
+            ) : patients.map((p) => (
+                <option key={p.patientId} value={p.patientId}>
+                  {(p.fullName || `${p.firstName || ''} ${p.lastName || ''}`).trim() || 'Unnamed Patient'}
+                </option>
+              ))}
+          </select>
+        </div>
+
+        {loadingPatients && (
+          <div className="flex items-center justify-center py-12 text-primary">
+            <Spinner size="lg" />
+            <span className="ml-3 text-sm font-medium text-textSecondary">Loading patients...</span>
           </div>
+        )}
+        {!loadingPatients && error && (
+          <div role="alert" className="mb-6 rounded-xl border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
+            {error}
+          </div>
+        )}
+        {!loadingPatients && !error && doctorNamesError && (
+          <div role="status" className="mb-6 rounded-xl border border-warning/20 bg-warning/10 p-4 text-xs font-medium text-textSecondary">
+            Medical records are available, but doctor names could not be loaded: {doctorNamesError}
+          </div>
+        )}
+        {loading && (
+          <div className="flex items-center justify-center py-16 text-primary">
+            <Spinner size="lg" />
+            <span className="ml-3 text-sm font-medium text-textSecondary">Loading medical history...</span>
+          </div>
+        )}
+
+        {!loading && !loadingPatients && !error && patients.length === 0 && (
+          <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+            <p className="text-sm font-medium text-textSecondary">No assigned patients are available.</p>
+          </Card>
+        )}
+
+        {!loading && !loadingPatients && !error && selectedPatientId && (
+          <div className="space-y-4">
+            {records.length === 0 ? (
+              <Card className="rounded-2xl border border-border bg-surface p-12 text-center shadow-card">
+                <p className="text-sm font-semibold text-textPrimary">No medical records found</p>
+                <p className="text-xs text-textSecondary mt-1">There are no documented health incidents for this patient yet.</p>
+              </Card>
+            ) : (
+              records.map((rec) => (
+                <Card key={rec.recordId} className="rounded-2xl border border-border bg-surface p-6 shadow-card hover:shadow-card-hover transition-all space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3.5">
+                    <div>
+                      <h3 className="text-base font-bold tracking-tight text-textPrimary">
+                        {rec.diagnosis}
+                      </h3>
+                      <p className="text-xs text-textSecondary flex items-center gap-1.5 mt-1">
+                        <User className="w-3.5 h-3.5 text-primary" /> Doctor: <span className="font-semibold text-textPrimary">{rec.doctorName || doctorMap.get(rec.doctorId) || rec.doctorId}</span>
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-textSecondary flex items-center gap-1.5 bg-background px-3 py-1.5 rounded-lg border border-border self-start sm:self-auto">
+                      <Calendar className="w-3.5 h-3.5 text-textMuted" />
+                      {new Date(rec.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  {rec.allergies && rec.allergies.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-danger flex items-center gap-1.5 uppercase tracking-wider">
+                        <AlertOctagon className="w-3.5 h-3.5" /> Allergies:
+                      </span>
+                      {rec.allergies.map((allergy, i) => (
+                        <span
+                          key={i}
+                          className="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 rounded-full font-medium"
+                        >
+                          {allergy}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bg-background p-4 rounded-xl border border-border">
+                    <p className="text-xs font-bold text-textSecondary uppercase tracking-wider mb-1.5">
+                      Doctor's Clinical Notes
+                    </p>
+                    <p className="text-sm text-textPrimary leading-relaxed whitespace-pre-line">
+                      {rec.notes || 'No additional notes provided.'}
+                    </p>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 };

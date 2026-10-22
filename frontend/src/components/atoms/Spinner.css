@@ -20,7 +20,7 @@
   position: absolute;
   inset: 12%;
   border-radius: 50%;
-  background: rgb(199 255 190 / 0.36);
+  background: rgb(207 224 255 / 0.36);
   filter: blur(8px);
   opacity: 0.35;
   animation: medivanta-loading-glow 3.2s ease-in-out infinite;
@@ -30,12 +30,12 @@
   position: relative;
   display: block;
   transform-style: preserve-3d;
-  filter: drop-shadow(0 0 5px rgb(199 255 190 / 0.34));
+  filter: drop-shadow(0 0 5px rgb(207 224 255 / 0.34));
   animation: medivanta-loading-motion 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 .medivanta-loading-name {
-  color: #c7ffbe;
+  color: #CFE0FF;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.015em;
