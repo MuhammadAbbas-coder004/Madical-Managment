@@ -22,6 +22,11 @@ const resolveBaseUrl = (): string => {
     return '';
   }
 
+  if (configuredUrl.startsWith('/')) {
+    const path = configuredUrl.replace(/\/+$/, '');
+    return path.endsWith('/api') ? path : `${path}/api`;
+  }
+
   const apiUrl = new URL(configuredUrl);
   const browserHost = typeof window === 'undefined' ? '' : window.location.hostname;
   const isLoopback = (host: string) => host === 'localhost' || host === '127.0.0.1';

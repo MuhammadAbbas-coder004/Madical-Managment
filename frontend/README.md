@@ -33,28 +33,50 @@ See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rule
 
 ## Deploying to Vercel
 
-Vercel builds the frontend from the repository root using `vercel.json`. The backend
-is a separate service and must be deployed to a public HTTPS URL; a browser cannot
-reach a backend running at `localhost` on a developer's machine.
+Vercel builds the frontend from the repository root using `vercel.json`. The
+repository also contains a Vercel serverless API proxy at `api/[...path].ts`.
+The proxy keeps browser authentication cookies on the frontend origin; it does
+not run the Express backend or the Python face worker.
 
-In the Vercel project's **Settings → Environment Variables**, set
-`VITE_API_URL` to the public API base URL, including `/api` (for example,
-`https://api.example.com/api`). Apply it to the Production environment and
-redeploy, since Vite embeds this value when building the frontend.
+The Express API must be deployed separately as an **always-on Docker service**.
+Vercel Functions are not a replacement for that persistent service. Build the
+container from the `Backend` directory using `Backend/Dockerfile`; it includes
+the Python face worker and downloads the pinned face models during image build.
+Use persistent external MongoDB and Redis services for production. Do not rely on
+the local MongoDB/Redis containers or an ephemeral filesystem for production
+data.
 
-Configure the backend deployment with:
+After deploying the backend, set these Vercel Production environment variables:
+
+- `BACKEND_URL`: the backend's HTTPS origin only, e.g.
+  `https://your-backend-host.example` (no `/api` suffix)
+- `VITE_API_URL=/api`
+
+Set these backend environment variables in the Docker host:
 
 - `NODE_ENV=production`
-- `CLIENT_URL` set to the exact Vercel frontend origin, such as
+- `CLIENT_URL`: the exact Vercel frontend origin, e.g.
   `https://your-project.vercel.app` (no path)
-- `API_BASE_URL` set to the public API base URL, including `/api`
-- The backend's required database, Redis, and JWT environment variables, set
-  securely in the backend host
+- `API_BASE_URL`: the public Vercel origin plus `/api`, e.g.
+  `https://your-project.vercel.app/api`; register the resulting Google OAuth
+  callback URL (`/auth/google/callback`) in Google Cloud Console
+- `PORT` to the port expected by the container host
+- `MONGODB_URI`, `REDIS_URL`, and a strong `JWT_SECRET`
+- For face sign-in: `FACE_ENROLLMENT_ENABLED=true` and a securely generated,
+  persistent `BIOMETRIC_ENCRYPTION_KEY`; the Docker image supplies
+  `FACE_PYTHON_PATH` and the model files
 
-Do not set the production `VITE_API_URL` to `localhost`: that address refers to
-the visitor's own device, not the deployed backend. The backend must be reachable
-over HTTPS and allow the Vercel frontend origin for credentialed CORS requests.
-Production auth cookies currently use `SameSite=Strict`, so serve the frontend
-and API under the same site (for example, `app.example.com` and `api.example.com`)
-or proxy API requests through the frontend origin. Unrelated domains can prevent
-the browser from sending the session cookie even when the API is reachable.
+Keep `BACKEND_URL` server-side; do not prefix it with `VITE_`. Set the
+environment variables before deploying and redeploy after changing them.
+Registration, login, OAuth callbacks, and face verification should use the
+same-origin `/api` proxy. Do not point `VITE_API_URL` at `localhost` in a
+production build.
+
+The Socket.IO notification service is a persistent connection and is not
+forwarded by the serverless API proxy. Real-time notifications therefore need a
+separately reachable Socket.IO endpoint; the frontend leaves Socket.IO
+disconnected when only the `/api` proxy is configured.
+
+This setup makes the frontend deployable on Vercel, but does not provision a
+backend host, database, Redis, OAuth credentials, or biometric encryption key.
+Vercel alone cannot keep the Express API and face worker running 24/7.
